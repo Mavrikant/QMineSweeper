@@ -6,11 +6,10 @@
 class MineButton : public QPushButton
 {
     Q_OBJECT
-public:
+  public:
     explicit MineButton(QWidget *parent = nullptr);
 
-signals:
-
+  signals:
 };
 
 #endif // MINEBUTTON_H

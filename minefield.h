@@ -7,13 +7,12 @@
 class MineField : public QWidget
 {
     Q_OBJECT
-public:
+  public:
     explicit MineField(QWidget *parent = nullptr);
 
-signals:
+  signals:
 
-
-private:
+  private:
     QGridLayout grid{this};
 };
 
