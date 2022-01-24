@@ -12,6 +12,8 @@ class MineField : public QWidget
   public:
     explicit MineField(QWidget *parent = nullptr);
 
+  public slots:
+    void checkNeighbours(uint i, uint j);
   signals:
 
   private:
