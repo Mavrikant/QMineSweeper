@@ -9,27 +9,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="mainwindow.ui" line="40"/>
+        <location filename="mainwindow.ui" line="53"/>
         <source>Game</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="mainwindow.ui" line="45"/>
+        <location filename="mainwindow.ui" line="58"/>
         <source>Help</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="mainwindow.ui" line="51"/>
+        <location filename="mainwindow.ui" line="64"/>
         <source>Settings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="mainwindow.ui" line="62"/>
+        <location filename="mainwindow.ui" line="75"/>
         <source>About</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="mainwindow.ui" line="67"/>
+        <location filename="mainwindow.ui" line="80"/>
         <source>Language</source>
         <translation type="unfinished"></translation>
     </message>
