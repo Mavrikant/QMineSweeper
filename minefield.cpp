@@ -1,26 +1,44 @@
 #include "minefield.h"
 #include "minebutton.h"
 
+#include <QMouseEvent>
+
 MineField::MineField(QWidget *parent) : QWidget{parent}
 {
+    this->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     for (uint i = 0; i < Height; ++i)
     {
         for (uint j = 0; j < Width; ++j)
         {
             MButtons[i][j] = new MineButton(i, j, this);
+            MButtons[i][j]->setContentsMargins(0, 0, 0, 0);
             connect(MButtons[i][j], &MineButton::checkNeighbours, this, &MineField::checkNeighbours);
             grid.addWidget(MButtons[i][j], i, j);
-            grid.setSpacing(0);
         }
     }
+    grid.setSpacing(0);
+    grid.setContentsMargins(0, 0, 0, 0);
     setLayout(&grid);
     fillMines();
     fillNumbers();
 }
 
+void MineField::incrementflagCount()
+{
+    ++flagCount;
+    mineCountLabel->setNum(MineCount - flagCount);
+}
+
+void MineField::getMineCountLabel(QLabel *label)
+{
+    mineCountLabel = label;
+    mineCountLabel->setNum(MineCount - flagCount);
+}
+
 void MineField::fillMines()
 {
-    for (uint i = 0; i < 20; ++i)
+    srand(time(0));
+    for (uint i = 0; i < MineCount; ++i)
     {
         uint h = rand() % Height;
         uint w = rand() % Width;

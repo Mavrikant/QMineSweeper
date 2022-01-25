@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QElapsedTimer>
 #include <QMainWindow>
 
 QT_BEGIN_NAMESPACE
@@ -20,5 +21,6 @@ class MainWindow : public QMainWindow
 
   private:
     Ui::MainWindow *ui;
+    QElapsedTimer timer;
 };
 #endif // MAINWINDOW_H
