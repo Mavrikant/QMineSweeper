@@ -46,7 +46,7 @@ void MineButton::paintEvent(QPaintEvent *)
 {
     if (m_isClicked)
     {
-        this->setStyleSheet("border: 0px solid grey;; background: yellow");
+        this->setStyleSheet("border: 0px; background: rgba(215, 184, 153, 1);");
         if (m_isMined)
         {
             this->setText("#");
@@ -62,7 +62,12 @@ void MineButton::paintEvent(QPaintEvent *)
     }
     else
     {
-        this->setStyleSheet("border: 1px solid grey;; background: orange");
+        this->setStyleSheet("border: 0px; background: rgba(162, 209, 73, 1);");
+    }
+
+    if ((m_x + m_y) % 2)
+    {
+        this->setStyleSheet(this->styleSheet().replace("1);", "0.8);"));
     }
 
     QPushButton::paintEvent(nullptr);
