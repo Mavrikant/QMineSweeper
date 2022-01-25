@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/a"/>
+    <qresource prefix="/">
+        <file>icons/redflag.png</file>
+        <file>icons/explosion.png</file>
+    </qresource>
+</RCC>

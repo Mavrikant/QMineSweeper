@@ -105,7 +105,10 @@ void MineButton::Open()
     this->setStyleSheet(this->styleSheet() + "background: rgba(215, 184, 153, 1);");
     if (m_isMined)
     {
-        this->setText("#");
+        this->setStyleSheet(this->styleSheet() + "background: rgba(255, 209, 73, 1);");
+        this->setIcon(QIcon(":/icons/explosion.png"));
+        this->setIconSize(QSize(32, 32));
+        emit explosion(m_x, m_y);
     }
     else
     {
@@ -121,7 +124,7 @@ void MineButton::Flag()
 {
     m_isFlaged = true;
     m_Field->incrementflagCount();
-    this->setStyleSheet(this->styleSheet() + "background: rgba(255, 209, 73, 1);");
+    this->setIcon(QIcon(":/icons/redflag.png"));
 }
 
 void MineButton::setMined() { m_isMined = true; }

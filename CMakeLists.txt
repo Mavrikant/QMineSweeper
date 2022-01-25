@@ -32,6 +32,7 @@ set(PROJECT_SOURCES
         minefield.cpp
         minebutton.cpp
         minebutton.h
+        resources.qrc
         ${TS_FILES}
 )
 
