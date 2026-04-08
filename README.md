@@ -13,6 +13,15 @@ MineSweeper game written with Qt6 and C++20
 - yada yada
 
 
+## Building with Ninja
+
+Ninja can speed up incremental builds. After installing Qt 6 and Ninja, configure the project with the Ninja generator:
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
 ## License
 
 This project is licensed under the terms of the  [MIT License](https://choosealicense.com/licenses/mit/)
