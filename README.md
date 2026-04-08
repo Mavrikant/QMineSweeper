@@ -12,6 +12,15 @@ MineSweeper game written with Qt6 and C++20
 - yada yada
 - yada yada
 
+## Build
+
+Faster local builds use the Ninja generator with CMake (Qt 6.2+):
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/path/to/Qt
+cmake --build build
+```
+
 
 ## License
 
