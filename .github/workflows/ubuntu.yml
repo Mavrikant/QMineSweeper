@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install dependencies
       run: |
@@ -22,7 +22,7 @@ jobs:
         sudo apt-get install -y build-essential software-properties-common ninja-build lcov
 
     - name: Install Qt
-      uses: jurplel/install-qt-action@v3
+      uses: jurplel/install-qt-action@v4
       with:
         version: '6.2.0'
         host: 'linux'
@@ -30,11 +30,11 @@ jobs:
         install-deps: 'true'
 
     - name: Configure Qt env
-      run: echo '${{ env.Qt6_DIR }}/bin' >> ${GITHUB_PATH}
+      run: echo '${{ env.QT_ROOT_DIR }}/bin' >> ${GITHUB_PATH}
 
     - name: Configure CMake
       env:
-        CMAKE_PREFIX_PATH: ${{ env.Qt6_DIR }}
+        CMAKE_PREFIX_PATH: ${{ env.QT_ROOT_DIR }}
       run: |
         cmake -B ${{ github.workspace }}/build \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
@@ -59,7 +59,7 @@ jobs:
         genhtml coverage.info --output-directory coverage_html
 
     - name: Upload coverage report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-report
         path: ${{ github.workspace }}/build/coverage_html
