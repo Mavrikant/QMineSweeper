@@ -15,7 +15,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install gcc-11
         run: |
@@ -25,7 +25,7 @@ jobs:
           sudo apt install gcc-11 g++-11
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version: '6.2.0'
           host: 'linux'
@@ -34,7 +34,7 @@ jobs:
 
       - name: Configure CMake
         env:
-          CMAKE_PREFIX_PATH: ${{ env.Qt6_DIR }}
+          CMAKE_PREFIX_PATH: ${{ env.QT_ROOT_DIR }}
         run: CXX=g++-11 CC=gcc-11 cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
       - name: Build
@@ -47,7 +47,7 @@ jobs:
           tar -czf QMineSweeper-linux.tar.gz QMineSweeper-linux/
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: QMineSweeper-linux
           path: QMineSweeper-linux.tar.gz
@@ -58,10 +58,10 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version: '6.2.0'
           host: 'windows'
@@ -75,7 +75,7 @@ jobs:
 
       - name: Configure CMake
         env:
-          CMAKE_PREFIX_PATH: ${{ env.Qt6_DIR }}
+          CMAKE_PREFIX_PATH: ${{ env.QT_ROOT_DIR }}
         run: cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -G "NMake Makefiles"
 
       - name: Build
@@ -86,11 +86,11 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path QMineSweeper-windows
           Copy-Item build\QMineSweeper.exe QMineSweeper-windows\
-          & "${{ env.Qt6_DIR }}\bin\windeployqt.exe" QMineSweeper-windows\QMineSweeper.exe
+          & "${{ env.QT_ROOT_DIR }}\bin\windeployqt.exe" QMineSweeper-windows\QMineSweeper.exe
           Compress-Archive -Path QMineSweeper-windows -DestinationPath QMineSweeper-windows.zip
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: QMineSweeper-windows
           path: QMineSweeper-windows.zip
@@ -103,17 +103,17 @@ jobs:
 
     steps:
       - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: QMineSweeper-linux
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: QMineSweeper-windows
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             QMineSweeper-linux.tar.gz
