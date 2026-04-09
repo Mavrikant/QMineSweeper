@@ -1,64 +1,78 @@
-name: Ubuntu Build
+name: Ubuntu Build & Test
 
 on:
   push:
-    branches: [ main ]
+    branches: ['**']
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
-  BUILD_TYPE: Release
+  BUILD_TYPE: Debug
 
 jobs:
-  build:
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  build-test-coverage:
     runs-on: ubuntu-latest
+
     steps:
-    
-    - name: Install gcc-11
-      run: |
-        sudo apt install build-essential manpages-dev software-properties-common
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt update
-        sudo apt install gcc-11 g++-11 ninja-build
+      - uses: actions/checkout@v3
 
-    
-    - name: Install Qt
-      uses: jurplel/install-qt-action@v2
-      with:
-        version: '6.2.0'
-        host: 'linux'
-        target: 'desktop'
-        install-deps: 'true'
-    
-    - name: Find Qt 6
-      if: ${{ startsWith(matrix.qt_ver, '6') }}
-      run: |
-        echo 'Qt6_DIR = ${{ env.Qt6_DIR }}'
-        echo 'Qt_DIR=${{ env.Qt6_DIR }}' >> ${GITHUB_ENV}
-    
-    - name: Configure Qt env
-      run: echo '${{ env.Qt_DIR }}/bin' >> ${GITHUB_PATH}
-    
-    - name: Test Qt & env
-      run: |
-        echo ${PATH}
-        which 'qmake'
-        qmake '-query'
-    
-    - uses: actions/checkout@v2   
-    - name: Configure CMake
-      env:  
-        CMAKE_PREFIX_PATH: ${{env.Qt6_DIR}}
-      run: |
-        rm -f CMakeCache.txt
-        CXX=g++-11 CC=gcc-11 cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -G Ninja
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            software-properties-common \
+            gcc-11 \
+            g++-11 \
+            ninja-build \
+            lcov
 
-    - name: Build
-      run: CXX=g++-11 CC=gcc-11 cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.2.0'
+          host: linux
+          target: desktop
+          install-deps: true
 
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C ${{env.BUILD_TYPE}}
-      
+      - name: Configure CMake
+        env:
+          CMAKE_PREFIX_PATH: ${{ env.Qt6_DIR }}
+        run: |
+          CXX=g++-11 CC=gcc-11 cmake -B ${{ github.workspace }}/build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DBUILD_TESTS=ON \
+            -DCOVERAGE=ON \
+            -G Ninja
+
+      - name: Build
+        run: cmake --build ${{ github.workspace }}/build
+
+      - name: Test
+        working-directory: ${{ github.workspace }}/build
+        env:
+          QPA_PLATFORM: offscreen
+        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
+
+      - name: Generate coverage report
+        working-directory: ${{ github.workspace }}/build
+        run: |
+          lcov --capture --directory . \
+               --output-file coverage.info \
+               --gcov-tool gcov-11
+          lcov --remove coverage.info \
+               '/usr/*' '*/tests/*' '*/Qt*' \
+               --output-file coverage.info
+          genhtml coverage.info --output-directory coverage_html
+
+      - name: Upload coverage HTML as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: ${{ github.workspace }}/build/coverage_html
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ${{ github.workspace }}/build/coverage.info
+          fail_ci_if_error: false

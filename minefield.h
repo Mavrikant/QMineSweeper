@@ -15,6 +15,13 @@ class MineField : public QWidget
     void incrementflagCount();
     void getMineCountLabel(QLabel *label);
 
+    // Accessors used by unit tests
+    MineButton *getButton(uint i, uint j) { return MButtons[i][j]; }
+    int getFlagCount() const { return flagCount; }
+    static constexpr uint getWidth() { return Width; }
+    static constexpr uint getHeight() { return Height; }
+    static constexpr int getMineCount() { return MineCount; }
+
   public slots:
     void checkNeighbours(uint i, uint j);
 

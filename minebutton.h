@@ -32,6 +32,9 @@ class MineButton : public QPushButton
     uint Number();
     bool isOpened();
     void Open();
+    uint getX() const { return m_x; }
+    uint getY() const { return m_y; }
+    bool isFlagged() const { return m_isFlaged; }
   signals:
     void checkNeighbours(uint m_x, uint m_y);
     void explosion(uint m_x, uint m_y);
