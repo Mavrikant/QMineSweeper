@@ -18,6 +18,8 @@ set(CMAKE_USE_WIN32_THREADS_INIT 0)
 set(CMAKE_USE_PTHREADS_INIT 1)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
+option(ENABLE_COVERAGE "Enable gcov/lcov coverage instrumentation" OFF)
+
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools REQUIRED)
 
@@ -76,3 +78,6 @@ set_target_properties(QMineSweeper PROPERTIES
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(QMineSweeper)
 endif()
+
+enable_testing()
+add_subdirectory(tests)
