@@ -15,7 +15,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install gcc-11
         run: |
@@ -25,7 +25,7 @@ jobs:
           sudo apt install gcc-11 g++-11
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v2
+        uses: jurplel/install-qt-action@v3
         with:
           version: '6.2.0'
           host: 'linux'
@@ -47,7 +47,7 @@ jobs:
           tar -czf QMineSweeper-linux.tar.gz QMineSweeper-linux/
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: QMineSweeper-linux
           path: QMineSweeper-linux.tar.gz
@@ -58,10 +58,10 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v2
+        uses: jurplel/install-qt-action@v3
         with:
           version: '6.2.0'
           host: 'windows'
@@ -90,7 +90,7 @@ jobs:
           Compress-Archive -Path QMineSweeper-windows -DestinationPath QMineSweeper-windows.zip
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: QMineSweeper-windows
           path: QMineSweeper-windows.zip
@@ -103,12 +103,12 @@ jobs:
 
     steps:
       - name: Download Linux artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: QMineSweeper-linux
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: QMineSweeper-windows
 
