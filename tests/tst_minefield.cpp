@@ -1,14 +1,14 @@
 #include <QApplication>
 #include <QTest>
 
-#include "minefield.h"
 #include "minebutton.h"
+#include "minefield.h"
 
 class TestMineField : public QObject
 {
     Q_OBJECT
 
-private slots:
+  private slots:
     void testDimensions();
     void testMineCountBounds();
     void testFillNumbersConsistency();

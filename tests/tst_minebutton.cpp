@@ -2,8 +2,8 @@
 #include <QSignalSpy>
 #include <QTest>
 
-#include "minefield.h"
 #include "minebutton.h"
+#include "minefield.h"
 
 // Helper: find a non-mined button with Number()==0 (fully empty cell)
 static MineButton *findEmptyButton(MineField &field)
@@ -48,7 +48,7 @@ class TestMineButton : public QObject
 {
     Q_OBJECT
 
-private slots:
+  private slots:
     void testInitialState();
     void testSetMined();
     void testSetAndGetNumber();
