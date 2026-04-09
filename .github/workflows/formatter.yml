@@ -1,11 +1,28 @@
-on: push
-name: clang-format Code Formatter
+name: clang-format
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
 jobs:
-  lint:
-    name: clang-format Code Formatter
+  format:
+    name: Check formatting
     runs-on: ubuntu-latest
     steps:
-    - name: Clang Code Formatter
-      uses: Mavrikant/clang-format-action@ubuntu-22.04
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Run clang-format
+        run: |
+          clang-format --version
+          files=$(find . -type f \( -name '*.cpp' -o -name '*.h' \) \
+            -not -path './build/*' -not -path './.git/*')
+          echo "Checking: $files"
+          clang-format --dry-run --Werror $files

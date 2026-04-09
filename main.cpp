@@ -6,7 +6,13 @@
 
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
+    QApplication app(argc, argv);
+
+    QApplication::setApplicationName("QMineSweeper");
+    QApplication::setApplicationDisplayName("QMineSweeper");
+    QApplication::setOrganizationName("Mavrikant");
+    QApplication::setOrganizationDomain("mavrikant.com");
+    QApplication::setApplicationVersion(QString::fromUtf8(QMS_VERSION));
 
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();
@@ -15,11 +21,12 @@ int main(int argc, char *argv[])
         const QString baseName = "QMineSweeper_" + QLocale(locale).name();
         if (translator.load(":/i18n/" + baseName))
         {
-            a.installTranslator(&translator);
+            QApplication::installTranslator(&translator);
             break;
         }
     }
+
     MainWindow w;
     w.show();
-    return a.exec();
+    return app.exec();
 }

@@ -4,6 +4,8 @@
 #include <QElapsedTimer>
 #include <QMainWindow>
 
+#include <memory>
+
 QT_BEGIN_NAMESPACE
 namespace Ui
 {
@@ -16,11 +18,12 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
   public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow() override;
 
   private:
-    Ui::MainWindow *ui;
-    QElapsedTimer timer;
+    std::unique_ptr<Ui::MainWindow> ui;
+    QElapsedTimer m_timer;
 };
+
 #endif // MAINWINDOW_H

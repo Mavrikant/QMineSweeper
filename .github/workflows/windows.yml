@@ -6,40 +6,47 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   BUILD_TYPE: Release
+  QT_VERSION: '6.7.2'
 
 jobs:
   build:
-    runs-on: windows-latest
-
+    name: Build and Test
+    runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Qt
+      - name: Install Qt ${{ env.QT_VERSION }}
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.2.0'
-          host: 'windows'
-          target: 'desktop'
-          arch: 'win64_msvc2019_64'
-          dir: '${{ github.workspace }}/qt/'
-          install-deps: 'true'
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          cache: true
+          install-deps: true
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure CMake
-        env:
-          CMAKE_PREFIX_PATH: ${{ env.QT_ROOT_DIR }}
-        run: cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -G "NMake Makefiles"
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}" `
+            -G Ninja
 
       - name: Build
-        run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }}
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
       - name: Test
-        working-directory: ${{ github.workspace }}/build
+        working-directory: build
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
-

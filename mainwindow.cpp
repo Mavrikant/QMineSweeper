@@ -1,16 +1,18 @@
 #include "mainwindow.h"
+
 #include "./ui_mainwindow.h"
 
 #include <QTimer>
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_unique<Ui::MainWindow>())
 {
     ui->setupUi(this);
-    this->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    timer.start();
-    QTimer *timer2 = new QTimer(this);
-    connect(timer2, &QTimer::timeout, this, [&] { ui->Time->setText(QString::asprintf("%05.1f", (float)timer.elapsed() / 1000.0)); });
-    timer2->start(50);
+    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    m_timer.start();
+
+    auto *displayTimer = new QTimer(this);
+    connect(displayTimer, &QTimer::timeout, this, [this] { ui->Time->setText(QString::asprintf("%05.1f", static_cast<float>(m_timer.elapsed()) / 1000.0f)); });
+    displayTimer->start(50);
 
     ui->mineFieldWidget->getMineCountLabel(ui->mineCount);
 
@@ -18,4 +20,4 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     setWindowFlags(Qt::Dialog | Qt::MSWindowsFixedSizeDialogHint);
 }
 
-MainWindow::~MainWindow() { delete ui; }
+MainWindow::~MainWindow() = default;
