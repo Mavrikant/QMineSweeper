@@ -1,83 +1,85 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.21)
 
-project(QMineSweeper VERSION 0.1 LANGUAGES CXX)
+project(QMineSweeper
+    VERSION 1.0.0
+    DESCRIPTION "A Qt6-based Minesweeper game"
+    HOMEPAGE_URL "https://github.com/Mavrikant/QMineSweeper"
+    LANGUAGES CXX
+)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
-
-set(CMAKE_THREAD_LIBS_INIT "-lpthread")
-set(CMAKE_HAVE_THREADS_LIBRARY 1)
-set(CMAKE_USE_WIN32_THREADS_INIT 0)
-set(CMAKE_USE_PTHREADS_INIT 1)
-set(THREADS_PREFER_PTHREAD_FLAG ON)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
 
 option(ENABLE_COVERAGE "Enable gcov/lcov coverage instrumentation" OFF)
+option(BUILD_TESTING "Build unit tests" ON)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools REQUIRED)
-find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools REQUIRED)
+find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets LinguistTools)
+
+qt_standard_project_setup(REQUIRES 6.2)
 
 set(TS_FILES QMineSweeper_tr_TR.ts)
 
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
-        minefield.h
-        minefield.cpp
-        minebutton.cpp
-        minebutton.h
-        resources.qrc
-        ${TS_FILES}
+    main.cpp
+    mainwindow.cpp
+    mainwindow.h
+    mainwindow.ui
+    minefield.h
+    minefield.cpp
+    minebutton.cpp
+    minebutton.h
+    resources.qrc
 )
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(QMineSweeper
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET QMineSweeper APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
+qt_add_executable(QMineSweeper
+    MANUAL_FINALIZATION
+    ${PROJECT_SOURCES}
+)
 
-    qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
-else()
-    if(ANDROID)
-        add_library(QMineSweeper SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(QMineSweeper
-            ${PROJECT_SOURCES}
-        )
-    endif()
+qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 
-    qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
-endif()
+target_link_libraries(QMineSweeper PRIVATE Qt6::Widgets)
 
-target_link_libraries(QMineSweeper PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
+target_compile_definitions(QMineSweeper PRIVATE
+    QMS_VERSION="${PROJECT_VERSION}"
+)
 
 set_target_properties(QMineSweeper PROPERTIES
-    MACOSX_BUNDLE_GUI_IDENTIFIER my.example.com
+    WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.mavrikant.qminesweeper
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(QMineSweeper)
+if(ENABLE_COVERAGE)
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        message(WARNING "Coverage is only supported with GCC/Clang")
+    else()
+        target_compile_options(QMineSweeper PRIVATE --coverage -O0 -g)
+        target_link_options(QMineSweeper PRIVATE --coverage)
+    endif()
 endif()
 
-enable_testing()
-add_subdirectory(tests)
+include(GNUInstallDirs)
+install(TARGETS QMineSweeper
+    BUNDLE  DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+qt_finalize_executable(QMineSweeper)
+
+if(BUILD_TESTING)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

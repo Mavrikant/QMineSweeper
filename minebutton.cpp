@@ -1,152 +1,127 @@
 #include "minebutton.h"
+
 #include "minefield.h"
+
+#include <QColor>
+#include <QFont>
+#include <QIcon>
 #include <QMouseEvent>
 #include <QSizePolicy>
+#include <QString>
 
-MineButton::MineButton(uint x, uint y, QWidget *parent) : QPushButton{parent}
+namespace
 {
-    this->setFixedSize(30, 30);
-    this->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    this->m_Field = reinterpret_cast<MineField *>(parent);
-    m_x = x;
-    m_y = y;
-    QFont f("Arial", 12, QFont::Bold);
-    setFont(f);
-    this->setStyleSheet("border: 0px;");
-    this->setStyleSheet(this->styleSheet() + "background: rgba(162, 209, 73, 1);");
-    if ((m_x + m_y) % 2)
-    {
-        this->setStyleSheet(this->styleSheet().replace("1);", "0.8);"));
-    }
-}
+constexpr int kCellSize = 30;
+constexpr int kIconSize = 32;
+constexpr const char *kEvenCellStyle = "border: 0px; background: rgba(162, 209, 73, 1);";
+constexpr const char *kOddCellStyle = "border: 0px; background: rgba(162, 209, 73, 0.8);";
+constexpr const char *kEvenOpenedStyle = "border: 0px; background: rgba(215, 184, 153, 1);";
+constexpr const char *kOddOpenedStyle = "border: 0px; background: rgba(215, 184, 153, 0.8);";
+constexpr const char *kMineStyle = "border: 0px; background: rgba(255, 209, 73, 1);";
 
-void MineButton::setNumber(uint number)
+QColor numberColor(std::uint32_t number)
 {
-    if (!m_isMined)
-    {
-        this->number = number;
-    }
-
-    QColor color;
-
     switch (number)
     {
     case 1:
-    {
-        color = QColor::fromRgb(2, 0, 251);
-        break;
-    }
-
+        return {2, 0, 251};
     case 2:
-    {
-        color = QColor::fromRgb(1, 126, 0);
-        break;
-    }
+        return {1, 126, 0};
     case 3:
-    {
-        color = QColor::fromRgb(251, 3, 1);
-        break;
-    }
+        return {251, 3, 1};
     case 4:
-    {
-        color = QColor::fromRgb(1, 1, 128);
-        break;
-    }
+        return {1, 1, 128};
     case 5:
-
-    {
-        color = QColor::fromRgb(125, 0, 1);
-        break;
-    }
+        return {125, 0, 1};
     case 6:
-
-    {
-        color = QColor::fromRgb(1, 126, 125);
-        break;
-    }
+        return {1, 126, 125};
     case 7:
-
-    {
-        color = QColor::fromRgb(0, 0, 0);
-        break;
-    }
+        return {0, 0, 0};
     case 8:
-    {
-        color = QColor::fromRgb(128, 128, 128);
-        break;
-    }
+        return {128, 128, 128};
     default:
-    {
-        break;
+        return {};
     }
-    }
+}
+} // namespace
 
-    this->setStyleSheet(this->styleSheet() + QString("color: rgb(%1, %2, %3);").arg(color.red()).arg(color.green()).arg(color.blue()));
+MineButton::MineButton(std::uint32_t x, std::uint32_t y, QWidget *parent) : QPushButton{parent}, m_Field{qobject_cast<MineField *>(parent)}, m_x{x}, m_y{y}
+{
+    setFixedSize(kCellSize, kCellSize);
+    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    setFont(QFont{"Arial", 12, QFont::Bold});
+    setStyleSheet(((m_x + m_y) % 2) ? kOddCellStyle : kEvenCellStyle);
 }
 
-uint MineButton::Number() { return this->number; }
+void MineButton::setNumber(std::uint32_t number)
+{
+    if (!m_isMined)
+    {
+        m_number = number;
+    }
 
-bool MineButton::isMined() { return m_isMined; }
+    const QColor color = numberColor(number);
+    setStyleSheet(styleSheet() + QStringLiteral("color: rgb(%1, %2, %3);").arg(color.red()).arg(color.green()).arg(color.blue()));
+}
 
-bool MineButton::isOpened() { return m_isClicked; }
+std::uint32_t MineButton::Number() const noexcept { return m_number; }
+
+bool MineButton::isMined() const noexcept { return m_isMined; }
+
+bool MineButton::isOpened() const noexcept { return m_isClicked; }
 
 void MineButton::Open()
 {
     m_isClicked = true;
-    if (number == 0 && m_isMined == false)
+    if (m_number == 0 && !m_isMined)
     {
         emit checkNeighbours(m_x, m_y);
     }
-    else if (m_isMined == false)
-    {
-        emit explosion(m_x, m_y);
-    }
 
-    this->setStyleSheet(this->styleSheet() + "background: rgba(215, 184, 153, 1);");
+    setStyleSheet(((m_x + m_y) % 2) ? kOddOpenedStyle : kEvenOpenedStyle);
+
     if (m_isMined)
     {
-        this->setStyleSheet(this->styleSheet() + "background: rgba(255, 209, 73, 1);");
-        this->setIcon(QIcon(":/icons/explosion.png"));
-        this->setIconSize(QSize(32, 32));
+        setStyleSheet(kMineStyle);
+        setIcon(QIcon{":/icons/explosion.png"});
+        setIconSize(QSize{kIconSize, kIconSize});
         emit explosion(m_x, m_y);
     }
     else
     {
-        this->setText(number == 0 ? "" : QString::number(number));
-    }
-    if ((m_x + m_y) % 2)
-    {
-        this->setStyleSheet(this->styleSheet().replace("1);", "0.8);"));
+        setText(m_number == 0 ? QString{} : QString::number(m_number));
+        const QColor color = numberColor(m_number);
+        setStyleSheet(styleSheet() + QStringLiteral("color: rgb(%1, %2, %3);").arg(color.red()).arg(color.green()).arg(color.blue()));
     }
 }
 
 void MineButton::Flag()
 {
+    if (m_isFlaged || m_isClicked)
+    {
+        return;
+    }
     m_isFlaged = true;
-    m_Field->incrementflagCount();
-    this->setIcon(QIcon(":/icons/redflag.png"));
+    if (m_Field != nullptr)
+    {
+        m_Field->incrementflagCount();
+    }
+    setIcon(QIcon{":/icons/redflag.png"});
 }
 
-void MineButton::setMined() { m_isMined = true; }
+void MineButton::setMined() noexcept { m_isMined = true; }
 
 void MineButton::mousePressEvent(QMouseEvent *e)
 {
     switch (e->button())
     {
     case Qt::LeftButton:
-    {
         Open();
         break;
-    }
     case Qt::RightButton:
-    {
         Flag();
         break;
-    }
     default:
-    {
-        // Do nothing
         break;
-    }
     }
 }

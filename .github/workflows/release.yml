@@ -4,117 +4,240 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.2.3)'
+        required: true
+        type: string
 
 env:
   BUILD_TYPE: Release
+  QT_VERSION: '6.7.2'
 
 jobs:
   build-linux:
+    name: Build Linux (x86_64)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install gcc-11
+      - name: Install system dependencies
         run: |
-          sudo apt install build-essential manpages-dev software-properties-common
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt update
-          sudo apt install gcc-11 g++-11
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ninja-build \
+            libgl1-mesa-dev \
+            libxkbcommon-dev \
+            libxcb-cursor0 \
+            libfuse2
 
-      - name: Install Qt
+      - name: Install Qt ${{ env.QT_VERSION }}
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.2.0'
-          host: 'linux'
-          target: 'desktop'
-          install-deps: 'true'
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          cache: true
+          install-deps: true
 
       - name: Configure CMake
-        env:
-          CMAKE_PREFIX_PATH: ${{ env.QT_ROOT_DIR }}
-        run: CXX=g++-11 CC=gcc-11 cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }} \
+            -DCMAKE_INSTALL_PREFIX=AppDir/usr \
+            -DBUILD_TESTING=OFF \
+            -G Ninja
 
       - name: Build
-        run: CXX=g++-11 CC=gcc-11 cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }}
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
-      - name: Package
+      - name: Install to AppDir
+        run: cmake --install build
+
+      - name: Download linuxdeploy
         run: |
-          mkdir QMineSweeper-linux
-          cp build/QMineSweeper QMineSweeper-linux/
-          tar -czf QMineSweeper-linux.tar.gz QMineSweeper-linux/
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage linuxdeploy-plugin-qt-x86_64.AppImage
 
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v7
+      - name: Create AppImage
+        env:
+          QMAKE: ${{ env.QT_ROOT_DIR }}/bin/qmake
+          OUTPUT: QMineSweeper-x86_64.AppImage
+          VERSION: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          mkdir -p AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cat > AppDir/usr/share/applications/qminesweeper.desktop <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=QMineSweeper
+          Comment=A Qt6-based Minesweeper game
+          Exec=QMineSweeper
+          Icon=qminesweeper
+          Categories=Game;LogicGame;
+          Terminal=false
+          EOF
+          cp icons/explosion.png AppDir/usr/share/icons/hicolor/256x256/apps/qminesweeper.png
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --plugin qt \
+            --output appimage \
+            --desktop-file AppDir/usr/share/applications/qminesweeper.desktop \
+            --icon-file AppDir/usr/share/icons/hicolor/256x256/apps/qminesweeper.png
+
+      - name: Package tarball
+        run: |
+          mkdir -p dist
+          mv QMineSweeper-*.AppImage dist/QMineSweeper-linux-x86_64.AppImage || true
+          cp build/QMineSweeper dist/QMineSweeper
+          tar -czf QMineSweeper-linux-x86_64.tar.gz -C dist .
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: QMineSweeper-linux
-          path: QMineSweeper-linux.tar.gz
+          path: |
+            QMineSweeper-linux-x86_64.tar.gz
+            dist/QMineSweeper-linux-x86_64.AppImage
+          if-no-files-found: warn
 
   build-windows:
-    runs-on: windows-latest
+    name: Build Windows (x64)
+    runs-on: windows-2022
     permissions:
       contents: read
-
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Qt
+      - name: Install Qt ${{ env.QT_VERSION }}
         uses: jurplel/install-qt-action@v4
         with:
-          version: '6.2.0'
-          host: 'windows'
-          target: 'desktop'
-          arch: 'win64_msvc2019_64'
-          dir: '${{ github.workspace }}/qt/'
-          install-deps: 'true'
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+          cache: true
+          install-deps: true
 
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
       - name: Configure CMake
-        env:
-          CMAKE_PREFIX_PATH: ${{ env.QT_ROOT_DIR }}
-        run: cmake -B ${{ github.workspace }}/build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -G "NMake Makefiles"
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+            -DCMAKE_PREFIX_PATH="${{ env.QT_ROOT_DIR }}" `
+            -DBUILD_TESTING=OFF `
+            -G Ninja
 
       - name: Build
-        run: cmake --build ${{ github.workspace }}/build --config ${{ env.BUILD_TYPE }}
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
-      - name: Package
+      - name: Package with windeployqt
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Path QMineSweeper-windows
+          New-Item -ItemType Directory -Force -Path QMineSweeper-windows | Out-Null
           Copy-Item build\QMineSweeper.exe QMineSweeper-windows\
-          & "${{ env.QT_ROOT_DIR }}\bin\windeployqt.exe" QMineSweeper-windows\QMineSweeper.exe
-          Compress-Archive -Path QMineSweeper-windows -DestinationPath QMineSweeper-windows.zip
+          & "${{ env.QT_ROOT_DIR }}\bin\windeployqt.exe" `
+            --release `
+            --no-translations `
+            --no-system-d3d-compiler `
+            --no-opengl-sw `
+            QMineSweeper-windows\QMineSweeper.exe
+          Compress-Archive -Path QMineSweeper-windows\* `
+            -DestinationPath QMineSweeper-windows-x64.zip
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: QMineSweeper-windows
-          path: QMineSweeper-windows.zip
+          path: QMineSweeper-windows-x64.zip
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS (universal)
+    runs-on: macos-14
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt ${{ env.QT_VERSION }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          cache: true
+          install-deps: true
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }} \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DBUILD_TESTING=OFF \
+            -G Ninja
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Package with macdeployqt
+        run: |
+          "${QT_ROOT_DIR}/bin/macdeployqt" build/QMineSweeper.app -dmg
+          mv build/QMineSweeper.dmg QMineSweeper-macos-universal.dmg
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QMineSweeper-macos
+          path: QMineSweeper-macos-universal.dmg
+          if-no-files-found: error
 
   release:
-    needs: [build-linux, build-windows]
+    name: Publish GitHub Release
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: QMineSweeper-linux
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v8
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: QMineSweeper-windows
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f \
+            \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.dmg' -o -name '*.AppImage' \) \
+            -exec cp {} release/ \;
+          ls -la release
+
+      - name: Generate checksums
+        working-directory: release
+        run: sha256sum * > SHA256SUMS.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: QMineSweeper ${{ github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
           files: |
-            QMineSweeper-linux.tar.gz
-            QMineSweeper-windows.zip
+            release/*

@@ -3,6 +3,8 @@
 
 #include <QPushButton>
 
+#include <cstdint>
+
 class MineField;
 
 enum class MineButtonState
@@ -23,28 +25,34 @@ class MineButton : public QPushButton
 {
     Q_OBJECT
   public:
-    explicit MineButton(uint x, uint y, QWidget *parent);
-    void mousePressEvent(QMouseEvent *e);
-    void setNumber(uint number);
-    bool isMined();
-    void setMined();
+    explicit MineButton(std::uint32_t x, std::uint32_t y, QWidget *parent);
 
-    uint Number();
-    bool isOpened();
+    void setNumber(std::uint32_t number);
+    [[nodiscard]] std::uint32_t Number() const noexcept;
+
+    [[nodiscard]] bool isMined() const noexcept;
+    void setMined() noexcept;
+
+    [[nodiscard]] bool isOpened() const noexcept;
     void Open();
+
   signals:
-    void checkNeighbours(uint m_x, uint m_y);
-    void explosion(uint m_x, uint m_y);
+    void checkNeighbours(std::uint32_t m_x, std::uint32_t m_y);
+    void explosion(std::uint32_t m_x, std::uint32_t m_y);
+
+  protected:
+    void mousePressEvent(QMouseEvent *e) override;
 
   private:
-    MineField *m_Field;
-    uint m_x = 0;
-    uint m_y = 0;
-    bool m_isMined = false;
-    bool m_isClicked = false;
-    bool m_isFlaged = false;
-    uint number = 0;
     void Flag();
+
+    MineField *m_Field{nullptr};
+    std::uint32_t m_x{0};
+    std::uint32_t m_y{0};
+    std::uint32_t m_number{0};
+    bool m_isMined{false};
+    bool m_isClicked{false};
+    bool m_isFlaged{false};
 };
 
 #endif // MINEBUTTON_H

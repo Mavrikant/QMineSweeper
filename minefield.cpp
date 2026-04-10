@@ -1,85 +1,107 @@
 #include "minefield.h"
+
 #include "minebutton.h"
 
 #include <QMouseEvent>
 
+#include <random>
+
 MineField::MineField(QWidget *parent) : QWidget{parent}
 {
-    this->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
-    for (uint i = 0; i < Height; ++i)
+    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    for (std::uint32_t i = 0; i < Height; ++i)
     {
-        for (uint j = 0; j < Width; ++j)
+        for (std::uint32_t j = 0; j < Width; ++j)
         {
-            MButtons[i][j] = new MineButton(i, j, this);
-            MButtons[i][j]->setContentsMargins(0, 0, 0, 0);
-            connect(MButtons[i][j], &MineButton::checkNeighbours, this, &MineField::checkNeighbours);
-            grid.addWidget(MButtons[i][j], i, j);
+            auto *button = new MineButton(i, j, this);
+            button->setContentsMargins(0, 0, 0, 0);
+            connect(button, &MineButton::checkNeighbours, this, &MineField::checkNeighbours);
+            m_grid.addWidget(button, static_cast<int>(i), static_cast<int>(j));
+            m_buttons[i][j] = button;
         }
     }
-    grid.setSpacing(0);
-    grid.setContentsMargins(0, 0, 0, 0);
-    setLayout(&grid);
+    m_grid.setSpacing(0);
+    m_grid.setContentsMargins(0, 0, 0, 0);
     fillMines();
     fillNumbers();
 }
 
 void MineField::incrementflagCount()
 {
-    ++flagCount;
-    mineCountLabel->setNum(MineCount - flagCount);
+    ++m_flagCount;
+    if (m_mineCountLabel)
+    {
+        m_mineCountLabel->setNum(MineCount - m_flagCount);
+    }
 }
 
 void MineField::getMineCountLabel(QLabel *label)
 {
-    mineCountLabel = label;
-    mineCountLabel->setNum(MineCount - flagCount);
+    m_mineCountLabel = label;
+    if (m_mineCountLabel)
+    {
+        m_mineCountLabel->setNum(MineCount - m_flagCount);
+    }
 }
 
 void MineField::fillMines()
 {
-    srand(time(0));
-    for (uint i = 0; i < MineCount; ++i)
+    std::random_device rd;
+    std::mt19937 gen{rd()};
+    std::uniform_int_distribution<std::uint32_t> distHeight{0, Height - 1};
+    std::uniform_int_distribution<std::uint32_t> distWidth{0, Width - 1};
+
+    int placed = 0;
+    while (placed < MineCount)
     {
-        uint h = rand() % Height;
-        uint w = rand() % Width;
-        MButtons[h][w]->setMined();
+        const std::uint32_t h = distHeight(gen);
+        const std::uint32_t w = distWidth(gen);
+        if (!m_buttons[h][w]->isMined())
+        {
+            m_buttons[h][w]->setMined();
+            ++placed;
+        }
     }
 }
 
 void MineField::fillNumbers()
 {
-    for (int i = 0; i < Height; ++i)
+    for (std::uint32_t i = 0; i < Height; ++i)
     {
-        for (int j = 0; j < Width; ++j)
+        for (std::uint32_t j = 0; j < Width; ++j)
         {
-            uint minenumber = 0;
+            std::uint32_t mineNumber = 0;
 
             for (int a = -1; a <= 1; ++a)
             {
                 for (int b = -1; b <= 1; ++b)
                 {
-                    if (i + a >= 0 && i + a < Height && j + b >= 0 && j + b < Width)
+                    const int ni = static_cast<int>(i) + a;
+                    const int nj = static_cast<int>(j) + b;
+                    if (ni >= 0 && ni < static_cast<int>(Height) && nj >= 0 && nj < static_cast<int>(Width))
                     {
-                        minenumber += MButtons[i + a][j + b]->isMined();
+                        mineNumber += m_buttons[ni][nj]->isMined() ? 1u : 0u;
                     }
                 }
             }
-            MButtons[i][j]->setNumber(minenumber);
+            m_buttons[i][j]->setNumber(mineNumber);
         }
     }
 }
 
-void MineField::checkNeighbours(uint i, uint j)
+void MineField::checkNeighbours(std::uint32_t i, std::uint32_t j)
 {
     for (int a = -1; a <= 1; ++a)
     {
         for (int b = -1; b <= 1; ++b)
         {
-            if (i + a >= 0 && i + a < Height && j + b >= 0 && j + b < Width)
+            const int ni = static_cast<int>(i) + a;
+            const int nj = static_cast<int>(j) + b;
+            if (ni >= 0 && ni < static_cast<int>(Height) && nj >= 0 && nj < static_cast<int>(Width))
             {
-                if (MButtons[i + a][j + b]->isOpened() == false)
+                if (!m_buttons[ni][nj]->isOpened())
                 {
-                    MButtons[i + a][j + b]->Open();
+                    m_buttons[ni][nj]->Open();
                 }
             }
         }
