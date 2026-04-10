@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'release/v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -16,8 +18,34 @@ env:
   QT_VERSION: '6.7.2'
 
 jobs:
+  resolve-tag:
+    name: Resolve release tag
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+    steps:
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            TAG="${{ github.event.inputs.tag }}"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            TAG="${GITHUB_REF#refs/heads/release/}"
+          else
+            echo "::error::Cannot determine release tag from ref: $GITHUB_REF. Supported triggers: workflow_dispatch with 'tag' input, push to refs/tags/v*, or push to refs/heads/release/v*."
+            exit 1
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid tag format '$TAG'. Expected semver like v1.2.3 or v1.2.3-beta.1."
+            exit 1
+          fi
+          echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
+
   build-linux:
     name: Build Linux (x86_64)
+    needs: resolve-tag
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,7 +98,7 @@ jobs:
         env:
           QMAKE: ${{ env.QT_ROOT_DIR }}/bin/qmake
           OUTPUT: QMineSweeper-x86_64.AppImage
-          VERSION: ${{ github.event.inputs.tag || github.ref_name }}
+          VERSION: ${{ needs.resolve-tag.outputs.release_tag }}
         run: |
           mkdir -p AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
           cat > AppDir/usr/share/applications/qminesweeper.desktop <<EOF
@@ -207,7 +235,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: [build-linux, build-windows, build-macos]
+    needs: [resolve-tag, build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -235,8 +263,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          name: QMineSweeper ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.resolve-tag.outputs.release_tag }}
+          name: QMineSweeper ${{ needs.resolve-tag.outputs.release_tag }}
           generate_release_notes: true
           draft: false
           prerelease: false
