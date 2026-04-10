@@ -77,10 +77,6 @@ void MineButton::Open()
     {
         emit checkNeighbours(m_x, m_y);
     }
-    else if (!m_isMined)
-    {
-        emit explosion(m_x, m_y);
-    }
 
     setStyleSheet(((m_x + m_y) % 2) ? kOddOpenedStyle : kEvenOpenedStyle);
 

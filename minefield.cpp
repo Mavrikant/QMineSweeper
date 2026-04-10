@@ -22,7 +22,6 @@ MineField::MineField(QWidget *parent) : QWidget{parent}
     }
     m_grid.setSpacing(0);
     m_grid.setContentsMargins(0, 0, 0, 0);
-    setLayout(&m_grid);
     fillMines();
     fillNumbers();
 }
