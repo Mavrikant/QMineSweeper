@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'release/v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -16,8 +18,29 @@ env:
   QT_VERSION: '6.7.2'
 
 jobs:
+  resolve-tag:
+    name: Resolve release tag
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.tag.outputs.release_tag }}
+    steps:
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [[ -n "${{ github.event.inputs.tag }}" ]]; then
+            echo "release_tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "release_tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
+            echo "release_tag=${GITHUB_REF#refs/heads/release/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Cannot determine release tag from ref: $GITHUB_REF"
+            exit 1
+          fi
+
   build-linux:
     name: Build Linux (x86_64)
+    needs: resolve-tag
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -70,7 +93,7 @@ jobs:
         env:
           QMAKE: ${{ env.QT_ROOT_DIR }}/bin/qmake
           OUTPUT: QMineSweeper-x86_64.AppImage
-          VERSION: ${{ github.event.inputs.tag || github.ref_name }}
+          VERSION: ${{ needs.resolve-tag.outputs.release_tag }}
         run: |
           mkdir -p AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
           cat > AppDir/usr/share/applications/qminesweeper.desktop <<EOF
@@ -205,7 +228,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    needs: [build-linux, build-windows, build-macos]
+    needs: [resolve-tag, build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -233,8 +256,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          name: QMineSweeper ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.resolve-tag.outputs.release_tag }}
+          name: QMineSweeper ${{ needs.resolve-tag.outputs.release_tag }}
           generate_release_notes: true
           draft: false
           prerelease: false
