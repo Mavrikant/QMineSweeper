@@ -8,8 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CodeFactor](https://www.codefactor.io/repository/github/mavrikant/qminesweeper/badge)](https://www.codefactor.io/repository/github/mavrikant/qminesweeper)
 
-A modern implementation of the classic **Minesweeper** game, written in
-**C++20** using the **Qt 6** widget toolkit.
+A modern implementation of the classic **Minesweeper** game, written in **C++20** using the **Qt 6** widget toolkit.
 
 ## Features
 
