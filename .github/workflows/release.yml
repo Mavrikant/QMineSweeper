@@ -96,6 +96,7 @@ jobs:
 
       - name: Create AppImage
         env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
           QMAKE: ${{ env.QT_ROOT_DIR }}/bin/qmake
           OUTPUT: QMineSweeper-x86_64.AppImage
           VERSION: ${{ needs.resolve-tag.outputs.release_tag }}
