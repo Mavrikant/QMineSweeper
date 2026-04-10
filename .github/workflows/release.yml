@@ -28,15 +28,20 @@ jobs:
         id: tag
         run: |
           if [[ -n "${{ github.event.inputs.tag }}" ]]; then
-            echo "release_tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+            TAG="${{ github.event.inputs.tag }}"
           elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "release_tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+            TAG="${GITHUB_REF#refs/tags/}"
           elif [[ "$GITHUB_REF" == refs/heads/release/* ]]; then
-            echo "release_tag=${GITHUB_REF#refs/heads/release/}" >> "$GITHUB_OUTPUT"
+            TAG="${GITHUB_REF#refs/heads/release/}"
           else
-            echo "::error::Cannot determine release tag from ref: $GITHUB_REF"
+            echo "::error::Cannot determine release tag from ref: $GITHUB_REF. Supported triggers: workflow_dispatch with 'tag' input, push to refs/tags/v*, or push to refs/heads/release/v*."
             exit 1
           fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid tag format '$TAG'. Expected semver like v1.2.3 or v1.2.3-beta.1."
+            exit 1
+          fi
+          echo "release_tag=$TAG" >> "$GITHUB_OUTPUT"
 
   build-linux:
     name: Build Linux (x86_64)
