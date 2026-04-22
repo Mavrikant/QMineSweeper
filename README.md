@@ -25,6 +25,7 @@ A modern implementation of the classic **Minesweeper** game, written in **C++20*
 - Unit tests powered by the Qt Test framework (36 tests covering the game-state machine, first-click safety, chord logic, etc.)
 - Code coverage reports generated with `lcov` / `genhtml` on every CI run
 - Opt-in anonymous crash reports and usage telemetry via [Sentry](https://sentry.io) (release builds only; disabled by default until you consent)
+- **Ten built-in UI languages** with system-locale auto-detection and a flag-iconified picker under `Settings → Language`
 
 ## Download
 
@@ -139,6 +140,39 @@ report is generated on every push to `main` by the Ubuntu CI job, uploaded
 to [Codecov](https://codecov.io/gh/Mavrikant/QMineSweeper), and also
 attached as an artifact to the workflow run.
 
+## Languages
+
+The UI ships with translations for 10 languages. On first launch the app
+picks the best match for your system locale; if no match is found it falls
+back to English. You can override the choice any time under
+`Settings → Language` — the menu shows a country flag next to each
+language, plus an "Auto (system)" entry that clears the override.
+Language changes take effect after a restart (the app offers to restart
+for you).
+
+| Code    | Flag | Native name          | English              |
+|---------|------|----------------------|----------------------|
+| `en`    | 🇺🇸  | English              | English              |
+| `tr_TR` | 🇹🇷  | Türkçe               | Turkish              |
+| `zh_CN` | 🇨🇳  | 中文（简体）          | Chinese (Simplified) |
+| `hi_IN` | 🇮🇳  | हिन्दी                  | Hindi                |
+| `es_ES` | 🇪🇸  | Español              | Spanish              |
+| `ar_SA` | 🇸🇦  | العربية               | Arabic (RTL)         |
+| `fr_FR` | 🇫🇷  | Français             | French               |
+| `ru_RU` | 🇷🇺  | Русский              | Russian              |
+| `pt_BR` | 🇧🇷  | Português            | Portuguese (Brazil)  |
+| `de_DE` | 🇩🇪  | Deutsch              | German               |
+
+Translations live under [`translations/`](translations/) as Qt Linguist
+`.ts` files. Contributions are very welcome — open a PR with an updated
+`.ts` file; `qt_add_translations` in [CMakeLists.txt](CMakeLists.txt)
+compiles them into embedded `.qm` resources at build time.
+
+Flag icons are sourced from [flagcdn.com](https://flagcdn.com) (backed by
+the MIT-licensed [lipis/flag-icons](https://github.com/lipis/flag-icons);
+the flag imagery itself is public domain). Rerun
+[`icons/flags/fetch_flags.sh`](icons/flags/fetch_flags.sh) to regenerate.
+
 ## Privacy and telemetry
 
 Release builds include an **opt-in** integration with [Sentry](https://sentry.io)
@@ -195,6 +229,9 @@ clang-format -i *.cpp *.h tests/*.cpp
 ├── minefield.{h,cpp}     # Grid widget, game state, mine placement
 ├── minebutton.{h,cpp}    # Single cell: reveals, flags, chords, signals
 ├── telemetry.{h,cpp}     # Sentry wrapper (no-op when ENABLE_SENTRY=OFF)
+├── language.{h,cpp}      # Supported locales, startup resolver, QTranslator applier
+├── translations/         # Qt Linguist .ts sources for all 10 locales
+├── icons/flags/          # Country flag PNGs shown in Settings → Language
 ├── resources.qrc         # Embedded icons (red flag, explosion)
 ├── icons/                # PNG assets
 ├── tests/                # Qt Test unit tests

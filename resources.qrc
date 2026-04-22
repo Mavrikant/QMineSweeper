@@ -4,5 +4,15 @@
         <file>icons/redflag.png</file>
         <file>icons/explosion.png</file>
         <file>icons/app_icon.png</file>
+        <file>icons/flags/en.png</file>
+        <file>icons/flags/tr_TR.png</file>
+        <file>icons/flags/zh_CN.png</file>
+        <file>icons/flags/hi_IN.png</file>
+        <file>icons/flags/es_ES.png</file>
+        <file>icons/flags/ar_SA.png</file>
+        <file>icons/flags/fr_FR.png</file>
+        <file>icons/flags/ru_RU.png</file>
+        <file>icons/flags/pt_BR.png</file>
+        <file>icons/flags/de_DE.png</file>
     </qresource>
 </RCC>

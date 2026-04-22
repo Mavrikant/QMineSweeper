@@ -32,7 +32,18 @@ find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets LinguistTools)
 
 qt_standard_project_setup(REQUIRES 6.2)
 
-set(TS_FILES QMineSweeper_tr_TR.ts)
+set(TS_FILES
+    translations/QMineSweeper_en.ts
+    translations/QMineSweeper_tr_TR.ts
+    translations/QMineSweeper_zh_CN.ts
+    translations/QMineSweeper_hi_IN.ts
+    translations/QMineSweeper_es_ES.ts
+    translations/QMineSweeper_ar_SA.ts
+    translations/QMineSweeper_fr_FR.ts
+    translations/QMineSweeper_ru_RU.ts
+    translations/QMineSweeper_pt_BR.ts
+    translations/QMineSweeper_de_DE.ts
+)
 
 set(PROJECT_SOURCES
     main.cpp
@@ -45,6 +56,8 @@ set(PROJECT_SOURCES
     minebutton.h
     telemetry.cpp
     telemetry.h
+    language.cpp
+    language.h
     resources.qrc
 )
 
@@ -68,7 +81,7 @@ qt_add_executable(QMineSweeper
     ${PROJECT_SOURCES}
 )
 
-qt_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
+qt_add_translations(QMineSweeper TS_FILES ${TS_FILES})
 
 target_link_libraries(QMineSweeper PRIVATE Qt6::Widgets)
 

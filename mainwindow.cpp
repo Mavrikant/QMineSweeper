@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include "./ui_mainwindow.h"
+#include "language.h"
 #include "telemetry.h"
 
 #include <QAction>
@@ -8,6 +9,7 @@
 #include <QApplication>
 #include <QKeySequence>
 #include <QMessageBox>
+#include <QProcess>
 #include <QSettings>
 
 namespace
@@ -105,10 +107,12 @@ void MainWindow::buildMenus()
         Difficulty diff;
         const char *key;
     };
+    // QT_TR_NOOP marks the literal for lupdate extraction; the runtime tr()
+    // lookup at the use site then resolves it via the installed translator.
     const Entry entries[] = {
-        {"&Beginner  (9×9, 10 mines)", MineField::Beginner, "Beginner"},
-        {"&Intermediate  (16×16, 40 mines)", MineField::Intermediate, "Intermediate"},
-        {"&Expert  (30×16, 99 mines)", MineField::Expert, "Expert"},
+        {QT_TR_NOOP("&Beginner  (9×9, 10 mines)"), MineField::Beginner, "Beginner"},
+        {QT_TR_NOOP("&Intermediate  (16×16, 40 mines)"), MineField::Intermediate, "Intermediate"},
+        {QT_TR_NOOP("&Expert  (30×16, 99 mines)"), MineField::Expert, "Expert"},
     };
     for (const auto &e : entries)
     {
@@ -128,9 +132,37 @@ void MainWindow::buildMenus()
     connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
     ui->menuGame->addAction(quitAction);
 
+    auto *settingsMenu = menuBar()->addMenu(tr("&Settings"));
+
+    // Language submenu: flag-iconified radio group + "Auto (system)".
+    auto *languageMenu = settingsMenu->addMenu(tr("&Language"));
+    m_languageGroup = new QActionGroup(this);
+    m_languageGroup->setExclusive(true);
+
+    const QString currentOverride = Language::userOverride();
+    for (const auto &entry : Language::supported())
+    {
+        auto *langAction = new QAction(entry.nativeName, this);
+        langAction->setCheckable(true);
+        langAction->setIcon(QIcon(entry.flagResource));
+        langAction->setData(entry.code);
+        langAction->setChecked(currentOverride == entry.code);
+        m_languageGroup->addAction(langAction);
+        languageMenu->addAction(langAction);
+        const QString code = entry.code;
+        connect(langAction, &QAction::triggered, this, [this, code] { onLanguageChosen(code); });
+    }
+    languageMenu->addSeparator();
+    auto *autoAction = new QAction(tr("Auto (system)"), this);
+    autoAction->setCheckable(true);
+    autoAction->setChecked(currentOverride.isEmpty());
+    m_languageGroup->addAction(autoAction);
+    languageMenu->addAction(autoAction);
+    connect(autoAction, &QAction::triggered, this, [this] { onLanguageChosen(QString()); });
+
     if (Telemetry::isCompiledIn())
     {
-        auto *settingsMenu = menuBar()->addMenu(tr("&Settings"));
+        settingsMenu->addSeparator();
         m_telemetryAction = new QAction(tr("Send anonymous &crash reports and usage data"), this);
         m_telemetryAction->setCheckable(true);
         m_telemetryAction->setChecked(Telemetry::isEnabled());
@@ -211,6 +243,39 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
+
+void MainWindow::onLanguageChosen(const QString &code)
+{
+    // Empty string means "Auto (system)".
+    if (code.isEmpty())
+    {
+        Language::clearUserOverride();
+    }
+    else
+    {
+        Language::setUserOverride(code);
+    }
+
+    QMessageBox box(this);
+    box.setWindowTitle(tr("Language changed"));
+    box.setIcon(QMessageBox::Information);
+    box.setText(tr("Language changes take effect after restart."));
+    box.setInformativeText(tr("Restart QMineSweeper now?"));
+    QPushButton *restart = box.addButton(tr("Restart now"), QMessageBox::AcceptRole);
+    box.addButton(tr("Later"), QMessageBox::RejectRole);
+    box.setDefaultButton(restart);
+    box.exec();
+    if (box.clickedButton() == restart)
+    {
+        restartApp();
+    }
+}
+
+void MainWindow::restartApp()
+{
+    QProcess::startDetached(QApplication::applicationFilePath(), QApplication::arguments());
+    qApp->quit();
+}
 
 void MainWindow::maybeAskTelemetryConsent()
 {

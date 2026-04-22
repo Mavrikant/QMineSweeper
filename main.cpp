@@ -1,10 +1,9 @@
+#include "language.h"
 #include "mainwindow.h"
 #include "telemetry.h"
 
 #include <QApplication>
-#include <QLocale>
 #include <QObject>
-#include <QTranslator>
 
 int main(int argc, char *argv[])
 {
@@ -20,16 +19,12 @@ int main(int argc, char *argv[])
     Telemetry::initialize(release);
     QObject::connect(&app, &QApplication::aboutToQuit, [] { Telemetry::shutdown(); });
 
-    QTranslator translator;
-    const QStringList uiLanguages = QLocale::system().uiLanguages();
-    for (const QString &locale : uiLanguages)
+    // Install the chosen translator before constructing any UI so that every
+    // tr() call in MainWindow picks up the right strings.
+    const QString locale = Language::resolveStartupLocale();
+    if (!Language::applyTranslator(&app, locale))
     {
-        const QString baseName = "QMineSweeper_" + QLocale(locale).name();
-        if (translator.load(":/i18n/" + baseName))
-        {
-            QApplication::installTranslator(&translator);
-            break;
-        }
+        Language::applyTranslator(&app, QStringLiteral("en"));
     }
 
     MainWindow w;
