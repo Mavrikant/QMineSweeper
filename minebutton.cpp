@@ -10,7 +10,7 @@
 
 namespace
 {
-constexpr int kCellSize = 30;
+constexpr int kCellSize = MineButton::CellSize;
 constexpr int kIconSize = 22;
 constexpr const char *kEvenCellStyle = "border: 0px; background: rgba(162, 209, 73, 1);";
 constexpr const char *kOddCellStyle = "border: 0px; background: rgba(162, 209, 73, 0.85);";

@@ -12,7 +12,7 @@ bool inBounds(int row, int col, std::uint32_t rows, std::uint32_t cols) { return
 
 MineField::MineField(QWidget *parent) : QWidget{parent}
 {
-    setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
+    setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_grid = new QGridLayout(this);
     m_grid->setSpacing(0);
     m_grid->setContentsMargins(0, 0, 0, 0);
@@ -84,6 +84,8 @@ void MineField::clearGrid()
         }
     }
     m_buttons.clear();
+    setMinimumSize(0, 0);
+    setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
 }
 
 void MineField::buildGrid()
@@ -101,7 +103,9 @@ void MineField::buildGrid()
             m_buttons[r][c] = btn;
         }
     }
-    adjustSize();
+    // Lock the widget to an exact pixel size so the outer QVBoxLayout cannot
+    // squish the cells out of square.
+    setFixedSize(static_cast<int>(m_difficulty.width) * MineButton::CellSize, static_cast<int>(m_difficulty.height) * MineButton::CellSize);
 }
 
 void MineField::wireButton(MineButton *button)

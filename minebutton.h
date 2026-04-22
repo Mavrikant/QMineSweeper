@@ -9,6 +9,8 @@ class MineButton : public QPushButton
 {
     Q_OBJECT
   public:
+    static constexpr int CellSize = 30;
+
     explicit MineButton(std::uint32_t row, std::uint32_t col, QWidget *parent = nullptr);
 
     void setNumber(std::uint32_t number);
