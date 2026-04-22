@@ -3,6 +3,11 @@
 
 CMakeLists.txt.user
 
+# CMake build directories
+build/
+build-*/
+cmake-build-*/
+
 *~
 *.autosave
 *.a
