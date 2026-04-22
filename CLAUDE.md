@@ -14,10 +14,11 @@ A Qt6-based Minesweeper game with Beginner / Intermediate / Expert difficulty, f
 
 ## Prerequisites
 
-- Qt 6.2 or later (Widgets + LinguistTools modules)
-- CMake ≥ 3.5
+- Qt 6.2 or later (Widgets + LinguistTools modules). CI pins **6.7.2**; dev mac uses Homebrew `qt` (6.11+) at `/opt/homebrew/opt/qt`.
+- CMake ≥ 3.21
 - C++20-capable compiler (GCC 11+, Clang 13+, MSVC 2019+)
 - Ninja (recommended) or Make / NMake
+- For `-DENABLE_SENTRY=ON` on Linux: `libcurl4-openssl-dev`, `libssl-dev`, `zlib1g-dev` (release workflow installs them; main CI doesn't link Sentry)
 
 ## Build
 
@@ -91,3 +92,50 @@ Dev builds (`ENABLE_SENTRY=OFF`, the default) have no Sentry code linked at all 
 ### macOS signing policy
 
 Release builds are **ad-hoc code-signed** (`codesign -s -`) so they run on Apple Silicon without a paid Apple Developer account. They are **not notarised**, so users must clear quarantine on first launch: `xattr -cr /Applications/QMineSweeper.app`. Do not add notarisation unless a Developer ID certificate is available — it requires `$99/year` and is out of scope for this project.
+
+## Release process
+
+Pre-flight: `main` CI is green, `ctest` passes locally, `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean.
+
+```bash
+# 1. Bump the version in CMakeLists.txt (project(QMineSweeper VERSION X.Y.Z)).
+# 2. Commit the bump.
+git add CMakeLists.txt
+git commit -m "chore: bump version to X.Y.Z for release"
+# 3. Push main so CI validates the bump commit first.
+git push origin main
+# 4. Annotate and push the tag — this triggers release.yml.
+git tag -a vX.Y.Z -m "QMineSweeper X.Y.Z
+
+<highlights>"
+git push origin vX.Y.Z
+# 5. Poll the run; when it finishes, replace the auto-generated release
+#    body with a hand-written changelog (GitHub Releases → Edit).
+```
+
+Release workflow builds all three platforms in parallel, ad-hoc signs the macOS bundle, and publishes a GitHub Release with an `SHA256SUMS.txt` file. Run time ~10 min. If Linux fails at Configure CMake the first question is whether the apt-get list is missing a dev header for a new transitive dep — see Gotchas below.
+
+## Translation workflow
+
+All user-facing strings must go through `tr()`. Any string assembled from a runtime `const char*` — e.g. a menu label built from a `struct { const char* label; }` array — must wrap the literal in `QT_TR_NOOP("…")` so `lupdate` can extract it; the runtime lookup stays `tr(var)`.
+
+Flow for a new string:
+
+1. Edit source with `tr("new string")` (or `QT_TR_NOOP` + `tr(var)` at the use site).
+2. `cmake --build build --target update_translations` runs `lupdate` over every `.ts` file; new sources show up with `type="unfinished"`.
+3. Edit `translations/apply_translations.py` to add the new key to every per-language dict. `QMineSweeper`, `10`, `000.0` are in `NO_TRANSLATE` and intentionally left empty so Qt falls back to the source.
+4. `python3 translations/apply_translations.py` rewrites each `.ts` with the applied translations.
+5. `cmake --build build` rebuilds the `.qm` files via `qt_add_translations` and embeds them under `:/i18n/`.
+
+Commit the `.ts` files and `apply_translations.py`; the `.qm` files are build artefacts and never committed.
+
+## Gotchas
+
+- **`qt_add_translations` vs `qt_create_translation`**: always use `qt_add_translations`. It auto-embeds `.qm` into the target under `:/i18n/`. `qt_create_translation` (the old API) does not, so any code expecting `:/i18n/QMineSweeper_xx.qm` silently fails. The v1.0→v1.1 refactor fixed this bug.
+- **macOS ad-hoc codesign failures after `macdeployqt`**: the deploy step leaves read-only bits and occasional `com.apple.FinderInfo` xattrs that break `codesign`. Always `chmod -R u+w` + `xattr -cr` on the bundle *before* `codesign --deep --force -s -`.
+- **Linux release needs libcurl-dev when `ENABLE_SENTRY=ON`**: sentry-native's CMake does `find_package(CURL REQUIRED)`. Ubuntu runners don't have libcurl headers by default — `release.yml` explicitly installs `libcurl4-openssl-dev`, `libssl-dev`, `zlib1g-dev`.
+- **`lupdate` can't see `tr(var)`**: it's a static parser; any literal must appear directly inside `tr("…")` or be marked with `QT_TR_NOOP("…")`.
+- **AppleScript/System Events on macOS**: needs Accessibility permission, which is not grantable programmatically. For any UI-driving task (screenshots, clicks), use the `computer-use` MCP instead — it uses the system CGEvent path.
+- **Screencapture of covered windows**: `screencapture -l <windowid>` works regardless of z-order. Get the window ID via `CGWindowListCopyWindowInfo`; the precompiled `/tmp/winid` helper (Swift source at `/tmp/winid.swift`) prints `<id>\t<title>\tx,y,w,h` for each visible QMineSweeper window.
+- **QSettings path on macOS**: uses `OrganizationDomain reversed + ApplicationName`. For this app that is `~/Library/Preferences/com.mavrikant.QMineSweeper.plist` (exact case). To flip the telemetry toggle for testing: `defaults write com.mavrikant.QMineSweeper "telemetry/enabled" -bool YES`.
+- **Sentry DSN is public**: client DSNs are ingest-only and safe to embed. Spike Protection + per-DSN rate limit in the Sentry UI handle quota abuse.
