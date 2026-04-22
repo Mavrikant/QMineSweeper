@@ -32,6 +32,7 @@ class MainWindow : public QMainWindow
     void onGameWon();
     void onGameLost(std::uint32_t row, std::uint32_t col);
     void showAboutDialog();
+    void showStatsDialog();
     void toggleTelemetry(bool enabled);
     void onLanguageChosen(const QString &code);
 
@@ -39,7 +40,7 @@ class MainWindow : public QMainWindow
     void buildMenus();
     void resetTimerUi();
     void updateTimerLabel();
-    void showEndDialog(bool won);
+    void showEndDialog(bool won, bool newRecord);
     void maybeAskTelemetryConsent();
     void restartApp();
     [[nodiscard]] double elapsedSeconds() const noexcept;

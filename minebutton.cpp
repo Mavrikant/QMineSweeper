@@ -76,7 +76,11 @@ void MineButton::setMined() noexcept { m_isMined = true; }
 
 void MineButton::clearMined() noexcept { m_isMined = false; }
 
-bool MineButton::isFlagged() const noexcept { return m_isFlagged; }
+bool MineButton::isFlagged() const noexcept { return m_marker == CellMarker::Flag; }
+
+bool MineButton::isQuestion() const noexcept { return m_marker == CellMarker::Question; }
+
+CellMarker MineButton::marker() const noexcept { return m_marker; }
 
 bool MineButton::isOpened() const noexcept { return m_isClicked; }
 
@@ -86,15 +90,40 @@ void MineButton::setCellEnabled(bool enabled) noexcept
     setCursor(enabled ? Qt::PointingHandCursor : Qt::ArrowCursor);
 }
 
+void MineButton::renderMarker()
+{
+    switch (m_marker)
+    {
+    case CellMarker::None:
+        setIcon(QIcon{});
+        setText(QString{});
+        break;
+    case CellMarker::Flag:
+        setIcon(QIcon{":/icons/redflag.png"});
+        setIconSize(QSize{kIconSize, kIconSize});
+        setText(QString{});
+        break;
+    case CellMarker::Question:
+        setIcon(QIcon{});
+        setText(QStringLiteral("?"));
+        // Slightly dimmer than flag to read as annotation.
+        setStyleSheet(styleSheet() + QStringLiteral("color: rgb(60, 60, 60);"));
+        break;
+    }
+}
+
 void MineButton::Open()
 {
-    if (m_isClicked || m_isFlagged)
+    // Flags block reveal; question marks do not.
+    if (m_isClicked || m_marker == CellMarker::Flag)
     {
         return;
     }
 
     emit cellPressed(m_row, m_col);
 
+    // Revealing clears any question-mark annotation.
+    m_marker = CellMarker::None;
     m_isClicked = true;
     applyOpenedStyle();
 
@@ -141,36 +170,46 @@ void MineButton::revealAsWrongFlag()
 
 void MineButton::autoFlag()
 {
-    if (m_isClicked)
+    if (m_isClicked || m_marker == CellMarker::Flag)
     {
         return;
     }
-    if (!m_isFlagged)
+    const bool wasFlagged = (m_marker == CellMarker::Flag);
+    m_marker = CellMarker::Flag;
+    renderMarker();
+    if (!wasFlagged)
     {
-        m_isFlagged = true;
-        setIcon(QIcon{":/icons/redflag.png"});
-        setIconSize(QSize{kIconSize, kIconSize});
         emit flagToggled(m_row, m_col, true);
     }
 }
 
-void MineButton::Flag()
+void MineButton::cycleMarker()
 {
     if (m_isClicked)
     {
         return;
     }
-    if (m_isFlagged)
+    const CellMarker prev = m_marker;
+    switch (prev)
     {
-        m_isFlagged = false;
-        setIcon(QIcon{});
+    case CellMarker::None:
+        m_marker = CellMarker::Flag;
+        break;
+    case CellMarker::Flag:
+        m_marker = CellMarker::Question;
+        break;
+    case CellMarker::Question:
+        m_marker = CellMarker::None;
+        break;
+    }
+    renderMarker();
+    // flagToggled fires whenever the Flag state itself changes.
+    if (prev == CellMarker::Flag)
+    {
         emit flagToggled(m_row, m_col, false);
     }
-    else
+    else if (m_marker == CellMarker::Flag)
     {
-        m_isFlagged = true;
-        setIcon(QIcon{":/icons/redflag.png"});
-        setIconSize(QSize{kIconSize, kIconSize});
         emit flagToggled(m_row, m_col, true);
     }
 }
@@ -196,13 +235,13 @@ void MineButton::mousePressEvent(QMouseEvent *e)
     switch (e->button())
     {
     case Qt::LeftButton:
-        if (!m_isFlagged)
+        if (m_marker != CellMarker::Flag)
         {
             Open();
         }
         break;
     case Qt::RightButton:
-        Flag();
+        cycleMarker();
         break;
     default:
         break;

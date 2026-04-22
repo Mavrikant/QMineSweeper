@@ -8,6 +8,7 @@ set(CMAKE_AUTORCC ON)
 add_library(QMineSweeperCore STATIC
     ../minebutton.cpp
     ../minefield.cpp
+    ../stats.cpp
 )
 target_include_directories(QMineSweeperCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(QMineSweeperCore PUBLIC Qt6::Widgets)
@@ -36,3 +37,4 @@ endfunction()
 
 qms_add_test(tst_minebutton)
 qms_add_test(tst_minefield)
+qms_add_test(tst_stats)

@@ -25,6 +25,10 @@ class TestMineButton : public QObject
     void testMiddleClickOnOpenedEmitsChord();
     void testMiddleClickOnUnopenedDoesNotEmitChord();
     void testRevealAsMineMarksOpened();
+    void testRightClickCyclesNoneFlagQuestionNone();
+    void testQuestionDoesNotBlockOpen();
+    void testQuestionToNoneDoesNotEmitFlagToggled();
+    void testLeftClickBlockedByFlagNotByQuestion();
 };
 
 static void sendMouseClick(MineButton &btn, Qt::MouseButton button)
@@ -183,6 +187,72 @@ void TestMineButton::testRevealAsMineMarksOpened()
     btn.setMined();
     btn.revealAsMine();
     QVERIFY(btn.isOpened());
+}
+
+void TestMineButton::testRightClickCyclesNoneFlagQuestionNone()
+{
+    MineButton btn(0, 0, nullptr);
+    QCOMPARE(btn.marker(), CellMarker::None);
+    QSignalSpy spy(&btn, &MineButton::flagToggled);
+
+    sendMouseClick(btn, Qt::RightButton); // → Flag
+    QCOMPARE(btn.marker(), CellMarker::Flag);
+    QVERIFY(btn.isFlagged());
+    QVERIFY(!btn.isQuestion());
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.takeFirst().at(2).toBool(), true);
+
+    sendMouseClick(btn, Qt::RightButton); // → Question
+    QCOMPARE(btn.marker(), CellMarker::Question);
+    QVERIFY(!btn.isFlagged());
+    QVERIFY(btn.isQuestion());
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.takeFirst().at(2).toBool(), false);
+
+    sendMouseClick(btn, Qt::RightButton); // → None
+    QCOMPARE(btn.marker(), CellMarker::None);
+    QVERIFY(!btn.isFlagged());
+    QVERIFY(!btn.isQuestion());
+}
+
+void TestMineButton::testQuestionDoesNotBlockOpen()
+{
+    MineButton btn(0, 0, nullptr);
+    sendMouseClick(btn, Qt::RightButton); // Flag
+    sendMouseClick(btn, Qt::RightButton); // Question
+    QCOMPARE(btn.marker(), CellMarker::Question);
+
+    QSignalSpy openedSpy(&btn, &MineButton::cellOpened);
+    sendMouseClick(btn, Qt::LeftButton);
+    QCOMPARE(openedSpy.count(), 1);
+    QVERIFY(btn.isOpened());
+    QCOMPARE(btn.marker(), CellMarker::None); // cleared on reveal
+}
+
+void TestMineButton::testQuestionToNoneDoesNotEmitFlagToggled()
+{
+    MineButton btn(0, 0, nullptr);
+    sendMouseClick(btn, Qt::RightButton); // None → Flag  (1)
+    sendMouseClick(btn, Qt::RightButton); // Flag → Question  (2)
+    QSignalSpy spy(&btn, &MineButton::flagToggled);
+    sendMouseClick(btn, Qt::RightButton); // Question → None  (silent)
+    QCOMPARE(spy.count(), 0);
+}
+
+void TestMineButton::testLeftClickBlockedByFlagNotByQuestion()
+{
+    MineButton a(0, 0, nullptr);
+    sendMouseClick(a, Qt::RightButton); // Flag
+    QSignalSpy openedA(&a, &MineButton::cellOpened);
+    sendMouseClick(a, Qt::LeftButton);
+    QCOMPARE(openedA.count(), 0);
+
+    MineButton b(0, 0, nullptr);
+    sendMouseClick(b, Qt::RightButton);
+    sendMouseClick(b, Qt::RightButton); // Question
+    QSignalSpy openedB(&b, &MineButton::cellOpened);
+    sendMouseClick(b, Qt::LeftButton);
+    QCOMPARE(openedB.count(), 1);
 }
 
 QTEST_MAIN(TestMineButton)

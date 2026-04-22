@@ -2,15 +2,24 @@
 
 #include "./ui_mainwindow.h"
 #include "language.h"
+#include "stats.h"
 #include "telemetry.h"
 
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QHBoxLayout>
+#include <QHeaderView>
 #include <QKeySequence>
+#include <QLabel>
 #include <QMessageBox>
 #include <QProcess>
+#include <QPushButton>
 #include <QSettings>
+#include <QTableWidget>
+#include <QVBoxLayout>
 
 namespace
 {
@@ -127,6 +136,12 @@ void MainWindow::buildMenus()
 
     ui->menuGame->addSeparator();
 
+    auto *statsAction = new QAction(tr("&Statistics…"), this);
+    connect(statsAction, &QAction::triggered, this, &MainWindow::showStatsDialog);
+    ui->menuGame->addAction(statsAction);
+
+    ui->menuGame->addSeparator();
+
     auto *quitAction = new QAction(tr("&Quit"), this);
     quitAction->setShortcut(QKeySequence(QKeySequence::Quit));
     connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
@@ -222,11 +237,14 @@ void MainWindow::onGameWon()
     m_lastElapsedSeconds = elapsedSeconds();
     updateTimerLabel();
     setWindowTitle(tr("QMineSweeper — You won!"));
+    const QString diffName = difficultyName(m_currentDifficulty);
+    const bool newRecord = Stats::recordWin(diffName, m_lastElapsedSeconds);
     Telemetry::recordEvent(QStringLiteral("game.won"), {
-                                                           {QStringLiteral("difficulty"), difficultyName(m_currentDifficulty)},
+                                                           {QStringLiteral("difficulty"), diffName},
                                                            {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
+                                                           {QStringLiteral("new_record"), newRecord ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true);
+    showEndDialog(true, newRecord);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -235,11 +253,13 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     m_lastElapsedSeconds = elapsedSeconds();
     updateTimerLabel();
     setWindowTitle(tr("QMineSweeper — Boom"));
+    const QString diffName = difficultyName(m_currentDifficulty);
+    Stats::recordLoss(diffName);
     Telemetry::recordEvent(QStringLiteral("game.lost"), {
-                                                            {QStringLiteral("difficulty"), difficultyName(m_currentDifficulty)},
+                                                            {QStringLiteral("difficulty"), diffName},
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                         });
-    showEndDialog(false);
+    showEndDialog(false, false);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -323,13 +343,18 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(QString::asprintf("%05.1f", secs));
 }
 
-void MainWindow::showEndDialog(bool won)
+void MainWindow::showEndDialog(bool won, bool newRecord)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
     if (won)
     {
-        box.setText(tr("You cleared the field in %1 seconds.").arg(QString::asprintf("%.1f", m_lastElapsedSeconds)));
+        QString text = tr("You cleared the field in %1 seconds.").arg(QString::asprintf("%.1f", m_lastElapsedSeconds));
+        if (newRecord)
+        {
+            text.prepend(tr("🏆 New record!") + QStringLiteral("  "));
+        }
+        box.setText(text);
         box.setIcon(QMessageBox::Information);
     }
     else
@@ -345,6 +370,64 @@ void MainWindow::showEndDialog(bool won)
     {
         onNewGame();
     }
+}
+
+void MainWindow::showStatsDialog()
+{
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Statistics"));
+
+    auto *layout = new QVBoxLayout(&dlg);
+
+    auto *table = new QTableWidget(3, 4, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time")});
+    table->verticalHeader()->setVisible(false);
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setSelectionMode(QAbstractItemView::NoSelection);
+    table->setFocusPolicy(Qt::NoFocus);
+
+    struct Row
+    {
+        const char *label;
+        const char *key;
+    };
+    const Row rows[] = {
+        {QT_TR_NOOP("Beginner"), "Beginner"},
+        {QT_TR_NOOP("Intermediate"), "Intermediate"},
+        {QT_TR_NOOP("Expert"), "Expert"},
+    };
+    for (int i = 0; i < 3; ++i)
+    {
+        const Stats::Record rec = Stats::load(QString::fromLatin1(rows[i].key));
+        const QString best = rec.bestSeconds > 0.0 ? QString::asprintf("%.1f s", rec.bestSeconds) : QStringLiteral("—");
+        const QString winRate = rec.played > 0 ? QStringLiteral(" (%1%)").arg(100 * rec.won / rec.played) : QString{};
+        table->setItem(i, 0, new QTableWidgetItem(tr(rows[i].label)));
+        table->setItem(i, 1, new QTableWidgetItem(QString::number(rec.played)));
+        table->setItem(i, 2, new QTableWidgetItem(QString::number(rec.won) + winRate));
+        table->setItem(i, 3, new QTableWidgetItem(best));
+    }
+    table->resizeColumnsToContents();
+
+    layout->addWidget(table);
+
+    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *resetBtn = buttons->addButton(tr("Reset all"), QDialogButtonBox::DestructiveRole);
+    buttons->addButton(QDialogButtonBox::Close);
+    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    connect(resetBtn, &QPushButton::clicked,
+            [this, &dlg]
+            {
+                const auto answer = QMessageBox::question(this, tr("Reset statistics?"), tr("Permanently erase all played / won / best-time records?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+                if (answer == QMessageBox::Yes)
+                {
+                    Stats::resetAll();
+                    dlg.accept();
+                }
+            });
+    layout->addWidget(buttons);
+
+    dlg.exec();
 }
 
 void MainWindow::showAboutDialog()

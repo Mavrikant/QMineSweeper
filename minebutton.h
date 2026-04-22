@@ -5,6 +5,13 @@
 
 #include <cstdint>
 
+enum class CellMarker : std::uint8_t
+{
+    None,
+    Flag,
+    Question
+};
+
 class MineButton : public QPushButton
 {
     Q_OBJECT
@@ -21,6 +28,8 @@ class MineButton : public QPushButton
     void clearMined() noexcept;
 
     [[nodiscard]] bool isFlagged() const noexcept;
+    [[nodiscard]] bool isQuestion() const noexcept;
+    [[nodiscard]] CellMarker marker() const noexcept;
     [[nodiscard]] bool isOpened() const noexcept;
 
     void Open();
@@ -34,6 +43,9 @@ class MineButton : public QPushButton
     void cellOpened(std::uint32_t row, std::uint32_t col);
     void explosion(std::uint32_t row, std::uint32_t col);
     void checkNeighbours(std::uint32_t row, std::uint32_t col);
+    // Emitted when the flag flag transitions — i.e. Flag-on and Flag-off.
+    // A cycle through Question fires flagToggled(..., false) as it leaves Flag
+    // and does NOT fire again when it returns to None from Question.
     void flagToggled(std::uint32_t row, std::uint32_t col, bool flagged);
     void chordRequested(std::uint32_t row, std::uint32_t col);
 
@@ -41,16 +53,17 @@ class MineButton : public QPushButton
     void mousePressEvent(QMouseEvent *e) override;
 
   private:
-    void Flag();
+    void cycleMarker();
     void applyBaseStyle();
     void applyOpenedStyle();
+    void renderMarker();
 
     std::uint32_t m_row{0};
     std::uint32_t m_col{0};
     std::uint32_t m_number{0};
+    CellMarker m_marker{CellMarker::None};
     bool m_isMined{false};
     bool m_isClicked{false};
-    bool m_isFlagged{false};
     bool m_enabled{true};
 };
 

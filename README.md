@@ -26,13 +26,14 @@ A modern implementation of the classic **Minesweeper** game, written in **C++20*
 
 - Three difficulty levels: Beginner (9×9, 10 mines), Intermediate (16×16, 40 mines), Expert (30×16, 99 mines)
 - First-click safety — the first cell you click is always a zero, so you can start with a flood open
-- Left-click reveals, right-click toggles a flag, middle-click (or left+right) chords to auto-reveal neighbours
+- Left-click reveals, right-click cycles **flag → question mark → clear**, middle-click (or left+right) chords to auto-reveal neighbours
 - Automatic flood-fill reveal for empty regions
 - Win / loss detection with end-of-game dialog and remaining-mine auto-flagging
+- **Lifetime statistics** (Played / Won / Best time) per difficulty, saved via `QSettings` and viewable under `Game → Statistics…`, with a 🏆 "New record!" flair on the win dialog when you beat your best time
 - Real-time elapsed-time display (starts on first click) and live mine counter
 - Game → New (Ctrl+N) and difficulty selection persisted via `QSettings`
 - Cross-platform: Linux, Windows and macOS (universal binary on macOS)
-- Unit tests powered by the Qt Test framework (36 tests covering the game-state machine, first-click safety, chord logic, etc.)
+- Unit tests powered by the Qt Test framework (49+ tests covering the game-state machine, first-click safety, chord logic, question-mark marker, stats persistence, etc.)
 - Code coverage reports generated with `lcov` / `genhtml` on every CI run
 - Opt-in anonymous crash reports and usage telemetry via [Sentry](https://sentry.io) (release builds only; disabled by default until you consent)
 - **Ten built-in UI languages** with system-locale auto-detection and a flag-iconified picker under `Settings → Language`
@@ -240,6 +241,7 @@ clang-format -i *.cpp *.h tests/*.cpp
 ├── minebutton.{h,cpp}    # Single cell: reveals, flags, chords, signals
 ├── telemetry.{h,cpp}     # Sentry wrapper (no-op when ENABLE_SENTRY=OFF)
 ├── language.{h,cpp}      # Supported locales, startup resolver, QTranslator applier
+├── stats.{h,cpp}         # Per-difficulty Played / Won / Best-time persistence
 ├── translations/         # Qt Linguist .ts sources for all 10 locales
 ├── icons/flags/          # Country flag PNGs shown in Settings → Language
 ├── resources.qrc         # Embedded icons (red flag, explosion)

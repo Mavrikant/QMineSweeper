@@ -64,6 +64,19 @@ TR: dict[str, str] = {
     "You cleared the field in %1 seconds.": "Alanı %1 saniyede temizlediniz.",
     "You stepped on a mine.": "Bir mayına bastınız.",
     "You won!": "Kazandınız!",
+    "&Statistics…": "&İstatistikler…",
+    "Statistics": "İstatistikler",
+    "Difficulty": "Zorluk",
+    "Played": "Oynanan",
+    "Won": "Kazanılan",
+    "Best time": "En iyi süre",
+    "Beginner": "Başlangıç",
+    "Intermediate": "Orta",
+    "Expert": "Uzman",
+    "Reset all": "Tümünü sıfırla",
+    "Reset statistics?": "İstatistikler sıfırlansın mı?",
+    "Permanently erase all played / won / best-time records?": "Tüm oynanmış / kazanılmış / en iyi süre kayıtları kalıcı olarak silinsin mi?",
+    "🏆 New record!": "🏆 Yeni rekor!",
 }
 
 ES: dict[str, str] = {
@@ -103,6 +116,19 @@ ES: dict[str, str] = {
     "You cleared the field in %1 seconds.": "Ha despejado el campo en %1 segundos.",
     "You stepped on a mine.": "Ha pisado una mina.",
     "You won!": "¡Ha ganado!",
+    "&Statistics…": "&Estadísticas…",
+    "Statistics": "Estadísticas",
+    "Difficulty": "Dificultad",
+    "Played": "Jugadas",
+    "Won": "Ganadas",
+    "Best time": "Mejor tiempo",
+    "Beginner": "Principiante",
+    "Intermediate": "Intermedio",
+    "Expert": "Experto",
+    "Reset all": "Borrar todo",
+    "Reset statistics?": "¿Borrar estadísticas?",
+    "Permanently erase all played / won / best-time records?": "¿Borrar permanentemente todos los registros de jugadas / victorias / mejores tiempos?",
+    "🏆 New record!": "🏆 ¡Nuevo récord!",
 }
 
 FR: dict[str, str] = {
@@ -142,6 +168,19 @@ FR: dict[str, str] = {
     "You cleared the field in %1 seconds.": "Vous avez déminé le terrain en %1 secondes.",
     "You stepped on a mine.": "Vous avez marché sur une mine.",
     "You won!": "Vous avez gagné !",
+    "&Statistics…": "&Statistiques…",
+    "Statistics": "Statistiques",
+    "Difficulty": "Difficulté",
+    "Played": "Jouées",
+    "Won": "Gagnées",
+    "Best time": "Meilleur temps",
+    "Beginner": "Débutant",
+    "Intermediate": "Intermédiaire",
+    "Expert": "Expert",
+    "Reset all": "Tout réinitialiser",
+    "Reset statistics?": "Réinitialiser les statistiques ?",
+    "Permanently erase all played / won / best-time records?": "Effacer définitivement toutes les parties jouées / gagnées / meilleurs temps ?",
+    "🏆 New record!": "🏆 Nouveau record !",
 }
 
 DE: dict[str, str] = {
@@ -181,6 +220,19 @@ DE: dict[str, str] = {
     "You cleared the field in %1 seconds.": "Du hast das Feld in %1 Sekunden geräumt.",
     "You stepped on a mine.": "Du bist auf eine Mine getreten.",
     "You won!": "Gewonnen!",
+    "&Statistics…": "&Statistiken…",
+    "Statistics": "Statistiken",
+    "Difficulty": "Schwierigkeit",
+    "Played": "Gespielt",
+    "Won": "Gewonnen",
+    "Best time": "Bestzeit",
+    "Beginner": "Anfänger",
+    "Intermediate": "Fortgeschritten",
+    "Expert": "Experte",
+    "Reset all": "Alles zurücksetzen",
+    "Reset statistics?": "Statistiken zurücksetzen?",
+    "Permanently erase all played / won / best-time records?": "Alle Spiel-/Sieg-/Bestzeit-Einträge dauerhaft löschen?",
+    "🏆 New record!": "🏆 Neuer Rekord!",
 }
 
 RU: dict[str, str] = {
@@ -220,6 +272,19 @@ RU: dict[str, str] = {
     "You cleared the field in %1 seconds.": "Вы разминировали поле за %1 секунд.",
     "You stepped on a mine.": "Вы наступили на мину.",
     "You won!": "Вы победили!",
+    "&Statistics…": "&Статистика…",
+    "Statistics": "Статистика",
+    "Difficulty": "Сложность",
+    "Played": "Сыграно",
+    "Won": "Побед",
+    "Best time": "Лучшее время",
+    "Beginner": "Новичок",
+    "Intermediate": "Любитель",
+    "Expert": "Эксперт",
+    "Reset all": "Сбросить все",
+    "Reset statistics?": "Сбросить статистику?",
+    "Permanently erase all played / won / best-time records?": "Безвозвратно удалить все записи сыгранных / побед / лучших времён?",
+    "🏆 New record!": "🏆 Новый рекорд!",
 }
 
 PT: dict[str, str] = {
@@ -259,6 +324,19 @@ PT: dict[str, str] = {
     "You cleared the field in %1 seconds.": "Você limpou o campo em %1 segundos.",
     "You stepped on a mine.": "Você pisou em uma mina.",
     "You won!": "Você venceu!",
+    "&Statistics…": "&Estatísticas…",
+    "Statistics": "Estatísticas",
+    "Difficulty": "Dificuldade",
+    "Played": "Jogadas",
+    "Won": "Vitórias",
+    "Best time": "Melhor tempo",
+    "Beginner": "Iniciante",
+    "Intermediate": "Intermediário",
+    "Expert": "Especialista",
+    "Reset all": "Redefinir tudo",
+    "Reset statistics?": "Redefinir estatísticas?",
+    "Permanently erase all played / won / best-time records?": "Apagar permanentemente todos os registros de partidas / vitórias / melhores tempos?",
+    "🏆 New record!": "🏆 Novo recorde!",
 }
 
 ZH: dict[str, str] = {
@@ -298,6 +376,19 @@ ZH: dict[str, str] = {
     "You cleared the field in %1 seconds.": "您用时 %1 秒清扫完成。",
     "You stepped on a mine.": "您踩到了雷。",
     "You won!": "你赢了！",
+    "&Statistics…": "统计(&S)…",
+    "Statistics": "统计",
+    "Difficulty": "难度",
+    "Played": "已玩",
+    "Won": "获胜",
+    "Best time": "最佳时间",
+    "Beginner": "初级",
+    "Intermediate": "中级",
+    "Expert": "高级",
+    "Reset all": "全部重置",
+    "Reset statistics?": "重置统计数据？",
+    "Permanently erase all played / won / best-time records?": "是否永久删除所有已玩、获胜与最佳时间记录？",
+    "🏆 New record!": "🏆 新纪录！",
 }
 
 HI: dict[str, str] = {
@@ -337,6 +428,19 @@ HI: dict[str, str] = {
     "You cleared the field in %1 seconds.": "आपने %1 सेकंड में मैदान साफ किया।",
     "You stepped on a mine.": "आप एक माइन पर कदम रख गए।",
     "You won!": "आप जीत गए!",
+    "&Statistics…": "&आँकड़े…",
+    "Statistics": "आँकड़े",
+    "Difficulty": "कठिनाई",
+    "Played": "खेले",
+    "Won": "जीते",
+    "Best time": "सर्वश्रेष्ठ समय",
+    "Beginner": "शुरुआती",
+    "Intermediate": "मध्यम",
+    "Expert": "विशेषज्ञ",
+    "Reset all": "सभी रीसेट करें",
+    "Reset statistics?": "आँकड़े रीसेट करें?",
+    "Permanently erase all played / won / best-time records?": "क्या सभी खेल / जीत / सर्वश्रेष्ठ समय के रिकॉर्ड स्थायी रूप से मिटा दिए जाएँ?",
+    "🏆 New record!": "🏆 नया रिकॉर्ड!",
 }
 
 AR: dict[str, str] = {
@@ -376,6 +480,19 @@ AR: dict[str, str] = {
     "You cleared the field in %1 seconds.": "نظّفت الحقل في %1 ثانية.",
     "You stepped on a mine.": "لقد دست على لغم.",
     "You won!": "لقد فزت!",
+    "&Statistics…": "ال&إحصائيات…",
+    "Statistics": "الإحصائيات",
+    "Difficulty": "الصعوبة",
+    "Played": "اللعبات",
+    "Won": "الانتصارات",
+    "Best time": "أفضل وقت",
+    "Beginner": "مبتدئ",
+    "Intermediate": "متوسط",
+    "Expert": "خبير",
+    "Reset all": "تصفير الكل",
+    "Reset statistics?": "تصفير الإحصائيات؟",
+    "Permanently erase all played / won / best-time records?": "حذف جميع سجلات المباريات / الانتصارات / أفضل الأوقات نهائياً؟",
+    "🏆 New record!": "🏆 رقم قياسي جديد!",
 }
 
 LOCALES: dict[str, dict[str, str]] = {

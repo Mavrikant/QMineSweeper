@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QMineSweeper
-    VERSION 1.1.0
+    VERSION 1.2.0
     DESCRIPTION "A Qt6-based Minesweeper game"
     HOMEPAGE_URL "https://github.com/Mavrikant/QMineSweeper"
     LANGUAGES CXX
@@ -58,6 +58,8 @@ set(PROJECT_SOURCES
     telemetry.h
     language.cpp
     language.h
+    stats.cpp
+    stats.h
     resources.qrc
 )
 
