@@ -1,8 +1,7 @@
 #include "minebutton.h"
 
-#include "minefield.h"
-
 #include <QColor>
+#include <QCursor>
 #include <QFont>
 #include <QIcon>
 #include <QMouseEvent>
@@ -12,12 +11,14 @@
 namespace
 {
 constexpr int kCellSize = 30;
-constexpr int kIconSize = 32;
+constexpr int kIconSize = 22;
 constexpr const char *kEvenCellStyle = "border: 0px; background: rgba(162, 209, 73, 1);";
-constexpr const char *kOddCellStyle = "border: 0px; background: rgba(162, 209, 73, 0.8);";
+constexpr const char *kOddCellStyle = "border: 0px; background: rgba(162, 209, 73, 0.85);";
 constexpr const char *kEvenOpenedStyle = "border: 0px; background: rgba(215, 184, 153, 1);";
-constexpr const char *kOddOpenedStyle = "border: 0px; background: rgba(215, 184, 153, 0.8);";
-constexpr const char *kMineStyle = "border: 0px; background: rgba(255, 209, 73, 1);";
+constexpr const char *kOddOpenedStyle = "border: 0px; background: rgba(215, 184, 153, 0.85);";
+constexpr const char *kMineStyle = "border: 0px; background: rgba(255, 80, 60, 1);";
+constexpr const char *kMineRevealStyle = "border: 0px; background: rgba(255, 209, 73, 1);";
+constexpr const char *kWrongFlagStyle = "border: 0px; background: rgba(200, 80, 80, 0.9);";
 
 QColor numberColor(std::uint32_t number)
 {
@@ -45,78 +46,160 @@ QColor numberColor(std::uint32_t number)
 }
 } // namespace
 
-MineButton::MineButton(std::uint32_t x, std::uint32_t y, QWidget *parent) : QPushButton{parent}, m_Field{qobject_cast<MineField *>(parent)}, m_x{x}, m_y{y}
+MineButton::MineButton(std::uint32_t row, std::uint32_t col, QWidget *parent) : QPushButton{parent}, m_row{row}, m_col{col}
 {
     setFixedSize(kCellSize, kCellSize);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     setFont(QFont{"Arial", 12, QFont::Bold});
-    setStyleSheet(((m_x + m_y) % 2) ? kOddCellStyle : kEvenCellStyle);
+    setCursor(Qt::PointingHandCursor);
+    applyBaseStyle();
 }
+
+void MineButton::applyBaseStyle() { setStyleSheet(((m_row + m_col) % 2) ? kOddCellStyle : kEvenCellStyle); }
+
+void MineButton::applyOpenedStyle() { setStyleSheet(((m_row + m_col) % 2) ? kOddOpenedStyle : kEvenOpenedStyle); }
 
 void MineButton::setNumber(std::uint32_t number)
 {
-    if (!m_isMined)
+    if (m_isMined)
     {
-        m_number = number;
+        return;
     }
-
-    const QColor color = numberColor(number);
-    setStyleSheet(styleSheet() + QStringLiteral("color: rgb(%1, %2, %3);").arg(color.red()).arg(color.green()).arg(color.blue()));
+    m_number = number;
 }
 
 std::uint32_t MineButton::Number() const noexcept { return m_number; }
 
 bool MineButton::isMined() const noexcept { return m_isMined; }
 
+void MineButton::setMined() noexcept { m_isMined = true; }
+
+void MineButton::clearMined() noexcept { m_isMined = false; }
+
+bool MineButton::isFlagged() const noexcept { return m_isFlagged; }
+
 bool MineButton::isOpened() const noexcept { return m_isClicked; }
+
+void MineButton::setCellEnabled(bool enabled) noexcept
+{
+    m_enabled = enabled;
+    setCursor(enabled ? Qt::PointingHandCursor : Qt::ArrowCursor);
+}
 
 void MineButton::Open()
 {
-    m_isClicked = true;
-    if (m_number == 0 && !m_isMined)
+    if (m_isClicked || m_isFlagged)
     {
-        emit checkNeighbours(m_x, m_y);
+        return;
     }
 
-    setStyleSheet(((m_x + m_y) % 2) ? kOddOpenedStyle : kEvenOpenedStyle);
+    emit cellPressed(m_row, m_col);
+
+    m_isClicked = true;
+    applyOpenedStyle();
 
     if (m_isMined)
     {
         setStyleSheet(kMineStyle);
         setIcon(QIcon{":/icons/explosion.png"});
         setIconSize(QSize{kIconSize, kIconSize});
-        emit explosion(m_x, m_y);
+        emit explosion(m_row, m_col);
+        return;
     }
-    else
+
+    setText(m_number == 0 ? QString{} : QString::number(m_number));
+    const QColor color = numberColor(m_number);
+    setStyleSheet(styleSheet() + QStringLiteral("color: rgb(%1, %2, %3);").arg(color.red()).arg(color.green()).arg(color.blue()));
+
+    emit cellOpened(m_row, m_col);
+
+    if (m_number == 0)
     {
-        setText(m_number == 0 ? QString{} : QString::number(m_number));
-        const QColor color = numberColor(m_number);
-        setStyleSheet(styleSheet() + QStringLiteral("color: rgb(%1, %2, %3);").arg(color.red()).arg(color.green()).arg(color.blue()));
+        emit checkNeighbours(m_row, m_col);
+    }
+}
+
+void MineButton::revealAsMine()
+{
+    if (m_isClicked)
+    {
+        return;
+    }
+    m_isClicked = true;
+    setStyleSheet(kMineRevealStyle);
+    setIcon(QIcon{":/icons/explosion.png"});
+    setIconSize(QSize{kIconSize, kIconSize});
+}
+
+void MineButton::revealAsWrongFlag()
+{
+    setStyleSheet(kWrongFlagStyle);
+    setIcon(QIcon{":/icons/redflag.png"});
+    setIconSize(QSize{kIconSize, kIconSize});
+    setText(QStringLiteral("×"));
+}
+
+void MineButton::autoFlag()
+{
+    if (m_isClicked)
+    {
+        return;
+    }
+    if (!m_isFlagged)
+    {
+        m_isFlagged = true;
+        setIcon(QIcon{":/icons/redflag.png"});
+        setIconSize(QSize{kIconSize, kIconSize});
+        emit flagToggled(m_row, m_col, true);
     }
 }
 
 void MineButton::Flag()
 {
-    if (m_isFlaged || m_isClicked)
+    if (m_isClicked)
     {
         return;
     }
-    m_isFlaged = true;
-    if (m_Field != nullptr)
+    if (m_isFlagged)
     {
-        m_Field->incrementflagCount();
+        m_isFlagged = false;
+        setIcon(QIcon{});
+        emit flagToggled(m_row, m_col, false);
     }
-    setIcon(QIcon{":/icons/redflag.png"});
+    else
+    {
+        m_isFlagged = true;
+        setIcon(QIcon{":/icons/redflag.png"});
+        setIconSize(QSize{kIconSize, kIconSize});
+        emit flagToggled(m_row, m_col, true);
+    }
 }
-
-void MineButton::setMined() noexcept { m_isMined = true; }
 
 void MineButton::mousePressEvent(QMouseEvent *e)
 {
+    if (!m_enabled)
+    {
+        return;
+    }
+
+    const bool leftAndRight = (e->buttons() & (Qt::LeftButton | Qt::RightButton)) == (Qt::LeftButton | Qt::RightButton);
+
+    if (e->button() == Qt::MiddleButton || leftAndRight)
+    {
+        if (m_isClicked)
+        {
+            emit chordRequested(m_row, m_col);
+        }
+        return;
+    }
+
     switch (e->button())
     {
     case Qt::LeftButton:
-        Open();
+        if (!m_isFlagged)
+        {
+            Open();
+        }
         break;
     case Qt::RightButton:
         Flag();

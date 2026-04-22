@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>412</width>
-    <height>389</height>
+    <width>320</width>
+    <height>360</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -22,9 +22,6 @@
   <property name="windowIcon">
    <iconset resource="resources.qrc">
     <normaloff>:/icons/redflag.png</normaloff>:/icons/redflag.png</iconset>
-  </property>
-  <property name="styleSheet">
-   <string notr="true"/>
   </property>
   <widget class="QWidget" name="centralwidget">
    <property name="sizePolicy">
@@ -64,9 +61,21 @@
        <enum>QLayout::SetMinimumSize</enum>
       </property>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0">
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1">
         <property name="spacing">
-         <number>0</number>
+         <number>6</number>
+        </property>
+        <property name="leftMargin">
+         <number>8</number>
+        </property>
+        <property name="topMargin">
+         <number>4</number>
+        </property>
+        <property name="rightMargin">
+         <number>8</number>
+        </property>
+        <property name="bottomMargin">
+         <number>4</number>
         </property>
         <property name="sizeConstraint">
          <enum>QLayout::SetMinimumSize</enum>
@@ -82,11 +91,14 @@
           <property name="minimumSize">
            <size>
             <width>0</width>
-            <height>20</height>
+            <height>24</height>
            </size>
           </property>
+          <property name="styleSheet">
+           <string notr="true">color: white; font-weight: bold; font-size: 16px;</string>
+          </property>
           <property name="text">
-           <string>TextLabel</string>
+           <string>10</string>
           </property>
          </widget>
         </item>
@@ -101,11 +113,14 @@
           <property name="minimumSize">
            <size>
             <width>0</width>
-            <height>20</height>
+            <height>24</height>
            </size>
           </property>
+          <property name="styleSheet">
+           <string notr="true">color: white; font-weight: bold; font-size: 16px;</string>
+          </property>
           <property name="text">
-           <string>TextLabel</string>
+           <string>000.0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -139,39 +154,27 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>412</width>
+     <width>320</width>
      <height>26</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuGame">
     <property name="title">
-     <string>Game</string>
+     <string>&amp;Game</string>
     </property>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
-     <string>Help</string>
+     <string>&amp;Help</string>
     </property>
     <addaction name="actionAbout"/>
    </widget>
-   <widget class="QMenu" name="menuSettings">
-    <property name="title">
-     <string>Settings</string>
-    </property>
-    <addaction name="actionLanguage"/>
-   </widget>
    <addaction name="menuGame"/>
-   <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
   <action name="actionAbout">
    <property name="text">
-    <string>About</string>
-   </property>
-  </action>
-  <action name="actionLanguage">
-   <property name="text">
-    <string>Language</string>
+    <string>&amp;About</string>
    </property>
   </action>
  </widget>
