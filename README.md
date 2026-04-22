@@ -12,6 +12,16 @@
 
 A modern implementation of the classic **Minesweeper** game, written in **C++20** using the **Qt 6** widget toolkit.
 
+## Screenshots
+
+| Fresh Beginner board | Mid-game: numbers, flags, flood-fill |
+|---|---|
+| ![Fresh 9×9 Beginner board](docs/screenshots/01-fresh-beginner.png) | ![Mid-game with numbers and flags](docs/screenshots/02-playing.png) |
+
+| Settings → Language (10 locales) | Game over — all mines revealed |
+|---|---|
+| ![Settings → Language menu showing flag-iconified picker for 10 locales](docs/screenshots/03-language-menu.png) | ![Game-over state with all mines revealed and the clicked mine highlighted in red](docs/screenshots/04-boom.png) |
+
 ## Features
 
 - Three difficulty levels: Beginner (9×9, 10 mines), Intermediate (16×16, 40 mines), Expert (30×16, 99 mines)
