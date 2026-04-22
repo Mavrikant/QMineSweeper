@@ -24,6 +24,7 @@ A modern implementation of the classic **Minesweeper** game, written in **C++20*
 - Cross-platform: Linux, Windows and macOS (universal binary on macOS)
 - Unit tests powered by the Qt Test framework (36 tests covering the game-state machine, first-click safety, chord logic, etc.)
 - Code coverage reports generated with `lcov` / `genhtml` on every CI run
+- Opt-in anonymous crash reports and usage telemetry via [Sentry](https://sentry.io) (release builds only; disabled by default until you consent)
 
 ## Download
 
@@ -138,6 +139,42 @@ report is generated on every push to `main` by the Ubuntu CI job, uploaded
 to [Codecov](https://codecov.io/gh/Mavrikant/QMineSweeper), and also
 attached as an artifact to the workflow run.
 
+## Privacy and telemetry
+
+Release builds include an **opt-in** integration with [Sentry](https://sentry.io)
+via [`sentry-native`](https://github.com/getsentry/sentry-native). On first
+launch, you are asked whether to send anonymous crash reports and usage
+statistics. You can change the choice later under `Settings → Send
+anonymous crash reports and usage data`.
+
+**What gets sent (only if you opt in)**:
+- Unhandled crashes (signal, stack trace, loaded modules, Qt version, OS, CPU arch)
+- Game lifecycle events: `game.started`, `game.won`, `game.lost` — each tagged with difficulty and duration
+- An anonymous install ID (a random UUID stored locally; does not identify you)
+- Release-health session data (so we can see stability across versions)
+- Approximate geo from your IP (country-level), inferred by Sentry's ingest
+
+**What is NOT sent**:
+- Your name, email, username, or IP address in event payloads
+- File paths, in-game actions beyond win/loss, your play sessions' board layout
+- Anything from a debug build (those are tagged `environment=debug` and discarded from release dashboards)
+
+Local (`-DENABLE_SENTRY=OFF`, the default) and source builds have no telemetry
+compiled in at all. The CI release workflow sets `-DENABLE_SENTRY=ON`.
+
+To disable from the command line on a release build, delete the persisted
+choice — Qt stores it in the platform-native settings store:
+
+```bash
+# macOS
+defaults delete com.mavrikant.QMineSweeper
+# Linux
+rm -rf ~/.config/Mavrikant/QMineSweeper.conf
+# Windows: registry under HKCU\Software\Mavrikant\QMineSweeper
+```
+
+The app will re-ask on next launch.
+
 ## Code style
 
 Formatting is enforced by [`clang-format`](https://clang.llvm.org/docs/ClangFormat.html)
@@ -157,6 +194,7 @@ clang-format -i *.cpp *.h tests/*.cpp
 ├── mainwindow.{h,cpp,ui} # Top-level window, menus, timer, mine counter
 ├── minefield.{h,cpp}     # Grid widget, game state, mine placement
 ├── minebutton.{h,cpp}    # Single cell: reveals, flags, chords, signals
+├── telemetry.{h,cpp}     # Sentry wrapper (no-op when ENABLE_SENTRY=OFF)
 ├── resources.qrc         # Embedded icons (red flag, explosion)
 ├── icons/                # PNG assets
 ├── tests/                # Qt Test unit tests

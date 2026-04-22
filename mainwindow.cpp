@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include "./ui_mainwindow.h"
+#include "telemetry.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -29,7 +30,7 @@ QString difficultyName(const Difficulty &diff)
 }
 } // namespace
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_unique<Ui::MainWindow>())
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_unique<Ui::MainWindow>()), m_releaseId(QStringLiteral("qminesweeper@") + QString::fromUtf8(QMS_VERSION))
 {
     ui->setupUi(this);
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
@@ -79,6 +80,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_uniq
     centralWidget()->layout()->setContentsMargins(0, 0, 0, 0);
     adjustSize();
     setFixedSize(sizeHint());
+
+    maybeAskTelemetryConsent();
 }
 
 MainWindow::~MainWindow() = default;
@@ -125,6 +128,16 @@ void MainWindow::buildMenus()
     connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
     ui->menuGame->addAction(quitAction);
 
+    if (Telemetry::isCompiledIn())
+    {
+        auto *settingsMenu = menuBar()->addMenu(tr("&Settings"));
+        m_telemetryAction = new QAction(tr("Send anonymous &crash reports and usage data"), this);
+        m_telemetryAction->setCheckable(true);
+        m_telemetryAction->setChecked(Telemetry::isEnabled());
+        connect(m_telemetryAction, &QAction::toggled, this, &MainWindow::toggleTelemetry);
+        settingsMenu->addAction(m_telemetryAction);
+    }
+
     if (ui->actionAbout)
     {
         connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
@@ -140,6 +153,7 @@ void MainWindow::onNewGame()
     setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
     adjustSize();
     setFixedSize(sizeHint());
+    Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("new game"));
 }
 
 void MainWindow::onDifficultyChanged(Difficulty diff)
@@ -154,6 +168,7 @@ void MainWindow::onDifficultyChanged(Difficulty diff)
     setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
     adjustSize();
     setFixedSize(sizeHint());
+    Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("difficulty: ") + difficultyName(diff));
 }
 
 void MainWindow::onGameStarted()
@@ -161,6 +176,12 @@ void MainWindow::onGameStarted()
     m_gameTimer.start();
     m_displayTimer->start();
     setWindowTitle(tr("QMineSweeper — Playing"));
+    Telemetry::recordEvent(QStringLiteral("game.started"), {
+                                                               {QStringLiteral("difficulty"), difficultyName(m_currentDifficulty)},
+                                                               {QStringLiteral("cols"), m_currentDifficulty.width},
+                                                               {QStringLiteral("rows"), m_currentDifficulty.height},
+                                                               {QStringLiteral("mines"), m_currentDifficulty.mineCount},
+                                                           });
 }
 
 void MainWindow::onGameWon()
@@ -169,6 +190,10 @@ void MainWindow::onGameWon()
     m_lastElapsedSeconds = elapsedSeconds();
     updateTimerLabel();
     setWindowTitle(tr("QMineSweeper — You won!"));
+    Telemetry::recordEvent(QStringLiteral("game.won"), {
+                                                           {QStringLiteral("difficulty"), difficultyName(m_currentDifficulty)},
+                                                           {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
+                                                       });
     showEndDialog(true);
 }
 
@@ -178,7 +203,44 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     m_lastElapsedSeconds = elapsedSeconds();
     updateTimerLabel();
     setWindowTitle(tr("QMineSweeper — Boom"));
+    Telemetry::recordEvent(QStringLiteral("game.lost"), {
+                                                            {QStringLiteral("difficulty"), difficultyName(m_currentDifficulty)},
+                                                            {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
+                                                        });
     showEndDialog(false);
+}
+
+void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
+
+void MainWindow::maybeAskTelemetryConsent()
+{
+    if (!Telemetry::isCompiledIn() || Telemetry::hasAskedConsent())
+    {
+        return;
+    }
+    QMessageBox box(this);
+    box.setWindowTitle(tr("Help improve QMineSweeper"));
+    box.setIcon(QMessageBox::Question);
+    box.setText(tr("Would you like to send anonymous crash reports and usage data?"));
+    box.setInformativeText(tr("We collect: app crashes, game results (win/loss, duration, difficulty),"
+                              " OS name, CPU architecture, Qt version, and an anonymous install ID."
+                              "<br/><br/>"
+                              "We do <b>not</b> collect: your name, email, IP address, file paths,"
+                              " or any in-game actions."
+                              "<br/><br/>"
+                              "You can change this later in <b>Settings</b>."));
+    box.setTextFormat(Qt::RichText);
+    QPushButton *yes = box.addButton(tr("Yes, send"), QMessageBox::AcceptRole);
+    box.addButton(tr("No thanks"), QMessageBox::RejectRole);
+    box.setDefaultButton(yes);
+    box.exec();
+    const bool accepted = box.clickedButton() == yes;
+    Telemetry::setHasAskedConsent(true);
+    Telemetry::setEnabled(accepted, m_releaseId);
+    if (m_telemetryAction)
+    {
+        m_telemetryAction->setChecked(accepted);
+    }
 }
 
 void MainWindow::resetTimerUi()

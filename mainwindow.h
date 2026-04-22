@@ -32,20 +32,24 @@ class MainWindow : public QMainWindow
     void onGameWon();
     void onGameLost(std::uint32_t row, std::uint32_t col);
     void showAboutDialog();
+    void toggleTelemetry(bool enabled);
 
   private:
     void buildMenus();
     void resetTimerUi();
     void updateTimerLabel();
     void showEndDialog(bool won);
+    void maybeAskTelemetryConsent();
     [[nodiscard]] double elapsedSeconds() const noexcept;
 
     std::unique_ptr<Ui::MainWindow> ui;
     QElapsedTimer m_gameTimer;
     QTimer *m_displayTimer{nullptr};
     QActionGroup *m_difficultyGroup{nullptr};
+    QAction *m_telemetryAction{nullptr};
     Difficulty m_currentDifficulty{MineField::Beginner};
     double m_lastElapsedSeconds{0.0};
+    QString m_releaseId;
 };
 
 #endif // MAINWINDOW_H

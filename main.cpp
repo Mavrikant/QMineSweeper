@@ -1,7 +1,9 @@
 #include "mainwindow.h"
+#include "telemetry.h"
 
 #include <QApplication>
 #include <QLocale>
+#include <QObject>
 #include <QTranslator>
 
 int main(int argc, char *argv[])
@@ -13,6 +15,10 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName("Mavrikant");
     QApplication::setOrganizationDomain("mavrikant.com");
     QApplication::setApplicationVersion(QString::fromUtf8(QMS_VERSION));
+
+    const QString release = QStringLiteral("qminesweeper@") + QString::fromUtf8(QMS_VERSION);
+    Telemetry::initialize(release);
+    QObject::connect(&app, &QApplication::aboutToQuit, [] { Telemetry::shutdown(); });
 
     QTranslator translator;
     const QStringList uiLanguages = QLocale::system().uiLanguages();

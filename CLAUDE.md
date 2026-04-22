@@ -6,7 +6,8 @@ A Qt6-based Minesweeper game with Beginner / Intermediate / Expert difficulty, f
 
 - **MineButton** (`minebutton.h` / `minebutton.cpp`): A single cell on the minefield, extending `QPushButton`. Owns per-cell state (mined, flagged, opened, adjacent-mine count) and emits input signals — `cellPressed`, `cellOpened`, `explosion`, `flagToggled`, `chordRequested`, `checkNeighbours`. No back-pointer to `MineField`: signals up, slots down.
 - **MineField** (`minefield.h` / `minefield.cpp`): The grid widget and game-logic owner. Holds `GameState { Ready, Playing, Won, Lost }`, defers mine placement until the first click (the pressed cell and its 8 neighbours are excluded, guaranteeing a zero-start), runs flood-fill, detects win / loss, and emits `gameStarted` / `gameWon` / `gameLost` / `mineCountChanged` upward. Grid size and mine count are runtime-configurable via `newGame(Difficulty)`; presets: `Beginner` (9×9, 10), `Intermediate` (16×16, 40), `Expert` (30×16, 99).
-- **MainWindow** (`mainwindow.h` / `mainwindow.cpp` / `mainwindow.ui`): Presentation only. Menus (`Game → New`, `Game → Difficulty`, `Game → Quit`), timer tied to `gameStarted` / `gameWon` / `gameLost`, end-of-game `QMessageBox`, and difficulty persistence via `QSettings`.
+- **MainWindow** (`mainwindow.h` / `mainwindow.cpp` / `mainwindow.ui`): Presentation only. Menus (`Game → New`, `Game → Difficulty`, `Game → Quit`, `Settings → Send crash reports`), timer tied to `gameStarted` / `gameWon` / `gameLost`, end-of-game `QMessageBox`, and difficulty persistence via `QSettings`. First-launch consent dialog for telemetry.
+- **Telemetry** (`telemetry.h` / `telemetry.cpp`): Thin `sentry-native` wrapper. No-op at link time when `ENABLE_SENTRY=OFF` (default). When on, initialises Sentry after user consent, sets an anonymous install UUID as the user id, tags `os`/`arch`/`qt_version`, starts a release-health session, and exposes `recordEvent`/`addBreadcrumb` for game events (`game.started`, `game.won`, `game.lost` with difficulty + duration tags).
 
 ## Prerequisites
 
@@ -75,6 +76,14 @@ The CI formatter workflow will flag any style violations.
 | `macos.yml` | push / PR to `main` | Build and test on macOS (Apple Silicon) |
 | `release.yml` | push tag `v*` / manual | Build Linux + Windows + universal ad-hoc-signed macOS binaries and publish a GitHub Release |
 | `formatter.yml` | push / PR to `main` | Enforce clang-format code style |
+
+### Telemetry (Sentry)
+
+Release binaries are built with `-DENABLE_SENTRY=ON`. The [`sentry-native`](https://github.com/getsentry/sentry-native) SDK is fetched at configure time via `FetchContent`, built statically with `SENTRY_BACKEND=inproc` (no separate `crashpad_handler` to ship), and linked in. Inproc catches `SIGSEGV`/`SIGABRT`/`SIGBUS`/`SIGFPE`/`SIGILL` — not `SIGTERM` — which is fine for crash reporting on normal exits.
+
+Telemetry is **opt-in**. The first launch asks. The Sentry project is `karaman/qminesweeper` on `https://karaman.sentry.io` (region `de.sentry.io`). The public DSN is hardcoded in `CMakeLists.txt`; client DSNs are safe to embed because they only grant ingest, not read.
+
+Dev builds (`ENABLE_SENTRY=OFF`, the default) have no Sentry code linked at all — useful for fast iteration and so PRs on `main` CI stay fast.
 
 ### macOS signing policy
 

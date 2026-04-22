@@ -22,6 +22,11 @@ endif()
 
 option(ENABLE_COVERAGE "Enable gcov/lcov coverage instrumentation" OFF)
 option(BUILD_TESTING "Build unit tests" ON)
+option(ENABLE_SENTRY "Link sentry-native for crash reports and telemetry" OFF)
+set(SENTRY_DSN
+    "https://aa36f66967ebf04fed7f355ddbf56a22@o4509745779048448.ingest.de.sentry.io/4511265438564432"
+    CACHE STRING "Public Sentry DSN embedded at build time")
+set(SENTRY_NATIVE_VERSION "0.7.17" CACHE STRING "sentry-native tag to fetch")
 
 find_package(Qt6 6.2 REQUIRED COMPONENTS Widgets LinguistTools)
 
@@ -38,6 +43,8 @@ set(PROJECT_SOURCES
     minefield.cpp
     minebutton.cpp
     minebutton.h
+    telemetry.cpp
+    telemetry.h
     resources.qrc
 )
 
@@ -53,6 +60,24 @@ target_link_libraries(QMineSweeper PRIVATE Qt6::Widgets)
 target_compile_definitions(QMineSweeper PRIVATE
     QMS_VERSION="${PROJECT_VERSION}"
 )
+
+if(ENABLE_SENTRY)
+    include(FetchContent)
+    set(SENTRY_BACKEND inproc CACHE STRING "" FORCE)
+    set(SENTRY_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(SENTRY_INTEGRATION_QT YES CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        sentry_native
+        GIT_REPOSITORY https://github.com/getsentry/sentry-native.git
+        GIT_TAG ${SENTRY_NATIVE_VERSION}
+    )
+    FetchContent_MakeAvailable(sentry_native)
+    target_link_libraries(QMineSweeper PRIVATE sentry::sentry)
+    target_compile_definitions(QMineSweeper PRIVATE
+        QMS_SENTRY_ENABLED=1
+        QMS_SENTRY_DSN="${SENTRY_DSN}"
+    )
+endif()
 
 set_target_properties(QMineSweeper PROPERTIES
     WIN32_EXECUTABLE TRUE
