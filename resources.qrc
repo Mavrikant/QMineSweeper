@@ -3,5 +3,6 @@
     <qresource prefix="/">
         <file>icons/redflag.png</file>
         <file>icons/explosion.png</file>
+        <file>icons/app_icon.png</file>
     </qresource>
 </RCC>

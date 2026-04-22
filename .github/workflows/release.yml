@@ -113,7 +113,7 @@ jobs:
           Categories=Game;LogicGame;
           Terminal=false
           EOF
-          cp icons/explosion.png AppDir/usr/share/icons/hicolor/256x256/apps/qminesweeper.png
+          cp icons/app_icon_256.png AppDir/usr/share/icons/hicolor/256x256/apps/qminesweeper.png
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --plugin qt \

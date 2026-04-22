@@ -48,6 +48,21 @@ set(PROJECT_SOURCES
     resources.qrc
 )
 
+set(MACOSX_BUNDLE_ICON "${CMAKE_SOURCE_DIR}/icons/QMineSweeper.icns")
+
+if(APPLE)
+    set_source_files_properties("${MACOSX_BUNDLE_ICON}" PROPERTIES
+        MACOSX_PACKAGE_LOCATION "Resources")
+    list(APPEND PROJECT_SOURCES "${MACOSX_BUNDLE_ICON}")
+endif()
+
+if(WIN32)
+    # Embed the .ico so the .exe gets the app icon in Explorer.
+    file(WRITE "${CMAKE_BINARY_DIR}/qminesweeper.rc"
+         "IDI_ICON1 ICON \"${CMAKE_SOURCE_DIR}/icons/QMineSweeper.ico\"\n")
+    list(APPEND PROJECT_SOURCES "${CMAKE_BINARY_DIR}/qminesweeper.rc")
+endif()
+
 qt_add_executable(QMineSweeper
     MANUAL_FINALIZATION
     ${PROJECT_SOURCES}
@@ -85,6 +100,7 @@ set_target_properties(QMineSweeper PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER com.mavrikant.qminesweeper
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    MACOSX_BUNDLE_ICON_FILE QMineSweeper.icns
 )
 
 if(ENABLE_COVERAGE)
