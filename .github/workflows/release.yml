@@ -62,7 +62,10 @@ jobs:
             libgl1-mesa-dev \
             libxkbcommon-dev \
             libxcb-cursor0 \
-            libfuse2
+            libfuse2 \
+            libcurl4-openssl-dev \
+            libssl-dev \
+            zlib1g-dev
 
       - name: Install Qt ${{ env.QT_VERSION }}
         uses: jurplel/install-qt-action@v4
