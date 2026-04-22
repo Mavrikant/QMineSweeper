@@ -1,0 +1,51 @@
+name: macOS Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Debug
+  QT_VERSION: '6.7.2'
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Qt ${{ env.QT_VERSION }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: mac
+          target: desktop
+          cache: true
+          install-deps: true
+
+      - name: Install Ninja
+        run: brew install ninja
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }} \
+            -G Ninja
+
+      - name: Build
+        run: cmake --build build --config ${{ env.BUILD_TYPE }}
+
+      - name: Test
+        working-directory: build
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure

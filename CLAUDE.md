@@ -1,12 +1,12 @@
 # QMineSweeper
 
-A Qt6-based Minesweeper game.
+A Qt6-based Minesweeper game with Beginner / Intermediate / Expert difficulty, first-click safety, chord click, and a proper win / loss state machine.
 
 ## Architecture
 
-- **MineButton** (`minebutton.h` / `minebutton.cpp`): A single cell on the minefield. Extends `QPushButton`. Tracks whether the cell is mined, flagged, or opened and its adjacent mine count.
-- **MineField** (`minefield.h` / `minefield.cpp`): A `QWidget` that contains a 15×15 grid of `MineButton`s. Responsible for placing 20 mines at random and computing adjacent mine numbers for each cell.
-- **MainWindow** (`mainwindow.h` / `mainwindow.cpp`): Top-level window. Hosts `MineField` and a timer/mine-count display.
+- **MineButton** (`minebutton.h` / `minebutton.cpp`): A single cell on the minefield, extending `QPushButton`. Owns per-cell state (mined, flagged, opened, adjacent-mine count) and emits input signals — `cellPressed`, `cellOpened`, `explosion`, `flagToggled`, `chordRequested`, `checkNeighbours`. No back-pointer to `MineField`: signals up, slots down.
+- **MineField** (`minefield.h` / `minefield.cpp`): The grid widget and game-logic owner. Holds `GameState { Ready, Playing, Won, Lost }`, defers mine placement until the first click (the pressed cell and its 8 neighbours are excluded, guaranteeing a zero-start), runs flood-fill, detects win / loss, and emits `gameStarted` / `gameWon` / `gameLost` / `mineCountChanged` upward. Grid size and mine count are runtime-configurable via `newGame(Difficulty)`; presets: `Beginner` (9×9, 10), `Intermediate` (16×16, 40), `Expert` (30×16, 99).
+- **MainWindow** (`mainwindow.h` / `mainwindow.cpp` / `mainwindow.ui`): Presentation only. Menus (`Game → New`, `Game → Difficulty`, `Game → Quit`), timer tied to `gameStarted` / `gameWon` / `gameLost`, end-of-game `QMessageBox`, and difficulty persistence via `QSettings`.
 
 ## Prerequisites
 
@@ -70,7 +70,12 @@ The CI formatter workflow will flag any style violations.
 
 | Workflow | Trigger | Description |
 |---|---|---|
-| `ubuntu.yml` | push / PR to `main` | Build, test, and coverage report on Ubuntu |
-| `windows.yml` | push / PR to `main` | Build on Windows |
-| `release.yml` | push tag `v*` | Build release artifacts for Linux & Windows and publish a GitHub Release |
-| `formatter.yml` | every push | Enforce clang-format code style |
+| `ubuntu.yml` | push / PR to `main` | Build, test, lcov coverage + Codecov upload + HTML artifact |
+| `windows.yml` | push / PR to `main` | Build and test on Windows |
+| `macos.yml` | push / PR to `main` | Build and test on macOS (Apple Silicon) |
+| `release.yml` | push tag `v*` / manual | Build Linux + Windows + universal ad-hoc-signed macOS binaries and publish a GitHub Release |
+| `formatter.yml` | push / PR to `main` | Enforce clang-format code style |
+
+### macOS signing policy
+
+Release builds are **ad-hoc code-signed** (`codesign -s -`) so they run on Apple Silicon without a paid Apple Developer account. They are **not notarised**, so users must clear quarantine on first launch: `xattr -cr /Applications/QMineSweeper.app`. Do not add notarisation unless a Developer ID certificate is available — it requires `$99/year` and is out of scope for this project.

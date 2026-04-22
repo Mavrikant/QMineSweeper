@@ -2,8 +2,10 @@
 
 [![Ubuntu Build](https://github.com/Mavrikant/QMineSweeper/actions/workflows/ubuntu.yml/badge.svg)](https://github.com/Mavrikant/QMineSweeper/actions/workflows/ubuntu.yml)
 [![Windows Build](https://github.com/Mavrikant/QMineSweeper/actions/workflows/windows.yml/badge.svg)](https://github.com/Mavrikant/QMineSweeper/actions/workflows/windows.yml)
+[![macOS Build](https://github.com/Mavrikant/QMineSweeper/actions/workflows/macos.yml/badge.svg)](https://github.com/Mavrikant/QMineSweeper/actions/workflows/macos.yml)
 [![clang-format](https://github.com/Mavrikant/QMineSweeper/actions/workflows/formatter.yml/badge.svg)](https://github.com/Mavrikant/QMineSweeper/actions/workflows/formatter.yml)
 [![Release](https://github.com/Mavrikant/QMineSweeper/actions/workflows/release.yml/badge.svg)](https://github.com/Mavrikant/QMineSweeper/actions/workflows/release.yml)
+[![codecov](https://codecov.io/gh/Mavrikant/QMineSweeper/branch/main/graph/badge.svg)](https://codecov.io/gh/Mavrikant/QMineSweeper)
 [![Latest Release](https://img.shields.io/github/v/release/Mavrikant/QMineSweeper?include_prereleases&sort=semver)](https://github.com/Mavrikant/QMineSweeper/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CodeFactor](https://www.codefactor.io/repository/github/mavrikant/qminesweeper/badge)](https://www.codefactor.io/repository/github/mavrikant/qminesweeper)
@@ -12,13 +14,16 @@ A modern implementation of the classic **Minesweeper** game, written in **C++20*
 
 ## Features
 
-- 15x15 playing field with 20 randomly-placed mines
-- Left-click to reveal a cell, right-click to flag it
+- Three difficulty levels: Beginner (9×9, 10 mines), Intermediate (16×16, 40 mines), Expert (30×16, 99 mines)
+- First-click safety — the first cell you click is always a zero, so you can start with a flood open
+- Left-click reveals, right-click toggles a flag, middle-click (or left+right) chords to auto-reveal neighbours
 - Automatic flood-fill reveal for empty regions
-- Real-time elapsed-time display and live mine counter
-- Cross-platform build: Linux, Windows and macOS
-- Unit tests powered by the Qt Test framework
-- Code coverage reports generated with `lcov` / `genhtml`
+- Win / loss detection with end-of-game dialog and remaining-mine auto-flagging
+- Real-time elapsed-time display (starts on first click) and live mine counter
+- Game → New (Ctrl+N) and difficulty selection persisted via `QSettings`
+- Cross-platform: Linux, Windows and macOS (universal binary on macOS)
+- Unit tests powered by the Qt Test framework (36 tests covering the game-state machine, first-click safety, chord logic, etc.)
+- Code coverage reports generated with `lcov` / `genhtml` on every CI run
 
 ## Download
 
@@ -31,9 +36,26 @@ page:
 | Linux    | `QMineSweeper-linux-x86_64.AppImage`  |
 | Linux    | `QMineSweeper-linux-x86_64.tar.gz`    |
 | Windows  | `QMineSweeper-windows-x64.zip`        |
-| macOS    | `QMineSweeper-macos-universal.dmg`    |
+| macOS    | `QMineSweeper-macos-universal.dmg` (Apple Silicon + Intel) |
 
 SHA-256 checksums for every asset are provided in `SHA256SUMS.txt`.
+
+### Installing on macOS
+
+The macOS build is a **universal binary** (Apple Silicon + Intel) that is
+**ad-hoc code-signed** but not notarised. On first launch, macOS Gatekeeper
+will show a *"QMineSweeper is damaged and can't be opened"* dialog. This
+is expected — paid Apple Developer notarisation ($99/year) is out of scope
+for an open-source project.
+
+Clear the quarantine flag once and the app will open normally:
+
+```bash
+xattr -cr /Applications/QMineSweeper.app
+```
+
+This is the same workflow used by other open-source Qt/native apps
+(Ladybird, 0 A.D., OpenTTD, …). You only need to do it once per install.
 
 ## Prerequisites
 
@@ -50,20 +72,32 @@ cmake --build build
 ```
 
 If Qt is installed in a non-standard location (e.g. via the Qt online
-installer) pass `CMAKE_PREFIX_PATH`:
+installer or Homebrew) pass `CMAKE_PREFIX_PATH`:
 
 ```bash
+# macOS (Homebrew)
+cmake -B build \
+  -DCMAKE_PREFIX_PATH=/opt/homebrew/opt/qt \
+  -DCMAKE_BUILD_TYPE=Release \
+  -G Ninja
+
+# Linux / Qt online installer
 cmake -B build \
   -DCMAKE_PREFIX_PATH=/path/to/Qt/6.7.2/gcc_64 \
   -DCMAKE_BUILD_TYPE=Release \
   -G Ninja
+
 cmake --build build
 ```
 
 Run the game:
 
 ```bash
+# Linux
 ./build/QMineSweeper
+
+# macOS
+open build/QMineSweeper.app
 ```
 
 ## Running the tests
@@ -99,7 +133,10 @@ lcov --remove build/coverage.info '*/Qt/*' '*/tests/*' '/usr/*' \
 genhtml build/coverage.info --output-directory build/coverage_html
 ```
 
-Open `build/coverage_html/index.html` to view the report.
+Open `build/coverage_html/index.html` to view the report. The same
+report is generated on every push to `main` by the Ubuntu CI job, uploaded
+to [Codecov](https://codecov.io/gh/Mavrikant/QMineSweeper), and also
+attached as an artifact to the workflow run.
 
 ## Code style
 
@@ -117,35 +154,39 @@ clang-format -i *.cpp *.h tests/*.cpp
 .
 ├── CMakeLists.txt        # Top-level build configuration
 ├── main.cpp              # Application entry point
-├── mainwindow.{h,cpp,ui} # Top-level window, timer, mine counter
-├── minefield.{h,cpp}     # 15x15 grid widget, mine placement, numbers
-├── minebutton.{h,cpp}    # Single cell: opens, flags, emits signals
+├── mainwindow.{h,cpp,ui} # Top-level window, menus, timer, mine counter
+├── minefield.{h,cpp}     # Grid widget, game state, mine placement
+├── minebutton.{h,cpp}    # Single cell: reveals, flags, chords, signals
 ├── resources.qrc         # Embedded icons (red flag, explosion)
 ├── icons/                # PNG assets
 ├── tests/                # Qt Test unit tests
-└── .github/workflows/    # CI: Ubuntu, Windows, formatter, release
+└── .github/workflows/    # CI: Ubuntu, Windows, macOS, formatter, release
 ```
 
 ## Architecture
 
-- **MineButton** (`minebutton.{h,cpp}`): a single cell on the grid,
-  inheriting from `QPushButton`. Tracks whether the cell is mined,
-  flagged, or opened, and its adjacent mine count.
-- **MineField** (`minefield.{h,cpp}`): a `QWidget` hosting a 15x15 grid
-  of `MineButton`s. Places 20 mines at random and computes adjacent
-  mine numbers for every cell.
-- **MainWindow** (`mainwindow.{h,cpp,ui}`): top-level window, hosting
-  the `MineField` widget, an elapsed-time label and a live mine
-  counter.
+- **MineButton** (`minebutton.{h,cpp}`) — a single cell on the grid,
+  inheriting from `QPushButton`. Owns per-cell state (mined, flagged,
+  opened, number) and emits input signals (`cellPressed`, `cellOpened`,
+  `explosion`, `flagToggled`, `chordRequested`, `checkNeighbours`).
+- **MineField** (`minefield.{h,cpp}`) — the grid widget and the game-logic
+  owner. Holds a `GameState { Ready, Playing, Won, Lost }`, defers mine
+  placement until the first click (first-click safety), runs flood-fill,
+  detects win / loss, and emits `gameStarted` / `gameWon` / `gameLost` /
+  `mineCountChanged` up to the main window.
+- **MainWindow** (`mainwindow.{h,cpp,ui}`) — presentation only. Menus,
+  timer display, end-of-game `QMessageBox`, difficulty persistence via
+  `QSettings`.
 
 ## Continuous integration
 
-| Workflow       | Trigger                  | Description                                                       |
-|----------------|--------------------------|-------------------------------------------------------------------|
-| `ubuntu.yml`   | push / PR to `main`      | Build, test and generate coverage report on Ubuntu                |
-| `windows.yml`  | push / PR to `main`      | Build and test on Windows                                         |
-| `formatter.yml`| push / PR to `main`      | Enforce `clang-format` code style                                 |
-| `release.yml`  | push tag `v*` / manual   | Build Linux, Windows and macOS binaries and publish a GitHub Release |
+| Workflow       | Trigger                   | Description                                                               |
+|----------------|---------------------------|---------------------------------------------------------------------------|
+| `ubuntu.yml`   | push / PR to `main`       | Build, test, `lcov` coverage report + Codecov upload + HTML artifact      |
+| `windows.yml`  | push / PR to `main`       | Build and test on Windows                                                 |
+| `macos.yml`    | push / PR to `main`       | Build and test on macOS (Apple Silicon)                                   |
+| `formatter.yml`| push / PR to `main`       | Enforce `clang-format` code style                                         |
+| `release.yml`  | push tag `v*` / manual    | Build Linux, Windows and **universal ad-hoc-signed macOS** binaries; publish a GitHub Release with SHA-256 sums |
 
 ## Releasing
 
@@ -157,9 +198,9 @@ git push origin v1.0.0
 ```
 
 The `release.yml` workflow will build binaries for Linux, Windows and
-macOS, generate SHA-256 checksums, and publish them as assets to a new
-GitHub Release. The workflow can also be triggered manually via
-`workflow_dispatch` from the Actions tab.
+macOS, ad-hoc codesign the macOS bundle, generate SHA-256 checksums, and
+publish everything as assets on a new GitHub Release. The workflow can
+also be triggered manually via `workflow_dispatch` from the Actions tab.
 
 ## License
 

@@ -193,7 +193,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: Build macOS (universal)
+    name: Build macOS (universal, ad-hoc signed)
     runs-on: macos-14
     permissions:
       contents: read
@@ -210,22 +210,54 @@ jobs:
           cache: true
           install-deps: true
 
+      - name: Install Ninja
+        run: brew install ninja
+
       - name: Configure CMake
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_PREFIX_PATH=${{ env.QT_ROOT_DIR }} \
             -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
             -DBUILD_TESTING=OFF \
             -G Ninja
 
       - name: Build
         run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
-      - name: Package with macdeployqt
+      - name: Verify universal binary
         run: |
-          "${QT_ROOT_DIR}/bin/macdeployqt" build/QMineSweeper.app -dmg
-          mv build/QMineSweeper.dmg QMineSweeper-macos-universal.dmg
+          BIN=build/QMineSweeper.app/Contents/MacOS/QMineSweeper
+          file "$BIN"
+          lipo -archs "$BIN"
+          lipo -archs "$BIN" | grep -q x86_64
+          lipo -archs "$BIN" | grep -q arm64
+
+      - name: Deploy Qt frameworks
+        run: |
+          "${QT_ROOT_DIR}/bin/macdeployqt" build/QMineSweeper.app
+
+      - name: Ad-hoc codesign
+        # Ad-hoc signature (identity "-") lets the app run on Apple Silicon
+        # without a paid Developer ID. --deep covers the bundled Qt frameworks.
+        # macdeployqt copies Qt frameworks with read-only bits and occasional
+        # com.apple.FinderInfo xattrs from the Qt installer; both break codesign,
+        # so we chmod u+w and xattr -cr before signing.
+        # Users still need `xattr -cr` on first launch — see README.
+        run: |
+          chmod -R u+w build/QMineSweeper.app
+          xattr -cr build/QMineSweeper.app
+          codesign --deep --force --sign - build/QMineSweeper.app
+          codesign --verify --deep --strict --verbose=2 build/QMineSweeper.app
+
+      - name: Create DMG
+        run: |
+          hdiutil create \
+            -volname QMineSweeper \
+            -srcfolder build/QMineSweeper.app \
+            -ov -format UDZO \
+            QMineSweeper-macos-universal.dmg
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v7

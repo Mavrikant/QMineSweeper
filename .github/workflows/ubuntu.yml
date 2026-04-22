@@ -68,9 +68,29 @@ jobs:
             --output-file coverage.info --ignore-errors unused
           genhtml coverage.info --output-directory coverage_html
 
-      - name: Upload coverage report
+      - name: Write coverage summary
+        working-directory: build
+        run: |
+          {
+            echo "## Code coverage"
+            echo ""
+            echo '```'
+            lcov --summary coverage.info 2>&1 | tail -n +2
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage HTML artifact
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: build/coverage_html
           if-no-files-found: warn
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: build/coverage.info
+          flags: unittests
+          name: qminesweeper-ubuntu
+          fail_ci_if_error: false
+          verbose: false
