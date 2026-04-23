@@ -1,5 +1,62 @@
 # Autonomous cycles log
 
+## 2026-04-23 — Cycle 4 — v1.6.0 (autonomous)
+
+- **Chosen problem:** No way to replay the mine layout you just played.
+  Once a game ended, the board was gone — no second try on a fluke loss,
+  no practice loop on a specific pattern, no "how fast can I solve *this*
+  board" challenge. Classic speed-minesweeper clones (Minesweeper Arbiter,
+  Minesweeper X, windows-minesweeper clones) all ship this; ours didn't.
+- **Evidence:** `MineField::newGame(Difficulty)` always reseeded mines and
+  there was no API to re-apply the previous mine set. No menu entry, no
+  shortcut, no signal for "layout available".
+- **Shipped:**
+  - Branch: `feat/replay-same-layout` (merged via squash, then deleted)
+  - PR: https://github.com/Mavrikant/QMineSweeper/pull/23 (merged as
+    `808a51e`)
+  - Tag: `v1.6.0`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.6.0
+  - Release workflow: [run 24837942430](https://github.com/Mavrikant/QMineSweeper/actions/runs/24837942430)
+    — all three platforms green in ~2m14s (13:27:34Z → 13:29:48Z UTC).
+    Five assets published: `QMineSweeper-linux-x86_64.AppImage` (34.2 MiB),
+    `QMineSweeper-linux-x86_64.tar.gz` (33.8 MiB),
+    `QMineSweeper-macos-universal.dmg` (22.0 MiB),
+    `QMineSweeper-windows-x64.zip` (42.0 MiB), plus `SHA256SUMS.txt`.
+- **Diff shape (pre-merge):** 5 source files (`minefield.{h,cpp}`,
+  `mainwindow.{h,cpp}`, `tests/tst_minefield.cpp`) + `CMakeLists.txt`
+  version bump + 1 translation key × 9 locales + `DECISIONS.md` +
+  `CYCLES.md`. Real code change ~130 LOC including tests. Under the
+  400-LOC cycle cap.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved.
+- **Assumptions made:**
+  - Replays do not update per-difficulty stats (Played / Won / Best).
+    Reason: the board is no longer random — letting a memorised-board win
+    set a new best time would devalue the leaderboard.
+  - First-click safety is NOT re-applied on replay. If the user clicks a
+    mine first, they lose immediately. That's the intended UX — they know
+    the board.
+  - Replay action enables on `gameStarted` (the exact moment `fillMines()`
+    has populated the snapshot) and stays enabled through replays. Only
+    `New` and `Difficulty` wipe it.
+  - Shortcut is Ctrl+R (`QKeySequence::Refresh`) — cross-platform standard
+    for "reload".
+- **Skipped:**
+  - *Per-layout best-time leaderboard.* Would need a hash of the mine
+    positions + a new persistence schema. Out of scope.
+  - *"Replay" visual indicator (e.g. a different window title).* The menu
+    action remaining enabled is signal enough; no translation churn.
+  - *Pause / resume, keyboard navigation.* Parked again — both higher
+    regression risk than this cycle's budget.
+- **Risks logged:** none new.
+- **Post-release watch:** [to be filled after release workflow completes]
+- **Next candidates:**
+  - Pause / resume (P shortcut) with board-covering overlay.
+  - Keyboard navigation (arrow keys + space/F) for accessibility.
+  - "Games played today" mini-summary on the end-of-game dialog as a
+    streak / session-activity hint (no new QSettings schema: derive from
+    an in-memory counter since app launch).
+
 ## 2026-04-23 — Cycle 3 — v1.5.0 (autonomous)
 
 - **Chosen problem:** No way to disable the `?` step in the right-click
