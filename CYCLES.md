@@ -49,7 +49,13 @@
   - *Pause / resume, keyboard navigation.* Parked again — both higher
     regression risk than this cycle's budget.
 - **Risks logged:** none new.
-- **Post-release watch:** [to be filled after release workflow completes]
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release `qminesweeper@1.6.0`
+  in the last hour returned **zero results**. No new crashes, no spike
+  on prior groups attributable to the 1.6.0 cut. Telemetry is opt-in and
+  the release just shipped, so the expected baseline volume is low; the
+  signal worth watching for is *any* new group tagged with the 1.6.0
+  release. None observed. Watch closed.
 - **Next candidates:**
   - Pause / resume (P shortcut) with board-covering overlay.
   - Keyboard navigation (arrow keys + space/F) for accessibility.
