@@ -47,7 +47,12 @@
   - *About-dialog update about the new setting.* Kept the About body
     byte-identical to avoid touching 10 existing translations.
 - **Risks logged:** none new.
-- **Post-release watch (T+10min):** [to be filled]
+- **Post-release watch (T+~5min):** Sentry shows 0 unresolved issues
+  in release `qminesweeper@1.5.0`. Expected — the Linux/macOS/Windows
+  assets were just published and have zero downloads. No regression
+  signal within the window this cycle could realistically cover.
+  Release workflow run `24835947800` green; all 5 assets + SHA256SUMS
+  attached. GitHub release notes rewritten in user-facing prose.
 - **Next candidates:**
   - Pause / resume (P shortcut) with board-covering overlay.
   - Keyboard navigation (arrow keys + space/F) for accessibility.
