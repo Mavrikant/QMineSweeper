@@ -10,10 +10,16 @@
   renders only `played / won / best time` with no timestamp; QSettings
   tree stored only `{played, won, best_seconds}`.
 - **Shipped:**
-  - Branch: `feat/best-time-date`
-  - PR: (pending — see below)
-  - Commit: `15bdcad` on `feat/best-time-date`
-  - Release tag: `v1.3.0` (pending)
+  - Branch: `feat/best-time-date` (merged + deleted)
+  - PR: https://github.com/Mavrikant/QMineSweeper/pull/20 (squash-merged as `170cf87`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.3.0
+  - CI: all three platform builds + coverage + formatter green; Codacy flagged
+    `action_required` (advisory, historically not blocking on this repo) with
+    no summary output. Not a blocker per combined status = success.
+- **Post-release watch (T+10min):** Sentry shows 0 unresolved issues in
+  release `qminesweeper@1.3.0`. Expected — the Linux/macOS/Windows assets
+  were just published and have zero downloads. No regression signal within
+  the window that this cycle could realistically cover.
 - **Assumptions made:**
   - Day precision is sufficient (no wall-clock time) — the date is a
     memory anchor, not an audit trail.
