@@ -29,6 +29,9 @@ class TestMineButton : public QObject
     void testQuestionDoesNotBlockOpen();
     void testQuestionToNoneDoesNotEmitFlagToggled();
     void testLeftClickBlockedByFlagNotByQuestion();
+    void testQuestionMarksDisabledSkipsQuestion();
+    void testClearQuestionResetsMarker();
+    void cleanup();
 };
 
 static void sendMouseClick(MineButton &btn, Qt::MouseButton button)
@@ -253,6 +256,53 @@ void TestMineButton::testLeftClickBlockedByFlagNotByQuestion()
     QSignalSpy openedB(&b, &MineButton::cellOpened);
     sendMouseClick(b, Qt::LeftButton);
     QCOMPARE(openedB.count(), 1);
+}
+
+void TestMineButton::testQuestionMarksDisabledSkipsQuestion()
+{
+    MineButton::setQuestionMarksEnabled(false);
+    MineButton btn(0, 0, nullptr);
+    QSignalSpy spy(&btn, &MineButton::flagToggled);
+
+    sendMouseClick(btn, Qt::RightButton); // None → Flag
+    QCOMPARE(btn.marker(), CellMarker::Flag);
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.takeFirst().at(2).toBool(), true);
+
+    sendMouseClick(btn, Qt::RightButton); // Flag → None (skip Question)
+    QCOMPARE(btn.marker(), CellMarker::None);
+    QVERIFY(!btn.isQuestion());
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(spy.takeFirst().at(2).toBool(), false);
+
+    sendMouseClick(btn, Qt::RightButton); // None → Flag again
+    QCOMPARE(btn.marker(), CellMarker::Flag);
+}
+
+void TestMineButton::testClearQuestionResetsMarker()
+{
+    MineButton::setQuestionMarksEnabled(true);
+    MineButton btn(0, 0, nullptr);
+    sendMouseClick(btn, Qt::RightButton); // Flag
+    sendMouseClick(btn, Qt::RightButton); // Question
+    QCOMPARE(btn.marker(), CellMarker::Question);
+
+    QSignalSpy spy(&btn, &MineButton::flagToggled);
+    btn.clearQuestion();
+    QCOMPARE(btn.marker(), CellMarker::None);
+    // No flag transition — clearQuestion should not emit flagToggled.
+    QCOMPARE(spy.count(), 0);
+
+    // A cleared cell stays openable.
+    QSignalSpy openedSpy(&btn, &MineButton::cellOpened);
+    sendMouseClick(btn, Qt::LeftButton);
+    QCOMPARE(openedSpy.count(), 1);
+}
+
+void TestMineButton::cleanup()
+{
+    // Every test leaves the global toggle in a defined state for the next one.
+    MineButton::setQuestionMarksEnabled(true);
 }
 
 QTEST_MAIN(TestMineButton)

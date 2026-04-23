@@ -379,6 +379,20 @@ void MineField::freezeAllCells()
     }
 }
 
+void MineField::clearAllQuestionMarks()
+{
+    for (auto &row : m_buttons)
+    {
+        for (auto *btn : row)
+        {
+            if (btn)
+            {
+                btn->clearQuestion();
+            }
+        }
+    }
+}
+
 void MineField::setFixedLayout(std::uint32_t width, std::uint32_t height, const std::vector<std::pair<std::uint32_t, std::uint32_t>> &minePositions)
 {
     Difficulty diff{width, height, static_cast<std::uint32_t>(minePositions.size())};

@@ -37,6 +37,12 @@ class MineButton : public QPushButton
     void revealAsMine();
     void revealAsWrongFlag();
     void autoFlag();
+    void clearQuestion();
+
+    // App-wide: when false, right-click cycles None → Flag → None (skips Question).
+    // MineButton has no back-pointer by design, so the toggle lives as static state.
+    static void setQuestionMarksEnabled(bool enabled) noexcept;
+    [[nodiscard]] static bool questionMarksEnabled() noexcept;
 
   signals:
     void cellPressed(std::uint32_t row, std::uint32_t col);
