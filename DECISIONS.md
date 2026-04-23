@@ -1,5 +1,85 @@
 # Cycle decisions
 
+## 2026-04-23 — Custom difficulty (v1.7.0)
+
+**Chosen:** Add `Game → Difficulty → Custom…` — a small dialog that lets the
+player pick an arbitrary grid (width 9–30, height 9–24, mine count 10 up to
+`w*h − 9`). The geometry persists across launches under
+`settings/custom_{width,height,mines}`; startup restores a prior Custom the
+same way it restores Beginner/Intermediate/Expert.
+
+**Why this one:**
+- Concrete user value — Custom is a staple of every mainstream Minesweeper
+  clone (Windows Minesweeper, GNOME Mines, Minesweeper X). Ours had only the
+  three presets, and the `Difficulty` struct already accepts arbitrary
+  values — the feature was one dialog and one radio entry away.
+- Small, self-contained: ~140 LOC of real code in `mainwindow.{h,cpp}` plus
+  3 new unit tests. No `minefield.cpp`/`minebutton.cpp` changes — the
+  underlying engine is already size-agnostic.
+- Backwards compatible — default behaviour is unchanged. Existing
+  `difficulty=Beginner|Intermediate|Expert` plists restore exactly as before.
+  Out-of-range values in a hand-edited plist are clamped to the same bounds
+  the dialog enforces, so QSettings can't crash the startup path.
+- Testable in isolation — 3 new unit tests (arbitrary-sized grid, first-click
+  safety on 15×12, and the dense-packing boundary 72-mine-on-9×9 that
+  exercises the relaxed-exclusion branch in `fillMines`).
+- Translation burden — 5 new hand-translated strings × 9 non-English locales.
+
+**Rejected alternatives from the prior `Next candidates` list:**
+- *Pause / resume.* Still bigger surface (overlay widget, timer arithmetic,
+  ~3 new strings × 10 locales) and higher regression risk on the most
+  critical UI path. Park again.
+- *Keyboard navigation.* Touches focus management on every cell. Medium
+  surface, zero translation cost. Reasonable candidate for a future cycle
+  but less user-visible than Custom for the same implementation budget —
+  parked for a fourth cycle in a row.
+- *Best-time-plus-date column in Statistics when Expert time crosses 100s.*
+  Purely cosmetic. Parked.
+
+**Implementation choices:**
+
+1. **Stats policy — Custom games do NOT update `Played`, `Won`, or
+   `Best time`.** This mirrors the precedent v1.6.0 set for Replay: the
+   per-difficulty best-time leaderboard is only meaningful across the three
+   standard presets. A win on 12×12/30-mines is not comparable to a win on
+   30×24/400-mines; lumping them into a single `"Custom"` row would produce
+   nonsense leaderboards, and keying Stats by `"Custom WxH×M"` would
+   multiply the Statistics dialog's row count without bound. Telemetry
+   events still carry `width`/`height`/`mines` so custom-config use is
+   observable in Sentry without touching Stats.
+
+2. **Max mine count = `w*h − 9`.** Preserves the 3×3 first-click safety-zone
+   guarantee by leaving at least 9 safe cells. On 9×9 that caps at 72 — a
+   valid "evil" configuration the existing `relaxExclusion` branch in
+   `fillMines` handles. The dense-packing unit test exercises exactly this.
+
+3. **Custom sits inside the existing exclusive `m_difficultyGroup`, after a
+   menu separator.** On trigger it opens the dialog; on cancel,
+   `recheckCurrentDifficultyAction` flips the tick back to whatever
+   difficulty is actually active (since `QActionGroup` already moved the tick
+   to Custom when the user clicked). Cleaner than a parallel non-checkable
+   action because it reuses the radio semantics users already know.
+
+4. **Startup restore with clamping.** `std::clamp` applied to every
+   `custom_*` settings read — guards against hand-edited plists with
+   out-of-range values. A missing key falls through to Expert-sized defaults
+   (30/16/99).
+
+5. **Window refit is unchanged.** `refitWindowToContents()` already handles
+   arbitrary grid sizes since v1.4.0; no new code path.
+
+**Assumptions:**
+- Custom excluded from Stats (decision 1 above). Ruled against "count them
+  under a single Custom row" because the stats would be uninterpretable, and
+  against "key Stats by dimensions" because it dilutes the leaderboard and
+  multiplies the row count. The three standards remain the records people
+  care about.
+- Width 9–30 matches Expert's width; height 9–24 gives more vertical room
+  than Expert (16) without exceeding common screen heights at `CellSize=30`
+  (24 × 30 = 720 px — still fits 1080p comfortably with menu/margins).
+- Clamping over error dialogs for malformed plists — users who edit the plist
+  by hand should not see a modal; defaulting quietly is correct UX.
+
 ## 2026-04-23 — Replay same layout (v1.6.0)
 
 **Chosen:** Add `Game → Replay same layout` (Ctrl+R / `QKeySequence::Refresh`) so

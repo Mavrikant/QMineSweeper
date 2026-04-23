@@ -1,5 +1,64 @@
 # Autonomous cycles log
 
+## 2026-04-23 — Cycle 5 — v1.7.0 (autonomous)
+
+- **Chosen problem:** No Custom difficulty. App shipped only
+  Beginner / Intermediate / Expert; every mainstream Minesweeper clone
+  ships Custom. Prior three cycles parked it as "multi-cycle because of
+  Stats-schema ripples" — but v1.6.0 set a precedent by excluding Replay
+  from Stats, which dissolves the multi-cycle concern for the same
+  reason: Custom runs are a playground, not a record-setting mode.
+- **Evidence:** `Difficulty` struct was already runtime-configurable;
+  `MineField::newGame(Difficulty)` accepted any values;
+  `refitWindowToContents()` already handled arbitrary grid sizes. The
+  engine was ready; only UI + persistence + a stats-exclusion gate were
+  missing.
+- **Shipped:**
+  - Branch: `feat/custom-difficulty` (merged + deleted)
+  - PR: https://github.com/Mavrikant/QMineSweeper/pull/24 (squash-merged as `3cf6ea8`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.7.0
+  - CI: ubuntu + macos + windows + coverage + formatter + CodeFactor
+    green. Codacy `fail` (advisory, historically not blocking on this
+    repo — same pattern as v1.3/v1.4/v1.5/v1.6). Combined status success.
+- **Diff shape:** 15 files, +1019/-516. Real code (excluding `.ts` churn
+  and `DECISIONS.md`): ~200 LOC. Under the 400-LOC cap.
+- **Translation cost:** 5 new hand-translated strings × 9 non-English
+  locales (45 entries). 58/58 finished per locale, 0 unfinished —
+  50/50 coverage preserved at the new string count.
+- **Assumptions made:**
+  - Custom games excluded from Stats (mirrors Replay precedent; full
+    rationale in `DECISIONS.md`).
+  - Width 9–30 / height 9–24 / mines ≤ w*h−9 — preserves 3×3 first-click
+    safety zone.
+  - Out-of-range `custom_*` plist values are silently clamped rather than
+    surfacing a modal.
+  - Custom sits inside the existing exclusive `m_difficultyGroup` rather
+    than as a parallel non-checkable action — reuses the radio semantics
+    users already know, with `recheckCurrentDifficultyAction()` handling
+    the dialog-cancel revert.
+- **Skipped:**
+  - *Pause/resume.* Higher regression risk; parked for a 5th cycle.
+  - *Keyboard navigation.* Zero translation cost but less user-visible
+    than Custom for the same budget; parked for a 4th cycle.
+  - *About/README updates mentioning Custom.* Would churn 10 existing
+    long-string translations for a cosmetic line; not worth it.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Release workflow run `24838989606`
+  green in ~2 min; all 5 assets (Linux AppImage + tar.gz, macOS DMG,
+  Windows ZIP, SHA256SUMS.txt) uploaded. Sentry shows 0 unresolved
+  issues in release `qminesweeper@1.7.0` (expected — assets just
+  published, zero downloads within the window this cycle could
+  realistically cover). GitHub release body rewritten as user-facing
+  prose covering the Custom dialog ranges, first-click-safety guarantee,
+  stats exclusion, and platform-specific install notes (macOS quarantine
+  clear).
+- **Next candidates:**
+  - Pause / resume (P shortcut) with board-covering overlay. Now the
+    biggest remaining gap relative to classic clones.
+  - Keyboard navigation (arrow keys + space/F) for accessibility.
+  - Smiley-face status indicator (🙂/😎/😵) above the grid, clickable
+    for new game — iconic Minesweeper UX that ours lacks.
+
 ## 2026-04-23 — Cycle 4 — v1.6.0 (autonomous)
 
 - **Chosen problem:** No way to replay the mine layout you just played.
