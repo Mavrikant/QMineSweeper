@@ -26,6 +26,12 @@ class TestMineField : public QObject
     void testChordOpensNeighboursWhenFlagsMatch();
     void testChordDetonatesWhenFlagsWrong();
     void testChordDoesNothingWhenFlagsInsufficient();
+    void testCanReplayFalseBeforeFirstClick();
+    void testCanReplayFalseAfterNewGame();
+    void testReplayPreservesMinePositions();
+    void testReplayResetsOpenedAndFlaggedCells();
+    void testReplayAfterLossIsPlayable();
+    void testNewGameReplayFallbackWhenNoLayout();
 
   private:
     static void openAllSafe(MineField &field);
@@ -258,6 +264,119 @@ void TestMineField::testChordDoesNothingWhenFlagsInsufficient()
     QVERIFY(!field.cellAt(0, 0)->isOpened());
     QVERIFY(!field.cellAt(0, 1)->isOpened());
     QVERIFY(!field.cellAt(1, 0)->isOpened());
+}
+
+void TestMineField::testCanReplayFalseBeforeFirstClick()
+{
+    MineField field;
+    QVERIFY(!field.canReplay());
+}
+
+void TestMineField::testCanReplayFalseAfterNewGame()
+{
+    MineField field;
+    field.setFixedLayout(4, 4, {{0, 0}});
+    QVERIFY(field.canReplay());
+
+    field.newGame(MineField::Beginner);
+    QVERIFY(!field.canReplay());
+}
+
+void TestMineField::testReplayPreservesMinePositions()
+{
+    MineField field;
+    // Random layout via real first-click flow.
+    field.cellAt(4, 4)->Open();
+    QVERIFY(field.canReplay());
+
+    // Snapshot mine positions from the current board.
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> before;
+    for (std::uint32_t r = 0; r < field.rows(); ++r)
+    {
+        for (std::uint32_t c = 0; c < field.cols(); ++c)
+        {
+            if (field.cellAt(r, c)->isMined())
+            {
+                before.emplace_back(r, c);
+            }
+        }
+    }
+    QCOMPARE(before.size(), static_cast<std::size_t>(field.mineCount()));
+
+    QVERIFY(field.newGameReplay());
+
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> after;
+    for (std::uint32_t r = 0; r < field.rows(); ++r)
+    {
+        for (std::uint32_t c = 0; c < field.cols(); ++c)
+        {
+            if (field.cellAt(r, c)->isMined())
+            {
+                after.emplace_back(r, c);
+            }
+        }
+    }
+    QCOMPARE(after, before);
+    QCOMPARE(field.state(), GameState::Ready);
+}
+
+void TestMineField::testReplayResetsOpenedAndFlaggedCells()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(1, 1)->Open(); // reveals a bunch via flood-fill
+    QVERIFY(field.cellAt(1, 1)->isOpened());
+
+    // Flag (0, 0) and question-mark (2, 2) before replaying.
+    QMouseEvent rightPress(QEvent::MouseButtonPress, QPointF(1, 1), QPointF(1, 1), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(field.cellAt(0, 0), &rightPress);
+    QCOMPARE(field.cellAt(0, 0)->marker(), CellMarker::Flag);
+
+    QVERIFY(field.newGameReplay());
+
+    for (std::uint32_t r = 0; r < field.rows(); ++r)
+    {
+        for (std::uint32_t c = 0; c < field.cols(); ++c)
+        {
+            QVERIFY(!field.cellAt(r, c)->isOpened());
+            QCOMPARE(field.cellAt(r, c)->marker(), CellMarker::None);
+        }
+    }
+    QCOMPARE(field.remainingMines(), 1);
+}
+
+void TestMineField::testReplayAfterLossIsPlayable()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(0, 0)->Open(); // boom
+    QCOMPARE(field.state(), GameState::Lost);
+
+    QVERIFY(field.newGameReplay());
+    QCOMPARE(field.state(), GameState::Ready);
+
+    // Numbers must be re-derived; (1,1) has one mine neighbour at (0,0).
+    QCOMPARE(field.cellAt(1, 1)->Number(), 1u);
+    QVERIFY(field.cellAt(0, 0)->isMined());
+
+    // A safe click should move state to Playing, not re-place mines.
+    QSignalSpy startedSpy(&field, &MineField::gameStarted);
+    field.cellAt(1, 1)->Open();
+    QCOMPARE(startedSpy.count(), 1);
+    QCOMPARE(field.state(), GameState::Playing);
+    QVERIFY(field.cellAt(0, 0)->isMined()); // mine layout preserved through click
+}
+
+void TestMineField::testNewGameReplayFallbackWhenNoLayout()
+{
+    MineField field;
+    QVERIFY(!field.canReplay());
+    const bool replayed = field.newGameReplay();
+    QVERIFY(!replayed);
+    // Falls back to a fresh Beginner board with no opened cells.
+    QCOMPARE(field.state(), GameState::Ready);
+    QCOMPARE(field.cols(), MineField::Beginner.width);
+    QVERIFY(!field.canReplay());
 }
 
 QTEST_MAIN(TestMineField)

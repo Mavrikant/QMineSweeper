@@ -27,6 +27,7 @@ class MainWindow : public QMainWindow
 
   private slots:
     void onNewGame();
+    void onReplaySameLayout();
     void onDifficultyChanged(Difficulty diff);
     void onGameStarted();
     void onGameWon();
@@ -54,8 +55,10 @@ class MainWindow : public QMainWindow
     QActionGroup *m_languageGroup{nullptr};
     QAction *m_telemetryAction{nullptr};
     QAction *m_questionMarksAction{nullptr};
+    QAction *m_replayAction{nullptr};
     Difficulty m_currentDifficulty{MineField::Beginner};
     double m_lastElapsedSeconds{0.0};
+    bool m_isReplay{false};
     QString m_releaseId;
 };
 

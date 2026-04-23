@@ -113,6 +113,12 @@ void MainWindow::buildMenus()
     connect(newAction, &QAction::triggered, this, &MainWindow::onNewGame);
     ui->menuGame->addAction(newAction);
 
+    m_replayAction = new QAction(tr("&Replay same layout"), this);
+    m_replayAction->setShortcut(QKeySequence(QKeySequence::Refresh));
+    m_replayAction->setEnabled(false);
+    connect(m_replayAction, &QAction::triggered, this, &MainWindow::onReplaySameLayout);
+    ui->menuGame->addAction(m_replayAction);
+
     ui->menuGame->addSeparator();
 
     auto *diffMenu = ui->menuGame->addMenu(tr("&Difficulty"));
@@ -210,10 +216,31 @@ void MainWindow::buildMenus()
 void MainWindow::onNewGame()
 {
     ui->mineFieldWidget->newGame(m_currentDifficulty);
+    m_isReplay = false;
+    if (m_replayAction)
+    {
+        m_replayAction->setEnabled(false);
+    }
     resetTimerUi();
     setWindowTitle(tr("QMineSweeper"));
     refitWindowToContents();
     Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("new game"));
+}
+
+void MainWindow::onReplaySameLayout()
+{
+    const bool replayed = ui->mineFieldWidget->newGameReplay();
+    m_isReplay = replayed;
+    if (m_replayAction)
+    {
+        // After a replay, the action stays enabled — the same layout is still
+        // available. Only a fresh newGame() wipes it.
+        m_replayAction->setEnabled(replayed);
+    }
+    resetTimerUi();
+    setWindowTitle(tr("QMineSweeper"));
+    refitWindowToContents();
+    Telemetry::addBreadcrumb(QStringLiteral("ui"), replayed ? QStringLiteral("replay same layout") : QStringLiteral("replay fallback to new"));
 }
 
 void MainWindow::onDifficultyChanged(Difficulty diff)
@@ -222,6 +249,11 @@ void MainWindow::onDifficultyChanged(Difficulty diff)
     QSettings settings;
     settings.setValue("difficulty", difficultyName(diff));
     ui->mineFieldWidget->newGame(diff);
+    m_isReplay = false;
+    if (m_replayAction)
+    {
+        m_replayAction->setEnabled(false);
+    }
     resetTimerUi();
     setWindowTitle(tr("QMineSweeper"));
     refitWindowToContents();
@@ -254,11 +286,17 @@ void MainWindow::onGameStarted()
     m_gameTimer.start();
     m_displayTimer->start();
     setWindowTitle(tr("QMineSweeper — Playing"));
+    // Once a mine layout exists, the user can replay it.
+    if (m_replayAction)
+    {
+        m_replayAction->setEnabled(true);
+    }
     Telemetry::recordEvent(QStringLiteral("game.started"), {
                                                                {QStringLiteral("difficulty"), difficultyName(m_currentDifficulty)},
                                                                {QStringLiteral("cols"), m_currentDifficulty.width},
                                                                {QStringLiteral("rows"), m_currentDifficulty.height},
                                                                {QStringLiteral("mines"), m_currentDifficulty.mineCount},
+                                                               {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                            });
 }
 
@@ -269,11 +307,15 @@ void MainWindow::onGameWon()
     updateTimerLabel();
     setWindowTitle(tr("QMineSweeper — You won!"));
     const QString diffName = difficultyName(m_currentDifficulty);
-    const bool newRecord = Stats::recordWin(diffName, m_lastElapsedSeconds);
+    // Replays don't update played/won counters or best-time — the layout was
+    // already seen, so counting the win would let the user inflate stats by
+    // memorising one board.
+    const bool newRecord = !m_isReplay && Stats::recordWin(diffName, m_lastElapsedSeconds);
     Telemetry::recordEvent(QStringLiteral("game.won"), {
                                                            {QStringLiteral("difficulty"), diffName},
                                                            {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                            {QStringLiteral("new_record"), newRecord ? QStringLiteral("true") : QStringLiteral("false")},
+                                                           {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
     showEndDialog(true, newRecord);
 }
@@ -285,10 +327,14 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     updateTimerLabel();
     setWindowTitle(tr("QMineSweeper — Boom"));
     const QString diffName = difficultyName(m_currentDifficulty);
-    Stats::recordLoss(diffName);
+    if (!m_isReplay)
+    {
+        Stats::recordLoss(diffName);
+    }
     Telemetry::recordEvent(QStringLiteral("game.lost"), {
                                                             {QStringLiteral("difficulty"), diffName},
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
+                                                            {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
     showEndDialog(false, false);
 }
