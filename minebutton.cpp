@@ -20,6 +20,8 @@ constexpr const char *kMineStyle = "border: 0px; background: rgba(255, 80, 60, 1
 constexpr const char *kMineRevealStyle = "border: 0px; background: rgba(255, 209, 73, 1);";
 constexpr const char *kWrongFlagStyle = "border: 0px; background: rgba(200, 80, 80, 0.9);";
 
+bool g_questionMarksEnabled = true;
+
 QColor numberColor(std::uint32_t number)
 {
     switch (number)
@@ -196,7 +198,7 @@ void MineButton::cycleMarker()
         m_marker = CellMarker::Flag;
         break;
     case CellMarker::Flag:
-        m_marker = CellMarker::Question;
+        m_marker = g_questionMarksEnabled ? CellMarker::Question : CellMarker::None;
         break;
     case CellMarker::Question:
         m_marker = CellMarker::None;
@@ -213,6 +215,22 @@ void MineButton::cycleMarker()
         emit flagToggled(m_row, m_col, true);
     }
 }
+
+void MineButton::clearQuestion()
+{
+    if (m_marker == CellMarker::Question)
+    {
+        m_marker = CellMarker::None;
+        // Reset the stylesheet so the dim-color rule added by renderMarker()'s
+        // Question branch does not persist.
+        applyBaseStyle();
+        renderMarker();
+    }
+}
+
+void MineButton::setQuestionMarksEnabled(bool enabled) noexcept { g_questionMarksEnabled = enabled; }
+
+bool MineButton::questionMarksEnabled() noexcept { return g_questionMarksEnabled; }
 
 void MineButton::mousePressEvent(QMouseEvent *e)
 {

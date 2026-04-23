@@ -1,5 +1,56 @@
 # Cycle decisions
 
+## 2026-04-23 — Question-marks toggle (v1.5.0)
+
+**Chosen:** Add `Settings → Enable &question marks` so users can opt out of the
+None → Flag → **Question** → None right-click cycle and play with the classic
+two-state None → Flag → None instead.
+
+**Why this one:**
+- Concrete user value — question marks are a common Minesweeper annoyance for
+  fast play; both Windows Minesweeper and GNOME Mines ship this setting. The
+  feature is a standard expectation for a minesweeper app.
+- Small, self-contained: ~50 LOC of real code, one new QAction, one QSettings
+  key, and a single MineField sweep helper.
+- Backwards compatible — default `true` preserves v1.4.x behaviour byte-for-byte.
+  An existing plist with no `settings/question_marks` key reads as `true`.
+- Testable in isolation — MineButton's right-click cycle is already unit-tested;
+  I add two cases for the disabled branch and the sweep helper.
+- Low translation burden — 1 new key × 9 non-English locales, hand-written.
+
+**Rejected alternatives from the prior `Next candidates` list:**
+- *Pause / resume.* Larger surface (overlay widget, timer arithmetic, ~3 new
+  strings × 10 locales), touches the most critical UI path (the timer / state
+  machine). Higher regression risk than a cycle with no human review can absorb.
+  Park again.
+- *Custom difficulty dialog.* Ripples into the Stats schema (best-time keyed
+  by preset name today; custom configs don't fit). Multi-cycle. Park.
+- *Keyboard navigation.* Touches focus on every cell. Medium surface, zero
+  translation cost — reasonable candidate for a future cycle, but this cycle's
+  feature is more user-visible for the same implementation budget.
+
+**Implementation note — why a static on MineButton:**
+The `CLAUDE.md` architecture explicitly states MineButton has *no back-pointer
+to MineField* ("signals up, slots down"). A per-instance setting plumbed via
+MineField would violate that direction. The toggle is app-wide, not per-cell
+or per-game, so a static member on MineButton (hidden behind a getter/setter)
+is the natural fit. The setting is owned by MainWindow (persists to QSettings,
+drives the checkable QAction); MineButton just reads the static.
+
+**Mid-game sweep:**
+When the user toggles OFF while a live board has `?`-marked cells, those cells
+would otherwise stay stuck in Question until the user right-clicks them again.
+`MineField::clearAllQuestionMarks()` sweeps the grid once to reset them to
+None. No `flagToggled` emission — Question → None is already a silent
+transition in the existing state machine.
+
+**Assumptions:**
+- Default `true` is correct for existing users (preserve v1.4.x muscle memory).
+- The setting is app-wide, not per-difficulty (Windows Minesweeper does it the
+  same way).
+- No about-dialog update needed: the About body already describes right-click
+  as "flag" without mentioning question marks, so no translation churn.
+
 ## 2026-04-23 — Window-refit + About build info (v1.4.0)
 
 **Chosen:** Fix the window-refit-on-difficulty-change bug (user-reported) and,

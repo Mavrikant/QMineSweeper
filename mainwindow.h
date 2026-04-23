@@ -35,6 +35,7 @@ class MainWindow : public QMainWindow
     void showStatsDialog();
     void toggleTelemetry(bool enabled);
     void onLanguageChosen(const QString &code);
+    void toggleQuestionMarks(bool enabled);
 
   private:
     void buildMenus();
@@ -52,6 +53,7 @@ class MainWindow : public QMainWindow
     QActionGroup *m_difficultyGroup{nullptr};
     QActionGroup *m_languageGroup{nullptr};
     QAction *m_telemetryAction{nullptr};
+    QAction *m_questionMarksAction{nullptr};
     Difficulty m_currentDifficulty{MineField::Beginner};
     double m_lastElapsedSeconds{0.0};
     QString m_releaseId;

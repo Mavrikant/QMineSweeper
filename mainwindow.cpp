@@ -50,6 +50,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_uniq
 
     ui->mineFieldWidget->setMineCountLabel(ui->mineCount);
 
+    // Load the per-user "question marks enabled" preference before the grid
+    // sees any right-click. Default true preserves v1.4.x behaviour.
+    {
+        QSettings s;
+        MineButton::setQuestionMarksEnabled(s.value(QStringLiteral("settings/question_marks"), true).toBool());
+    }
+
     m_displayTimer = new QTimer(this);
     m_displayTimer->setInterval(50);
     connect(m_displayTimer, &QTimer::timeout, this, &MainWindow::updateTimerLabel);
@@ -177,6 +184,13 @@ void MainWindow::buildMenus()
     languageMenu->addAction(autoAction);
     connect(autoAction, &QAction::triggered, this, [this] { onLanguageChosen(QString()); });
 
+    settingsMenu->addSeparator();
+    m_questionMarksAction = new QAction(tr("Enable &question marks"), this);
+    m_questionMarksAction->setCheckable(true);
+    m_questionMarksAction->setChecked(MineButton::questionMarksEnabled());
+    connect(m_questionMarksAction, &QAction::toggled, this, &MainWindow::toggleQuestionMarks);
+    settingsMenu->addAction(m_questionMarksAction);
+
     if (Telemetry::isCompiledIn())
     {
         settingsMenu->addSeparator();
@@ -280,6 +294,19 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
+
+void MainWindow::toggleQuestionMarks(bool enabled)
+{
+    MineButton::setQuestionMarksEnabled(enabled);
+    QSettings settings;
+    settings.setValue(QStringLiteral("settings/question_marks"), enabled);
+    // Sweep live cells so no `?` is left stranded when the user disables mid-game.
+    if (!enabled)
+    {
+        ui->mineFieldWidget->clearAllQuestionMarks();
+    }
+    Telemetry::addBreadcrumb(QStringLiteral("ui"), enabled ? QStringLiteral("question marks: on") : QStringLiteral("question marks: off"));
+}
 
 void MainWindow::onLanguageChosen(const QString &code)
 {

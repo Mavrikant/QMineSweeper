@@ -49,6 +49,10 @@ class MineField : public QWidget
 
     void setMineCountLabel(QLabel *label);
 
+    // Sweep the live board and reset any Question-marked cell to None. Used when
+    // the user disables question marks mid-game so no cell is left stuck in `?`.
+    void clearAllQuestionMarks();
+
     // Test helper: deterministic layout with explicit mine positions.
     void setFixedLayout(std::uint32_t width, std::uint32_t height, const std::vector<std::pair<std::uint32_t, std::uint32_t>> &minePositions);
 
