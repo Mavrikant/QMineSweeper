@@ -1,5 +1,76 @@
 # Cycle decisions
 
+## 2026-04-23 — Replay same layout (v1.6.0)
+
+**Chosen:** Add `Game → Replay same layout` (Ctrl+R / `QKeySequence::Refresh`) so
+players can re-attempt the exact board they just played — to practise a specific
+mine pattern, improve their time on a hard fluke, or just keep going on a lucky
+layout.
+
+**Why this one:**
+- Concrete user value — replaying a layout is a staple of speed-minesweeper
+  (Minesweeper Arbiter, Minesweeper X and the windows-minesweeper clones all
+  ship it). Our app had no equivalent; once a game ended, the layout was gone.
+- Small, self-contained: ~60 LOC of real code. One new `MineField` method
+  (`newGameReplay`), one new getter (`canReplay`), one new vector member
+  (`m_lastMinePositions`), one new `QAction` in MainWindow, and an `m_isReplay`
+  flag to gate stats.
+- Backwards compatible — default behaviour is unchanged; `newGame(Difficulty)`
+  still wipes any prior layout. No new QSettings key. Existing saves untouched.
+- Testable in isolation — added 6 unit tests covering `canReplay()` state,
+  mine-position preservation, cell reset, post-loss replay, and the
+  "no layout yet" fallback.
+- Low translation burden — 1 new hand-translated string × 9 non-English locales.
+
+**Rejected alternatives from the prior `Next candidates` list:**
+- *Pause / resume.* Bigger surface (overlay widget, timer arithmetic, ~3 new
+  strings × 10 locales), highest regression risk on the most critical UI path
+  (timer / state machine). Parked again for a cycle that is willing to
+  absorb that risk.
+- *Keyboard navigation.* Touches focus management on every cell; medium
+  surface, useful but less user-visible than replay for the same budget.
+- *Best-time-plus-date column in Statistics when Expert time crosses 100s.*
+  Purely cosmetic; parked.
+
+**Implementation choices:**
+
+1. **Stats policy — replays do NOT update `Played`, `Won`, or `Best time`.**
+   Rationale: the user has already seen the mine positions; counting a replay
+   win would let you inflate your best time by memorising an easy board.
+   Telemetry still records `game.won`/`game.lost` with a `replay=true` tag
+   so we can see how often replay is actually used in the wild without
+   contaminating the per-difficulty leaderboard.
+
+2. **First-click safety is NOT re-applied on replay.** If the user clicks a
+   mine on the first click of a replay, they lose immediately. That's the
+   whole point — they know where the mines are. `m_minesPlaced` is set to
+   `true` on replay so `fillMines()` is skipped.
+
+3. **Menu action enable/disable.** Disabled initially (no layout yet).
+   Enabled on the `gameStarted` signal — the exact moment `fillMines()` has
+   populated `m_lastMinePositions`. Cleared back to disabled by `onNewGame()`
+   and `onDifficultyChanged()`. Replaying keeps it enabled (the layout is
+   still available).
+
+4. **Fallback when `canReplay()` is false.** `newGameReplay()` returns `false`
+   and delegates to `newGame(m_difficulty)`. The menu action is disabled in
+   that state anyway, but the fallback makes the method safe to call
+   unconditionally — useful for tests and for a possible future "R hotkey
+   always works" tweak.
+
+5. **Shortcut is Ctrl+R (`QKeySequence::Refresh`).** Standard cross-platform
+   "reload/restart" gesture. F5 also triggers `Refresh` on most platforms;
+   users on either muscle memory get it for free.
+
+**Assumptions:**
+- Replays should not count in stats (decision 1 above). Ruled against the
+  alternative ("count them — the user still played") because the recorded
+  best-time per difficulty is the project's only leaderboard-style metric.
+- Not gating the action on game-over: you can replay even while still playing.
+  That's consistent with "New game" also being available mid-game.
+- `m_lastMinePositions` is cleared on difficulty change even if the user
+  never clicked a cell — no layout was ever generated. Keeps invariants simple.
+
 ## 2026-04-23 — Question-marks toggle (v1.5.0)
 
 **Chosen:** Add `Settings → Enable &question marks` so users can opt out of the

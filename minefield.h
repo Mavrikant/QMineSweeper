@@ -40,6 +40,15 @@ class MineField : public QWidget
     void newGame();
     void newGame(Difficulty diff);
 
+    // Start a fresh game on the most recently played mine layout. Returns true
+    // if a prior layout existed and was reused; returns false and falls back
+    // to a normal newGame() if no game has been started yet.
+    bool newGameReplay();
+
+    // True once a mine layout has been generated (i.e. the user has clicked
+    // their first cell on the current difficulty).
+    [[nodiscard]] bool canReplay() const noexcept;
+
     [[nodiscard]] GameState state() const noexcept;
     [[nodiscard]] std::uint32_t cols() const noexcept;
     [[nodiscard]] std::uint32_t rows() const noexcept;
@@ -94,6 +103,7 @@ class MineField : public QWidget
     std::uint32_t m_openedSafeCount{0};
     int m_flagCount{0};
     bool m_minesPlaced{false};
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> m_lastMinePositions;
 };
 
 #endif // MINEFIELD_H

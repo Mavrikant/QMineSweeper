@@ -28,11 +28,50 @@ void MineField::newGame(Difficulty diff)
     m_openedSafeCount = 0;
     m_flagCount = 0;
     m_minesPlaced = false;
+    m_lastMinePositions.clear();
 
     clearGrid();
     buildGrid();
     updateMineCountLabel();
     emit mineCountChanged(remainingMines());
+}
+
+bool MineField::canReplay() const noexcept { return !m_lastMinePositions.empty(); }
+
+bool MineField::newGameReplay()
+{
+    if (m_lastMinePositions.empty())
+    {
+        newGame(m_difficulty);
+        return false;
+    }
+
+    // Snapshot the mines from the previous game; clearGrid()/buildGrid()
+    // rebuild the MineButton grid from scratch, so we need to re-apply the
+    // mined flags afterwards, not rely on the old buttons.
+    const auto mines = m_lastMinePositions;
+
+    m_state = GameState::Ready;
+    m_openedSafeCount = 0;
+    m_flagCount = 0;
+    // Mines are already known for this layout — skip first-click placement.
+    m_minesPlaced = true;
+
+    clearGrid();
+    buildGrid();
+
+    for (const auto &p : mines)
+    {
+        if (p.first < m_difficulty.height && p.second < m_difficulty.width)
+        {
+            m_buttons[p.first][p.second]->setMined();
+        }
+    }
+    fillNumbers();
+
+    updateMineCountLabel();
+    emit mineCountChanged(remainingMines());
+    return true;
 }
 
 GameState MineField::state() const noexcept { return m_state; }
@@ -147,6 +186,9 @@ void MineField::fillMines(std::uint32_t safeRow, std::uint32_t safeCol)
     }
     const bool relaxExclusion = totalCells - excludedCount < m_difficulty.mineCount;
 
+    m_lastMinePositions.clear();
+    m_lastMinePositions.reserve(m_difficulty.mineCount);
+
     std::uint32_t placed = 0;
     while (placed < m_difficulty.mineCount)
     {
@@ -165,6 +207,7 @@ void MineField::fillMines(std::uint32_t safeRow, std::uint32_t safeCol)
             continue;
         }
         m_buttons[r][c]->setMined();
+        m_lastMinePositions.emplace_back(r, c);
         ++placed;
     }
 }
@@ -405,11 +448,14 @@ void MineField::setFixedLayout(std::uint32_t width, std::uint32_t height, const 
     clearGrid();
     buildGrid();
 
+    m_lastMinePositions.clear();
+    m_lastMinePositions.reserve(minePositions.size());
     for (const auto &p : minePositions)
     {
         if (p.first < height && p.second < width)
         {
             m_buttons[p.first][p.second]->setMined();
+            m_lastMinePositions.emplace_back(p.first, p.second);
         }
     }
     fillNumbers();

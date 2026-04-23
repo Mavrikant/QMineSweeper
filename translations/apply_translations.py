@@ -79,6 +79,7 @@ TR: dict[str, str] = {
     "🏆 New record!": "🏆 Yeni rekor!",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Qt %1 ile %2 tarihinde derlendi</small></p>",
     "Enable &question marks": "&Soru işaretlerini etkinleştir",
+    "&Replay same layout": "Aynı &düzeni tekrar oyna",
 }
 
 ES: dict[str, str] = {
@@ -133,6 +134,7 @@ ES: dict[str, str] = {
     "🏆 New record!": "🏆 ¡Nuevo récord!",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Compilado con Qt %1 el %2</small></p>",
     "Enable &question marks": "Habilitar signos de &interrogación",
+    "&Replay same layout": "&Repetir el mismo tablero",
 }
 
 FR: dict[str, str] = {
@@ -187,6 +189,7 @@ FR: dict[str, str] = {
     "🏆 New record!": "🏆 Nouveau record !",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Compilé avec Qt %1 le %2</small></p>",
     "Enable &question marks": "Activer les &points d’interrogation",
+    "&Replay same layout": "&Rejouer la même disposition",
 }
 
 DE: dict[str, str] = {
@@ -241,6 +244,7 @@ DE: dict[str, str] = {
     "🏆 New record!": "🏆 Neuer Rekord!",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Erstellt mit Qt %1 am %2</small></p>",
     "Enable &question marks": "&Fragezeichen aktivieren",
+    "&Replay same layout": "&Gleiches Layout wiederholen",
 }
 
 RU: dict[str, str] = {
@@ -295,6 +299,7 @@ RU: dict[str, str] = {
     "🏆 New record!": "🏆 Новый рекорд!",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Собрано с Qt %1 — %2</small></p>",
     "Enable &question marks": "Включить &знаки вопроса",
+    "&Replay same layout": "&Повторить ту же расстановку",
 }
 
 PT: dict[str, str] = {
@@ -349,6 +354,7 @@ PT: dict[str, str] = {
     "🏆 New record!": "🏆 Novo recorde!",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Compilado com Qt %1 em %2</small></p>",
     "Enable &question marks": "Ativar pontos de &interrogação",
+    "&Replay same layout": "&Repetir o mesmo tabuleiro",
 }
 
 ZH: dict[str, str] = {
@@ -403,6 +409,7 @@ ZH: dict[str, str] = {
     "🏆 New record!": "🏆 新纪录！",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>使用 Qt %1 构建于 %2</small></p>",
     "Enable &question marks": "启用问号标记(&Q)",
+    "&Replay same layout": "重玩同一布局(&R)",
 }
 
 HI: dict[str, str] = {
@@ -457,6 +464,7 @@ HI: dict[str, str] = {
     "🏆 New record!": "🏆 नया रिकॉर्ड!",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Qt %1 के साथ %2 को निर्मित</small></p>",
     "Enable &question marks": "&प्रश्न चिह्न सक्षम करें",
+    "&Replay same layout": "&वही खाका फिर से खेलें",
 }
 
 AR: dict[str, str] = {
@@ -511,6 +519,7 @@ AR: dict[str, str] = {
     "🏆 New record!": "🏆 رقم قياسي جديد!",
     "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>بُني باستخدام Qt %1 في %2</small></p>",
     "Enable &question marks": "تفعيل علامات الاست&فهام",
+    "&Replay same layout": "&إعادة اللعب بالتوزيع نفسه",
 }
 
 LOCALES: dict[str, dict[str, str]] = {
