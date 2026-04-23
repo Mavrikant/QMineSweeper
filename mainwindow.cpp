@@ -14,6 +14,7 @@
 #include <QHeaderView>
 #include <QKeySequence>
 #include <QLabel>
+#include <QLocale>
 #include <QMessageBox>
 #include <QProcess>
 #include <QPushButton>
@@ -400,7 +401,22 @@ void MainWindow::showStatsDialog()
     for (int i = 0; i < 3; ++i)
     {
         const Stats::Record rec = Stats::load(QString::fromLatin1(rows[i].key));
-        const QString best = rec.bestSeconds > 0.0 ? QString::asprintf("%.1f s", rec.bestSeconds) : QStringLiteral("—");
+        QString best;
+        if (rec.bestSeconds > 0.0)
+        {
+            best = QString::asprintf("%.1f s", rec.bestSeconds);
+            if (rec.bestDate.isValid())
+            {
+                // Locale-formatted date in parentheses, e.g. "15.5 s (23.04.2026)".
+                // Inline (vs. a separate column) keeps the dialog narrow and avoids
+                // introducing a new translatable column header.
+                best += QStringLiteral("  (") + QLocale().toString(rec.bestDate, QLocale::ShortFormat) + QStringLiteral(")");
+            }
+        }
+        else
+        {
+            best = QStringLiteral("—");
+        }
         const QString winRate = rec.played > 0 ? QStringLiteral(" (%1%)").arg(100 * rec.won / rec.played) : QString{};
         table->setItem(i, 0, new QTableWidgetItem(tr(rows[i].label)));
         table->setItem(i, 1, new QTableWidgetItem(QString::number(rec.played)));
