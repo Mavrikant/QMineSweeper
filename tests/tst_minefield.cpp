@@ -32,6 +32,9 @@ class TestMineField : public QObject
     void testReplayResetsOpenedAndFlaggedCells();
     void testReplayAfterLossIsPlayable();
     void testNewGameReplayFallbackWhenNoLayout();
+    void testCustomDifficultyGridSize();
+    void testCustomDifficultyFirstClickSafety();
+    void testCustomDifficultyMineCountBoundary();
 
   private:
     static void openAllSafe(MineField &field);
@@ -377,6 +380,63 @@ void TestMineField::testNewGameReplayFallbackWhenNoLayout()
     QCOMPARE(field.state(), GameState::Ready);
     QCOMPARE(field.cols(), MineField::Beginner.width);
     QVERIFY(!field.canReplay());
+}
+
+void TestMineField::testCustomDifficultyGridSize()
+{
+    MineField field;
+    // Arbitrary non-preset geometry that the Custom dialog would allow.
+    const Difficulty custom{15u, 12u, 30u};
+    field.newGame(custom);
+    QCOMPARE(field.cols(), 15u);
+    QCOMPARE(field.rows(), 12u);
+    QCOMPARE(field.mineCount(), 30u);
+    QCOMPARE(field.state(), GameState::Ready);
+    // All cells wired up and unopened on a fresh board.
+    for (std::uint32_t r = 0; r < field.rows(); ++r)
+    {
+        for (std::uint32_t c = 0; c < field.cols(); ++c)
+        {
+            QVERIFY(field.cellAt(r, c) != nullptr);
+            QVERIFY(!field.cellAt(r, c)->isOpened());
+        }
+    }
+}
+
+void TestMineField::testCustomDifficultyFirstClickSafety()
+{
+    // Custom geometry must preserve first-click zero-start behaviour.
+    for (int iter = 0; iter < 10; ++iter)
+    {
+        MineField field;
+        field.newGame(Difficulty{15u, 12u, 30u});
+        MineButton *first = field.cellAt(6, 7);
+        first->Open();
+        QVERIFY2(!first->isMined(), "custom-board first click detonated");
+        QCOMPARE(first->Number(), 0u);
+    }
+}
+
+void TestMineField::testCustomDifficultyMineCountBoundary()
+{
+    // Dense custom board (90% mines) still places the requested mine count
+    // after the first click, exercising the relaxed-exclusion branch.
+    MineField field;
+    field.newGame(Difficulty{9u, 9u, 72u}); // 81 cells, max the dialog allows
+    field.cellAt(4, 4)->Open();
+    std::uint32_t mines = 0;
+    for (std::uint32_t r = 0; r < field.rows(); ++r)
+    {
+        for (std::uint32_t c = 0; c < field.cols(); ++c)
+        {
+            if (field.cellAt(r, c)->isMined())
+            {
+                ++mines;
+            }
+        }
+    }
+    QCOMPARE(mines, 72u);
+    QVERIFY(!field.cellAt(4, 4)->isMined());
 }
 
 QTEST_MAIN(TestMineField)

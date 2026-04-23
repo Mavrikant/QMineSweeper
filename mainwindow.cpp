@@ -10,6 +10,7 @@
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QKeySequence>
@@ -20,8 +21,11 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QSettings>
+#include <QSpinBox>
 #include <QTableWidget>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace
 {
@@ -74,13 +78,26 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_uniq
     {
         startDifficulty = MineField::Expert;
     }
+    else if (lastDifficulty == QStringLiteral("Custom"))
+    {
+        // Restore the last custom geometry; fall back to Expert-sized defaults
+        // if any key is missing or malformed. Clamp to the same ranges the
+        // dialog enforces to guard against hand-edited plists.
+        const int cw = std::clamp(settings.value(QStringLiteral("custom_width"), 30).toInt(), 9, 30);
+        const int ch = std::clamp(settings.value(QStringLiteral("custom_height"), 16).toInt(), 9, 24);
+        const int totalCells = cw * ch;
+        const int cm = std::clamp(settings.value(QStringLiteral("custom_mines"), 99).toInt(), 10, std::max(10, totalCells - 9));
+        startDifficulty = Difficulty{static_cast<std::uint32_t>(cw), static_cast<std::uint32_t>(ch), static_cast<std::uint32_t>(cm)};
+        m_isCustom = true;
+    }
     m_currentDifficulty = startDifficulty;
 
-    // Tick the checkable difficulty action that matches the restored preset.
+    // Tick the checkable difficulty action that matches the restored difficulty.
+    const QString targetKey = m_isCustom ? QStringLiteral("Custom") : difficultyName(startDifficulty);
     const QList<QAction *> diffActions = m_difficultyGroup->actions();
     for (QAction *action : diffActions)
     {
-        if (action->data().toString() == difficultyName(startDifficulty))
+        if (action->data().toString() == targetKey)
         {
             action->setChecked(true);
             break;
@@ -148,6 +165,14 @@ void MainWindow::buildMenus()
         const Difficulty d = e.diff;
         connect(action, &QAction::triggered, this, [this, d] { onDifficultyChanged(d); });
     }
+
+    diffMenu->addSeparator();
+    m_customDifficultyAction = new QAction(tr("&Custom…"), this);
+    m_customDifficultyAction->setCheckable(true);
+    m_customDifficultyAction->setData(QStringLiteral("Custom"));
+    m_difficultyGroup->addAction(m_customDifficultyAction);
+    diffMenu->addAction(m_customDifficultyAction);
+    connect(m_customDifficultyAction, &QAction::triggered, this, &MainWindow::onDifficultyCustom);
 
     ui->menuGame->addSeparator();
 
@@ -246,6 +271,7 @@ void MainWindow::onReplaySameLayout()
 void MainWindow::onDifficultyChanged(Difficulty diff)
 {
     m_currentDifficulty = diff;
+    m_isCustom = false;
     QSettings settings;
     settings.setValue("difficulty", difficultyName(diff));
     ui->mineFieldWidget->newGame(diff);
@@ -258,6 +284,110 @@ void MainWindow::onDifficultyChanged(Difficulty diff)
     setWindowTitle(tr("QMineSweeper"));
     refitWindowToContents();
     Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("difficulty: ") + difficultyName(diff));
+}
+
+void MainWindow::onDifficultyCustom()
+{
+    Difficulty out;
+    if (!showCustomDifficultyDialog(out))
+    {
+        // User cancelled — QActionGroup already moved the tick to Custom when
+        // the action triggered, so flip it back to whatever difficulty is
+        // actually active.
+        recheckCurrentDifficultyAction();
+        return;
+    }
+
+    m_currentDifficulty = out;
+    m_isCustom = true;
+    QSettings settings;
+    settings.setValue("difficulty", QStringLiteral("Custom"));
+    settings.setValue(QStringLiteral("custom_width"), out.width);
+    settings.setValue(QStringLiteral("custom_height"), out.height);
+    settings.setValue(QStringLiteral("custom_mines"), out.mineCount);
+    ui->mineFieldWidget->newGame(out);
+    m_isReplay = false;
+    if (m_replayAction)
+    {
+        m_replayAction->setEnabled(false);
+    }
+    resetTimerUi();
+    setWindowTitle(tr("QMineSweeper"));
+    refitWindowToContents();
+    Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("difficulty: Custom %1x%2/%3").arg(out.width).arg(out.height).arg(out.mineCount));
+}
+
+bool MainWindow::showCustomDifficultyDialog(Difficulty &out)
+{
+    QSettings s;
+    const int initW = std::clamp(s.value(QStringLiteral("custom_width"), 30).toInt(), 9, 30);
+    const int initH = std::clamp(s.value(QStringLiteral("custom_height"), 16).toInt(), 9, 24);
+    const int initMaxM = std::max(10, initW * initH - 9);
+    const int initM = std::clamp(s.value(QStringLiteral("custom_mines"), 99).toInt(), 10, initMaxM);
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Custom difficulty"));
+
+    auto *layout = new QVBoxLayout(&dlg);
+    auto *form = new QFormLayout;
+
+    auto *widthSpin = new QSpinBox(&dlg);
+    widthSpin->setRange(9, 30);
+    widthSpin->setValue(initW);
+    form->addRow(tr("Width:"), widthSpin);
+
+    auto *heightSpin = new QSpinBox(&dlg);
+    heightSpin->setRange(9, 24);
+    heightSpin->setValue(initH);
+    form->addRow(tr("Height:"), heightSpin);
+
+    auto *minesSpin = new QSpinBox(&dlg);
+    // The 3×3 first-click safety zone needs up to 9 safe cells; keep the
+    // ceiling at total - 9 so Custom boards can always guarantee a zero-start.
+    const auto recomputeMinesRange = [widthSpin, heightSpin, minesSpin]()
+    {
+        const int total = widthSpin->value() * heightSpin->value();
+        const int maxM = std::max(10, total - 9);
+        const int current = minesSpin->value();
+        minesSpin->setRange(10, maxM);
+        minesSpin->setValue(std::clamp(current, 10, maxM));
+    };
+    minesSpin->setRange(10, initMaxM);
+    minesSpin->setValue(initM);
+    connect(widthSpin, qOverload<int>(&QSpinBox::valueChanged), &dlg, [recomputeMinesRange](int) { recomputeMinesRange(); });
+    connect(heightSpin, qOverload<int>(&QSpinBox::valueChanged), &dlg, [recomputeMinesRange](int) { recomputeMinesRange(); });
+    form->addRow(tr("Mines:"), minesSpin);
+
+    layout->addLayout(form);
+
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    layout->addWidget(buttons);
+
+    if (dlg.exec() != QDialog::Accepted)
+    {
+        return false;
+    }
+
+    out.width = static_cast<std::uint32_t>(widthSpin->value());
+    out.height = static_cast<std::uint32_t>(heightSpin->value());
+    out.mineCount = static_cast<std::uint32_t>(minesSpin->value());
+    return true;
+}
+
+void MainWindow::recheckCurrentDifficultyAction()
+{
+    const QString targetKey = m_isCustom ? QStringLiteral("Custom") : difficultyName(m_currentDifficulty);
+    const QList<QAction *> diffActions = m_difficultyGroup ? m_difficultyGroup->actions() : QList<QAction *>{};
+    for (QAction *action : diffActions)
+    {
+        if (action->data().toString() == targetKey)
+        {
+            action->setChecked(true);
+            return;
+        }
+    }
 }
 
 void MainWindow::refitWindowToContents()
@@ -309,8 +439,11 @@ void MainWindow::onGameWon()
     const QString diffName = difficultyName(m_currentDifficulty);
     // Replays don't update played/won counters or best-time — the layout was
     // already seen, so counting the win would let the user inflate stats by
-    // memorising one board.
-    const bool newRecord = !m_isReplay && Stats::recordWin(diffName, m_lastElapsedSeconds);
+    // memorising one board. Custom games are excluded for the same reason the
+    // Stats dialog only lists the three standard presets — a lifetime best at
+    // an arbitrary grid size is not comparable to the standards.
+    const bool excludedFromStats = m_isReplay || m_isCustom;
+    const bool newRecord = !excludedFromStats && Stats::recordWin(diffName, m_lastElapsedSeconds);
     Telemetry::recordEvent(QStringLiteral("game.won"), {
                                                            {QStringLiteral("difficulty"), diffName},
                                                            {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
@@ -327,7 +460,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     updateTimerLabel();
     setWindowTitle(tr("QMineSweeper — Boom"));
     const QString diffName = difficultyName(m_currentDifficulty);
-    if (!m_isReplay)
+    if (!m_isReplay && !m_isCustom)
     {
         Stats::recordLoss(diffName);
     }

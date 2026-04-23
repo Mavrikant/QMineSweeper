@@ -29,6 +29,7 @@ class MainWindow : public QMainWindow
     void onNewGame();
     void onReplaySameLayout();
     void onDifficultyChanged(Difficulty diff);
+    void onDifficultyCustom();
     void onGameStarted();
     void onGameWon();
     void onGameLost(std::uint32_t row, std::uint32_t col);
@@ -46,6 +47,8 @@ class MainWindow : public QMainWindow
     void maybeAskTelemetryConsent();
     void restartApp();
     void refitWindowToContents();
+    void recheckCurrentDifficultyAction();
+    [[nodiscard]] bool showCustomDifficultyDialog(Difficulty &out);
     [[nodiscard]] double elapsedSeconds() const noexcept;
 
     std::unique_ptr<Ui::MainWindow> ui;
@@ -56,9 +59,11 @@ class MainWindow : public QMainWindow
     QAction *m_telemetryAction{nullptr};
     QAction *m_questionMarksAction{nullptr};
     QAction *m_replayAction{nullptr};
+    QAction *m_customDifficultyAction{nullptr};
     Difficulty m_currentDifficulty{MineField::Beginner};
     double m_lastElapsedSeconds{0.0};
     bool m_isReplay{false};
+    bool m_isCustom{false};
     QString m_releaseId;
 };
 
