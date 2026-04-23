@@ -14,6 +14,7 @@
 #include <QHeaderView>
 #include <QKeySequence>
 #include <QLabel>
+#include <QLayout>
 #include <QLocale>
 #include <QMessageBox>
 #include <QProcess>
@@ -197,10 +198,7 @@ void MainWindow::onNewGame()
     ui->mineFieldWidget->newGame(m_currentDifficulty);
     resetTimerUi();
     setWindowTitle(tr("QMineSweeper"));
-    setMinimumSize(0, 0);
-    setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
-    adjustSize();
-    setFixedSize(sizeHint());
+    refitWindowToContents();
     Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("new game"));
 }
 
@@ -212,11 +210,29 @@ void MainWindow::onDifficultyChanged(Difficulty diff)
     ui->mineFieldWidget->newGame(diff);
     resetTimerUi();
     setWindowTitle(tr("QMineSweeper"));
+    refitWindowToContents();
+    Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("difficulty: ") + difficultyName(diff));
+}
+
+void MainWindow::refitWindowToContents()
+{
+    // Unlock any previous setFixedSize constraint so adjustSize() can grow or
+    // shrink the window freely.
     setMinimumSize(0, 0);
     setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+    // MineField::buildGrid() calls setFixedSize() on itself, which posts a
+    // LayoutRequest event to its parent (the central widget). We're still
+    // inside the slot the user triggered, so that event hasn't been delivered
+    // yet — meaning sizeHint() below would return the previous grid's size
+    // and the window would stay sized to the previous difficulty. Activate
+    // the outer layout synchronously so it picks up the new MineField size
+    // BEFORE we sample sizeHint().
+    if (QLayout *cl = centralWidget() ? centralWidget()->layout() : nullptr)
+    {
+        cl->activate();
+    }
     adjustSize();
     setFixedSize(sizeHint());
-    Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("difficulty: ") + difficultyName(diff));
 }
 
 void MainWindow::onGameStarted()
@@ -448,11 +464,12 @@ void MainWindow::showStatsDialog()
 
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(this, tr("About QMineSweeper"),
-                       tr("<h3>QMineSweeper %1</h3>"
-                          "<p>A Qt6-based Minesweeper game.</p>"
-                          "<p>Left-click to reveal, right-click to flag,"
-                          " middle-click on a satisfied number to chord.</p>"
-                          "<p>© Mavrikant</p>")
-                           .arg(QString::fromUtf8(QMS_VERSION)));
+    const QString body = tr("<h3>QMineSweeper %1</h3>"
+                            "<p>A Qt6-based Minesweeper game.</p>"
+                            "<p>Left-click to reveal, right-click to flag,"
+                            " middle-click on a satisfied number to chord.</p>"
+                            "<p>© Mavrikant</p>")
+                             .arg(QString::fromUtf8(QMS_VERSION));
+    const QString buildInfo = tr("<p><small>Built with Qt %1 on %2</small></p>").arg(QString::fromUtf8(QT_VERSION_STR), QString::fromUtf8(__DATE__ " " __TIME__));
+    QMessageBox::about(this, tr("About QMineSweeper"), body + buildInfo);
 }

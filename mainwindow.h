@@ -43,6 +43,7 @@ class MainWindow : public QMainWindow
     void showEndDialog(bool won, bool newRecord);
     void maybeAskTelemetryConsent();
     void restartApp();
+    void refitWindowToContents();
     [[nodiscard]] double elapsedSeconds() const noexcept;
 
     std::unique_ptr<Ui::MainWindow> ui;

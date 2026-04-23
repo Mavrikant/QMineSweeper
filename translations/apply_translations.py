@@ -77,6 +77,7 @@ TR: dict[str, str] = {
     "Reset statistics?": "İstatistikler sıfırlansın mı?",
     "Permanently erase all played / won / best-time records?": "Tüm oynanmış / kazanılmış / en iyi süre kayıtları kalıcı olarak silinsin mi?",
     "🏆 New record!": "🏆 Yeni rekor!",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Qt %1 ile %2 tarihinde derlendi</small></p>",
 }
 
 ES: dict[str, str] = {
@@ -129,6 +130,7 @@ ES: dict[str, str] = {
     "Reset statistics?": "¿Borrar estadísticas?",
     "Permanently erase all played / won / best-time records?": "¿Borrar permanentemente todos los registros de jugadas / victorias / mejores tiempos?",
     "🏆 New record!": "🏆 ¡Nuevo récord!",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Compilado con Qt %1 el %2</small></p>",
 }
 
 FR: dict[str, str] = {
@@ -181,6 +183,7 @@ FR: dict[str, str] = {
     "Reset statistics?": "Réinitialiser les statistiques ?",
     "Permanently erase all played / won / best-time records?": "Effacer définitivement toutes les parties jouées / gagnées / meilleurs temps ?",
     "🏆 New record!": "🏆 Nouveau record !",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Compilé avec Qt %1 le %2</small></p>",
 }
 
 DE: dict[str, str] = {
@@ -233,6 +236,7 @@ DE: dict[str, str] = {
     "Reset statistics?": "Statistiken zurücksetzen?",
     "Permanently erase all played / won / best-time records?": "Alle Spiel-/Sieg-/Bestzeit-Einträge dauerhaft löschen?",
     "🏆 New record!": "🏆 Neuer Rekord!",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Erstellt mit Qt %1 am %2</small></p>",
 }
 
 RU: dict[str, str] = {
@@ -285,6 +289,7 @@ RU: dict[str, str] = {
     "Reset statistics?": "Сбросить статистику?",
     "Permanently erase all played / won / best-time records?": "Безвозвратно удалить все записи сыгранных / побед / лучших времён?",
     "🏆 New record!": "🏆 Новый рекорд!",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Собрано с Qt %1 — %2</small></p>",
 }
 
 PT: dict[str, str] = {
@@ -337,6 +342,7 @@ PT: dict[str, str] = {
     "Reset statistics?": "Redefinir estatísticas?",
     "Permanently erase all played / won / best-time records?": "Apagar permanentemente todos os registros de partidas / vitórias / melhores tempos?",
     "🏆 New record!": "🏆 Novo recorde!",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Compilado com Qt %1 em %2</small></p>",
 }
 
 ZH: dict[str, str] = {
@@ -389,6 +395,7 @@ ZH: dict[str, str] = {
     "Reset statistics?": "重置统计数据？",
     "Permanently erase all played / won / best-time records?": "是否永久删除所有已玩、获胜与最佳时间记录？",
     "🏆 New record!": "🏆 新纪录！",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>使用 Qt %1 构建于 %2</small></p>",
 }
 
 HI: dict[str, str] = {
@@ -441,6 +448,7 @@ HI: dict[str, str] = {
     "Reset statistics?": "आँकड़े रीसेट करें?",
     "Permanently erase all played / won / best-time records?": "क्या सभी खेल / जीत / सर्वश्रेष्ठ समय के रिकॉर्ड स्थायी रूप से मिटा दिए जाएँ?",
     "🏆 New record!": "🏆 नया रिकॉर्ड!",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>Qt %1 के साथ %2 को निर्मित</small></p>",
 }
 
 AR: dict[str, str] = {
@@ -493,6 +501,7 @@ AR: dict[str, str] = {
     "Reset statistics?": "تصفير الإحصائيات؟",
     "Permanently erase all played / won / best-time records?": "حذف جميع سجلات المباريات / الانتصارات / أفضل الأوقات نهائياً؟",
     "🏆 New record!": "🏆 رقم قياسي جديد!",
+    "<p><small>Built with Qt %1 on %2</small></p>": "<p><small>بُني باستخدام Qt %1 في %2</small></p>",
 }
 
 LOCALES: dict[str, dict[str, str]] = {
