@@ -1,5 +1,59 @@
 # Autonomous cycles log
 
+## 2026-04-23 — Cycle 3 — v1.5.0 (autonomous)
+
+- **Chosen problem:** No way to disable the `?` step in the right-click
+  cycle. Classic Minesweeper ships a setting to opt out of it; many
+  players find it an annoyance during fast play. Both the previous two
+  cycles parked "Pause/Resume / Custom difficulty / Keyboard navigation"
+  as next candidates — those are all bigger, higher-regression-risk
+  changes; this cycle picks a small, self-contained usability feature
+  the prior candidate list missed.
+- **Evidence:** `MineButton::cycleMarker` unconditionally cycles
+  `None → Flag → Question → None` with no escape hatch. Standard in
+  Windows Minesweeper / GNOME Mines as an optional toggle; ours has no
+  such toggle.
+- **Shipped:**
+  - Branch: `feat/question-marks-toggle` (merged + deleted)
+  - PR: https://github.com/Mavrikant/QMineSweeper/pull/22 (squash-merged as `c7582ea`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.5.0
+  - CI: ubuntu + macos + windows + coverage + formatter green. Codacy
+    flagged `action_required` (advisory, historically not blocking on
+    this repo). Combined status success.
+  - Release workflow: 2m27s (all three platforms parallel-built,
+    macOS ad-hoc signed, SHA256SUMS attached).
+- **Diff shape:** 20 files, +713/-482. Real code (excluding `.ts` churn
+  and `DECISIONS.md`): ~180 LOC. Well under the 400-LOC cycle cap.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved.
+- **Assumptions made:**
+  - Default `true` to preserve v1.4.x muscle memory — confirmed
+    by reading `apply_translations.py` and by existing QSettings plist
+    schema (absent key → read as `true`).
+  - The setting is app-wide, not per-difficulty — matches Windows
+    Minesweeper and GNOME Mines.
+  - The About body ("right-click to flag") does not need a copy
+    update — zero extra translation churn.
+  - A static on `MineButton` is acceptable given the architectural
+    constraint that MineButton has no back-pointer to MineField;
+    documented in `DECISIONS.md`.
+- **Skipped:**
+  - *Pause/resume.* Higher regression risk on the timer/state machine;
+    also adds ~3 new strings × 10 locales. Park.
+  - *Custom difficulty.* Ripples into the Stats schema. Multi-cycle.
+  - *Keyboard navigation.* Touches focus on every cell; reasonable
+    candidate for a future cycle, but this cycle's feature is more
+    user-visible for the same budget.
+  - *About-dialog update about the new setting.* Kept the About body
+    byte-identical to avoid touching 10 existing translations.
+- **Risks logged:** none new.
+- **Post-release watch (T+10min):** [to be filled]
+- **Next candidates:**
+  - Pause / resume (P shortcut) with board-covering overlay.
+  - Keyboard navigation (arrow keys + space/F) for accessibility.
+  - "Best time + date" moved from inline text to its own column in
+    Statistics when Expert best time crosses 100s (readability tweak).
+
 ## 2026-04-23 — Cycle 2 — v1.4.0 (user-directed)
 
 - **Trigger:** User-reported bug + follow-up feature ask: "when user
