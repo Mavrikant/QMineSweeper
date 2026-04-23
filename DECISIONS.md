@@ -1,5 +1,47 @@
 # Cycle decisions
 
+## 2026-04-23 — Window-refit + About build info (v1.4.0)
+
+**Chosen:** Fix the window-refit-on-difficulty-change bug (user-reported) and,
+in the same cycle, enhance Help → About with Qt version + build timestamp
+(user follow-up).
+
+**Bug root cause (resize):** `MineField::setFixedSize()` posts
+`QEvent::LayoutRequest` *to the central widget* (not to MainWindow). The
+enclosing slot then called `adjustSize()`/`setFixedSize(sizeHint())` while
+the event was still queued, so `sizeHint()` returned the pre-change value.
+Net effect: Beginner → Expert stayed small (old small hint), Expert →
+Beginner stayed large (old large hint). First attempt flushed with
+`sendPostedEvents(this, LayoutRequest)` — targeted the wrong widget,
+fixed only one direction. Final fix calls `centralWidget()->layout()->activate()`
+to re-run layout synchronously, then snapshots the updated `sizeHint()`.
+
+**Rejected alternatives (resize):**
+- *Relax to non-fixed resizable window.* Would sidestep the bug but loses the
+  pixel-perfect "board fills window exactly, no empty gutter" UX.
+- *QTimer::singleShot(0, ...) defer.* Would work but leaves a visible flicker
+  and makes the slot async — synchronous layout activation is cleaner.
+
+**About dialog choice:** Show Qt version (`QT_VERSION_STR`) + build timestamp
+(`__DATE__ " " __TIME__`). Deferred compiler identity and build type — nice
+to have but noise for most users and require extra macros.
+
+**Why ship them together:**
+- Both small, both touch `mainwindow.cpp`, both merit one release bump.
+- Splitting into two PRs doubles review/CI cost for no user benefit.
+
+**Translation preservation trick:** Split the About body into two `tr()`
+calls so the large pre-existing about string literal stays byte-identical.
+That keeps all 10 locales' previous translation intact; only the new
+"Built with Qt %1 on %2" string needs fresh hand-translation. Net
+translation surface: 1 new key × 9 non-English locales.
+
+**Assumptions:**
+- `__DATE__` / `__TIME__` precision (date + HH:MM:SS) is adequate build-ID
+  for an end user; reproducibility-minded users can compare commit hashes.
+- Small-font footer is styling-neutral enough that no per-locale tweaks
+  are needed.
+
 ## 2026-04-23 — Best-time date in Statistics (v1.3.0)
 
 **Chosen:** Record the date a best-time was set and show it inline in the
