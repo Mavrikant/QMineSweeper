@@ -22,6 +22,15 @@ class TestStats : public QObject
     void testPerDifficultyIsolation();
     void testResetSingle();
     void testResetAllWipesEverything();
+
+    // best-date behaviour
+    void testBestDateInvalidWhenNoWins();
+    void testFirstWinStampsDate();
+    void testFasterWinOverwritesDate();
+    void testSlowerWinKeepsOriginalDate();
+    void testLossDoesNotTouchDate();
+    void testResetWipesDate();
+    void testLegacyRecordWithoutDateLoadsAsInvalid();
 };
 
 void TestStats::initTestCase()
@@ -118,6 +127,72 @@ void TestStats::testResetAllWipesEverything()
     QCOMPARE(Stats::load(QStringLiteral("Beginner")).played, 0u);
     QCOMPARE(Stats::load(QStringLiteral("Intermediate")).played, 0u);
     QCOMPARE(Stats::load(QStringLiteral("Expert")).played, 0u);
+}
+
+void TestStats::testBestDateInvalidWhenNoWins()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QVERIFY(!r.bestDate.isValid());
+}
+
+void TestStats::testFirstWinStampsDate()
+{
+    const QDate d{2026, 4, 23};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0, d));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestDate, d);
+}
+
+void TestStats::testFasterWinOverwritesDate()
+{
+    const QDate oldDate{2026, 1, 1};
+    const QDate newDate{2026, 4, 23};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0, oldDate));
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, newDate));
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestDate, newDate);
+}
+
+void TestStats::testSlowerWinKeepsOriginalDate()
+{
+    const QDate originalDate{2026, 1, 1};
+    const QDate laterDate{2026, 4, 23};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, originalDate));
+    QVERIFY(!Stats::recordWin(QStringLiteral("Beginner"), 40.0, laterDate));
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestDate, originalDate);
+}
+
+void TestStats::testLossDoesNotTouchDate()
+{
+    const QDate originalDate{2026, 1, 1};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, originalDate));
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestDate, originalDate);
+    QCOMPARE(r.played, 2u);
+    QCOMPARE(r.won, 1u);
+}
+
+void TestStats::testResetWipesDate()
+{
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, QDate{2026, 1, 1}));
+    Stats::reset(QStringLiteral("Beginner"));
+    QVERIFY(!Stats::load(QStringLiteral("Beginner")).bestDate.isValid());
+}
+
+void TestStats::testLegacyRecordWithoutDateLoadsAsInvalid()
+{
+    // Simulate a pre-1.3 record: played/won/best_seconds keys set, best_date absent.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 42.0);
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 5u);
+    QCOMPARE(r.won, 3u);
+    QCOMPARE(r.bestSeconds, 42.0);
+    QVERIFY(!r.bestDate.isValid());
 }
 
 QTEST_MAIN(TestStats)
