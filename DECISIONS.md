@@ -1,5 +1,105 @@
 # Cycle decisions
 
+## 2026-04-24 — Tension smiley during cell hold (v1.9.0)
+
+**Chosen:** While a cell is being held down during an active game, the header
+smiley flips to 😮 — the classic "holding my breath" / "tension" face —
+reverting to 🙂 / 😎 / 😵 on release. Left-click and middle-click (and L+R
+chord) trigger tension; right-click flag cycling does not.
+
+**Why this one:**
+- Concrete user value — the tension face is the third leg of the
+  classic-Minesweeper feedback loop, right alongside the static 🙂/😎/😵 we
+  shipped in v1.8.0. Windows Minesweeper, Minesweeper Arbiter, Minesweeper X,
+  GNOME Mines, and every clone on minesweepergame.com show it. Players expect
+  it; the only thing the board was missing.
+- Explicitly called out in v1.8.0's `Next candidates` list as "Pressed-smiley
+  (🫣) during cell click-and-hold — small follow-on polish on this cycle's
+  feature." Zero new territory — the state machine is untouched, the UI slot
+  already exists, and emoji rendering is proven since v1.2.0.
+- Small, self-contained: ~80 LOC of real code across MineButton / MineField /
+  smiley / MainWindow plus ~125 LOC of tests (5 new MineButton cases, 3 new
+  smiley cases including a full press→release integration through a real
+  MineField). Total diff 209 insertions / 2 deletions, well under the 400-LOC
+  cycle cap.
+- Backwards compatible — pure UI addition. No settings, no telemetry, no
+  QSettings schema change. The existing signal `cellPressed` and its
+  first-click-placement role are untouched; the new signals are separate.
+- Testable in isolation — `smileyForTensionState(GameState, bool pressing)`
+  is a pure inline helper the unit test exercises without pulling any Qt
+  widget code.
+- Translation burden — **zero**. 😮 is a Unicode glyph on the same font
+  fallback stack that has been rendering 🙂/😎/😵 since v1.8.0 and 🏆 since
+  v1.2.0 without a single rendering complaint in Sentry or GitHub issues.
+
+**Rejected alternatives from the prior `Next candidates` list:**
+- *Pause / resume.* Still bigger surface (overlay widget, timer arithmetic,
+  ~3 new strings × 10 locales) and higher regression risk on the timer/state
+  machine. Park for a sixth cycle.
+- *Keyboard navigation.* Touches focus management on every cell. Medium
+  surface, zero translation cost. Reasonable next candidate but less
+  immediately user-visible than the tension face for the same budget.
+
+**Implementation choices:**
+
+1. **Two new signals on `MineButton` — `pressStart()` / `pressEnd()` — cell
+   agnostic on purpose.** The header indicator doesn't care *which* cell is
+   being held, only *that* one is. Emitting `pressStart(row,col)` would force
+   MainWindow to ignore the args and would give the reader the wrong mental
+   model. The cell-agnostic cut also maps cleanly onto the cell-agnostic
+   forwarding signals on MineField.
+
+2. **`pressStart` fires from `mousePressEvent` *before* the reveal/chord
+   branch.** Painting has to happen during the hold, not after release —
+   Qt delivers mousePressEvent synchronously, so emitting early means the
+   event loop repaints the smiley as part of the same user-visible frame.
+
+3. **Right-click-only presses do NOT fire `pressStart`.** Flag cycling is a
+   "mark it and move on" gesture; neither reference clones nor users expect
+   the header to flicker for a flag. A dedicated unit test
+   (`testRightPressDoesNotEmitPressStart`) guards this.
+
+4. **`mouseReleaseEvent` emits `pressEnd` unconditionally.** MainWindow
+   tracks tension with a single `m_smileyPressing` bool, so an unmatched
+   end (e.g. after a right-click-only press that never fired a start) is a
+   harmless no-op. The alternative — tracking in MineButton whether a
+   matching start fired — would add stateful bookkeeping for no gain.
+
+5. **`smileyForTensionState()` is a new inline pure helper in `smiley.h`,
+   not a modification of `smileyForState()`.** Preserves v1.8.0's contract
+   and the existing test cases verbatim. Won/Lost override tension — once
+   the game is over the cells are frozen and the indicator should stay on
+   its final face; a late mouse-release from mid-click cannot overwrite
+   😎/😵. Asserted by `testTensionIgnoredAfterGameOver`.
+
+6. **`MainWindow::setSmileyState()` clears `m_smileyPressing` as part of
+   every state transition.** Belt-and-suspenders: if the cell-freeze on
+   win/loss intercepts a mouse-release event, there is no way for 😮 to
+   stay stranded on the header.
+
+7. **`MainWindow::applySmiley()` is the single point of truth.** Both
+   `setSmileyState` and `setSmileyTension` route through it. Makes adding
+   any future indicator state (flashing on new record, pulse on first
+   click, …) a one-line change rather than a scattered refactor.
+
+8. **`MineField` forwards button signals with `connect(…, signal, …,
+   signal)` passthrough.** Avoids writing throw-away slot bodies just to
+   re-emit; Qt's signal-to-signal connection is the idiomatic primitive.
+
+**Assumptions:**
+- 😮 renders on Apple Color Emoji / Segoe UI Emoji / Noto Color Emoji via
+  Qt's default font fallback. Same stack as the already-shipped 🙂/😎/😵,
+  so no platform-specific concern.
+- Users associate 😮 (face with open mouth) with "holding my breath" /
+  tension more strongly than 🫣 (face with hand over mouth). 😮 is the
+  closer analogue to the yellow-face Windows Minesweeper indicator; 🫣
+  is a more recent 2020+ emoji and renders with a hand that reads as
+  peek-a-boo rather than breath-holding.
+- No additional telemetry event. The indicator state is derived from
+  existing game.started / game.won / game.lost events — counting
+  per-press tension flips would bloat the metric without any product
+  question it answers.
+
 ## 2026-04-24 — Smiley status indicator (v1.8.0)
 
 **Chosen:** Add a clickable smiley button above the minefield, between the

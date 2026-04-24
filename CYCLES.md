@@ -1,5 +1,78 @@
 # Autonomous cycles log
 
+## 2026-04-24 — Cycle 7 — v1.9.0 (autonomous)
+
+- **Chosen problem:** No tension smiley. v1.8.0 shipped the three static
+  faces (🙂/😎/😵) but the header never reacted to an in-progress click —
+  the classic Minesweeper "holding my breath" 😮 face that Windows
+  Minesweeper, Minesweeper Arbiter, Minesweeper X and GNOME Mines all show
+  while a cell is held down. Cycle 6's "Next candidates" listed this
+  explicitly as follow-on polish; it was the smallest remaining gap vs.
+  the reference clones.
+- **Evidence:** `mainwindow.cpp` set the smiley from three signals
+  (`gameStarted`, `gameWon`, `gameLost`) — no hook for mouse-down state.
+  `MineButton::mousePressEvent` already existed; there was no
+  `mouseReleaseEvent` override and no press/release-level signal. The
+  plumbing was one `mouseReleaseEvent` away.
+- **Shipped:**
+  - Branch: `feat/tension-smiley` (squash-merged + deleted)
+  - PR: https://github.com/Mavrikant/QMineSweeper/pull/27 (merged as `23eb0e7`)
+  - Tag: `v1.9.0`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.9.0
+  - CI: ubuntu + macos + windows + coverage + formatter green (Codacy
+    `fail` — advisory, historically not blocking on this repo; same
+    pattern as cycles 3–6). Combined status success.
+- **Diff shape:** 10 files, +209/-2. Real code (excluding tests and
+  `DECISIONS.md`): ~80 LOC across `MineButton` / `MineField` / `smiley.h` /
+  `MainWindow`. Tests: ~125 LOC (5 new MineButton cases, 3 new smiley
+  cases incl. full press→release integration through a real MineField).
+  Well under the 400-LOC cycle cap.
+- **Translation cost:** **Zero** new hand-translated strings. 😮 is a
+  Unicode glyph on the same font fallback stack the already-shipped
+  🙂/😎/😵 use. 58/58 finished preserved per locale. Second cycle in a row
+  to ship user-visible UI with no translation delta.
+- **Assumptions made:**
+  - 😮 renders consistently via Apple Color Emoji / Segoe UI Emoji / Noto
+    Color Emoji. Same stack as v1.8.0's faces; no rendering complaints in
+    Sentry or GitHub issues since v1.2.0's 🏆.
+  - Right-click-only presses deliberately skip tension — flag cycling is
+    "mark-and-move", and flicking the header on every flag would churn.
+  - `smileyForTensionState` keeps Won/Lost authoritative over tension so a
+    late release on a frozen board can't strand 😮 on the header.
+    Additionally, `setSmileyState` resets the tension flag on every game
+    transition — belt-and-suspenders.
+  - Cell-agnostic press signals on purpose — the header indicator doesn't
+    care *which* cell is held, only *that* one is.
+- **Skipped:**
+  - *Pause / resume.* Still the highest-value parked candidate; bigger
+    surface (overlay, timer arithmetic, ~3 new strings × 10 locales) and
+    higher regression risk. Park for an 8th cycle.
+  - *Keyboard navigation.* Medium surface, zero translation cost, good
+    accessibility win. Reasonable next pick.
+  - *Telemetry event for tension presses.* Would bloat the metric without
+    any product question it answers; the existing game-start/won/lost
+    events already carry the session signal.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Release workflow
+  [run 24899674160](https://github.com/Mavrikant/QMineSweeper/actions/runs/24899674160)
+  green across all three platforms; five assets published
+  (Linux AppImage 35.8 MB, Linux tar.gz 35.5 MB, macOS universal DMG
+  23.1 MB, Windows x64 ZIP 44.1 MB, plus `SHA256SUMS.txt`). Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.9.0` in the last hour returned **zero
+  results**. Expected — assets were just published, telemetry is opt-in,
+  no install has had a realistic chance to fire a session yet. The
+  signal worth watching for is *any* new group tagged with the 1.9.0
+  release; none observed. GitHub release body rewritten from the
+  auto-generated template to user-facing prose covering behaviour,
+  downloads per-platform, and the macOS quarantine note. Watch closed.
+- **Next candidates:**
+  - Pause / resume (P shortcut) with a board-covering overlay.
+  - Keyboard navigation (arrow keys + space/F) for accessibility.
+  - "Flag auto-correct hint" on new-record wins: a subtle indicator when
+    the final win was achieved without using any flags (no-flag speedrun
+    achievement).
+
 ## 2026-04-24 — Cycle 6 — v1.8.0 (autonomous)
 
 - **Chosen problem:** No smiley-face status indicator. Every mainstream
