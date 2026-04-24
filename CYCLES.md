@@ -1,5 +1,126 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 10 — v1.12.0 (autonomous)
+
+- **Chosen problem:** Timed runs could be interrupted mid-game (phone
+  call, doorbell, Slack ping) and the player had no way to stop the
+  clock. Best-time counts drifted past truth or the user abandoned a
+  winning Expert run. Pause/resume has been on the "Next candidates"
+  list for **seven consecutive cycles** (#3–#9) as the highest-value
+  deferred feature; every prior cycle either rejected it as
+  timer/state-machine risk or had a smaller contained pick. At cycle
+  10, the risk profile is finally contained (the keyboard-nav
+  eventFilter from v1.11.0 gave us a natural pre-existing seam) and
+  no smaller item dominates — this was the cycle to take it.
+- **Evidence:** No `isPaused`/`setPaused` anywhere in the tree.
+  `QElapsedTimer` used directly in `MainWindow::elapsedSeconds()` with
+  no offset accumulator — so if the timer were to resume after a
+  pause, it would reflect wall-clock time not playing time. Standard
+  in GNOME Mines; Windows Minesweeper Classic shipped pause via the
+  menu too.
+- **Shipped:**
+  - Branch: `feat/pause-resume` (squash-merged + deleted)
+  - PR: [#30](https://github.com/Mavrikant/QMineSweeper/pull/30)
+  - Tag: `v1.12.0`
+  - Release: [v1.12.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.12.0)
+- **Diff shape:** 18 files, +1211/-552 LOC — ~197 of which is the
+  real C++ diff (`MineField::setPaused` + overlay + eventFilter guard
+  79, `MainWindow` pause action + offset accumulator + clearPauseState
+  97, headers 19, CMakeLists bump 2), 153 in `tests/tst_minefield.cpp`
+  (9 new cases), 96 in `DECISIONS.md`, 27 in
+  `apply_translations.py`, and the rest is `.ts` regeneration across
+  10 locales. Productive slice (C++ + tests) ~350 LOC, under the
+  400-LOC cycle cap.
+- **Translation cost:** 3 new strings (`&Pause`, `&Resume`, `Paused`)
+  × 9 non-English locales = 27 hand translations. All 10 locales now
+  84/84 finished, 0 unfinished.
+- **Assumptions made:**
+  - **No new `GameState` enum value.** Pause is an orthogonal
+    cross-cutting freeze (input + timer), not a logical state. Parallel
+    `m_paused` booleans in `MineField` and `MainWindow` keep the
+    existing state machine, `checkWin`, `onChordRequested`, and every
+    test asserting against state untouched. Adding `Paused` to the
+    enum would have rippled through ~30 tests.
+  - **Block input via `MineField::eventFilter`, not `setCellEnabled`.**
+    The enabled flag is the win/loss freeze path; pause is temporary,
+    so an eventFilter guard (swallows MouseButtonPress / Release /
+    DblClick / KeyPress / KeyRelease — but **not**
+    `ShortcutOverride`) keeps cells visually unchanged so the user
+    sees their board exactly as it was. Letting ShortcutOverride pass
+    means P / Ctrl+Q / F2 still work from the paused state.
+  - **Overlay is a `QFrame` child of `MineField`.** Translucent
+    `rgba(0,0,0,140)` background with a centered "Paused" label,
+    geometry locked to `rect()`, `raise()` on show. Absorbs mouse
+    events by z-order so the eventFilter is defence-in-depth for the
+    keyboard/focus paths the overlay can't catch.
+  - **Timer offset via `m_pausedTotalMs` + `m_pauseStartMs`.**
+    `QElapsedTimer` has no pause API. On pause, snapshot
+    `m_pauseStartMs = m_gameTimer.elapsed()`; on resume, add
+    `(elapsed() - m_pauseStartMs)` to `m_pausedTotalMs`.
+    `elapsedSeconds()` returns `(raw - paused) / 1000`. Snapshotting
+    `m_lastElapsedSeconds = elapsedSeconds()` at the moment of pause
+    makes the `displayTimer`-stopped label freeze on the last
+    playing-seconds reading, not drift to zero.
+  - **`P` shortcut at `WindowShortcut` context.** QAction default.
+    Fires before focused-widget keyPress, so a focused cell doesn't
+    need to know about the shortcut and the eventFilter doesn't need
+    a `Key_P` case. Matches Windows Minesweeper Classic + GNOME Mines
+    convention.
+  - **Pause auto-clears on every state transition.** `newGame`,
+    `newGameReplay`, difficulty change, win, and loss all call
+    `clearPauseState()` before anything else. Eliminates the "I
+    changed difficulty while paused and now the new game starts
+    paused" failure mode.
+  - **No persistence.** Pause is in-session only. Saving paused-at-X
+    to QSettings would imply game-state persistence across launches
+    (a much bigger "save and resume" feature). If the user quits
+    while paused, the game is lost — documented in the PR.
+  - **Breadcrumb-only telemetry.** Adding a `game.paused` event type
+    would balloon the Sentry quota for a low-signal lifecycle hook.
+    The `game.won` / `game.lost` events already use post-offset
+    `elapsedSeconds()`, so a paused-then-resumed Expert run records
+    its true playing time, not wall-clock time.
+- **Skipped:**
+  - *No-flag speedrun achievement.* Parked for the second cycle —
+    small (1 string × 9 locales, ~50 LOC) but strictly dominated by
+    pause/resume on user-visible value this cycle.
+  - *Overlay-with-bubbles tutorial upgrade.* Cosmetic; still no
+    complaints since v1.10.0.
+  - *Save-and-resume games across launches.* New idea surfaced when
+    deciding pause wouldn't persist — genuinely bigger feature
+    (serialize board state + revealed/flagged/question per cell +
+    timer offset), parked.
+- **Risks logged:** The `QElapsedTimer` offset accumulator is subject
+  to integer wrap on 32-bit platforms after ~24 days of continuous
+  play — not a realistic risk for this app (game sessions are under
+  an hour), but explicit `qint64` types ensure 64-bit safety on every
+  platform. The translucent overlay's stylesheet uses `rgba(0,0,0,140)`
+  which relies on Qt's alpha-blending support; confirmed working on
+  all three platforms via CI smoke builds plus local macOS run.
+- **Post-release watch (T+~3min):** Release workflow
+  [run 24915294501](https://github.com/Mavrikant/QMineSweeper/actions/runs/24915294501)
+  green across all three platforms in ~2 min (build-cache hit on all
+  runners); five assets published (Linux AppImage, Linux tar.gz,
+  macOS universal DMG, Windows x64 ZIP, `SHA256SUMS.txt`). Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.12.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and assets were just
+  published, no install has had a chance to fire a session yet.
+  GitHub release body rewritten from the auto-generated stub to
+  user-facing prose covering the overlay, input blocking, timer
+  freeze, auto-clear semantics, per-platform downloads, and the
+  macOS quarantine note. Watch closed.
+- **Next candidates:**
+  - No-flag speedrun achievement (second cycle parked, ripe for a
+    small contained pick).
+  - Save-and-resume games across launches (bigger — would need
+    board-state + marker-state + timer-offset serialization and a
+    QSettings schema bump).
+  - Overlay-with-bubbles tutorial upgrade (optional, still no
+    complaints).
+  - Undo last action (risky — would interact with first-click safety
+    and mine placement timing).
+
 ## 2026-04-24 — Cycle 9 — v1.11.0 (autonomous)
 
 - **Chosen problem:** The minefield was mouse-only. `MainWindow` wired
