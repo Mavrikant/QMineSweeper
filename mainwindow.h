@@ -34,6 +34,7 @@ class MainWindow : public QMainWindow
     void onGameStarted();
     void onGameWon();
     void onGameLost(std::uint32_t row, std::uint32_t col);
+    void onTogglePause();
     void showAboutDialog();
     void showStatsDialog();
     void showTutorialDialog();
@@ -53,6 +54,8 @@ class MainWindow : public QMainWindow
     void restartApp();
     void refitWindowToContents();
     void recheckCurrentDifficultyAction();
+    void clearPauseState();
+    void updatePauseAction();
     [[nodiscard]] bool showCustomDifficultyDialog(Difficulty &out);
     [[nodiscard]] double elapsedSeconds() const noexcept;
 
@@ -65,10 +68,14 @@ class MainWindow : public QMainWindow
     QAction *m_questionMarksAction{nullptr};
     QAction *m_replayAction{nullptr};
     QAction *m_customDifficultyAction{nullptr};
+    QAction *m_pauseAction{nullptr};
     Difficulty m_currentDifficulty{MineField::Beginner};
     double m_lastElapsedSeconds{0.0};
     bool m_isReplay{false};
     bool m_isCustom{false};
+    bool m_paused{false};
+    qint64 m_pausedTotalMs{0};
+    qint64 m_pauseStartMs{0};
     GameState m_smileyState{GameState::Ready};
     bool m_smileyPressing{false};
     QString m_releaseId;

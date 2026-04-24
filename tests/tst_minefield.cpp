@@ -43,10 +43,20 @@ class TestMineField : public QObject
     void testKeyboardDChordsOpenedCell();
     void testKeyboardSpaceOnFlaggedIsNoop();
     void testKeyboardIgnoredAfterLoss();
+    void testPauseDefaultsFalse();
+    void testPauseBlocksLeftClickReveal();
+    void testPauseBlocksRightClickFlag();
+    void testPauseBlocksKeyboardSpace();
+    void testPauseBlocksKeyboardArrowsAndF();
+    void testResumeRestoresInput();
+    void testNewGameClearsPause();
+    void testReplayClearsPause();
+    void testPauseToggleIdempotent();
 
   private:
     static void openAllSafe(MineField &field);
     static void sendKey(MineButton *target, int key);
+    static void sendMousePress(MineButton *target, Qt::MouseButton button);
 };
 
 void TestMineField::testConstruction()
@@ -454,6 +464,14 @@ void TestMineField::sendKey(MineButton *target, int key)
     QCoreApplication::sendEvent(target, &press);
 }
 
+void TestMineField::sendMousePress(MineButton *target, Qt::MouseButton button)
+{
+    QMouseEvent press(QEvent::MouseButtonPress, target->rect().center(), target->mapToGlobal(target->rect().center()), button, button, Qt::NoModifier);
+    QCoreApplication::sendEvent(target, &press);
+    QMouseEvent release(QEvent::MouseButtonRelease, target->rect().center(), target->mapToGlobal(target->rect().center()), button, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(target, &release);
+}
+
 void TestMineField::testKeyboardArrowsMoveFocus()
 {
     MineField field;
@@ -600,6 +618,141 @@ void TestMineField::testKeyboardIgnoredAfterLoss()
     // falls through to QPushButton. But QAbstractButton activation calls
     // clicked() which nothing is wired to; cell remains un-opened either way.
     QVERIFY(!safe->isOpened());
+}
+
+void TestMineField::testPauseDefaultsFalse()
+{
+    MineField field;
+    QVERIFY(!field.isPaused());
+    field.setFixedLayout(3, 3, {{0, 0}});
+    QVERIFY(!field.isPaused());
+}
+
+void TestMineField::testPauseBlocksLeftClickReveal()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    QVERIFY(!target->isOpened());
+
+    field.setPaused(true);
+    QVERIFY(field.isPaused());
+
+    sendMousePress(target, Qt::LeftButton);
+    QVERIFY(!target->isOpened());
+    QCOMPARE(field.state(), GameState::Ready);
+}
+
+void TestMineField::testPauseBlocksRightClickFlag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    QCOMPARE(target->marker(), CellMarker::None);
+
+    field.setPaused(true);
+
+    sendMousePress(target, Qt::RightButton);
+    QCOMPARE(target->marker(), CellMarker::None);
+}
+
+void TestMineField::testPauseBlocksKeyboardSpace()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+
+    field.setPaused(true);
+
+    sendKey(target, Qt::Key_Space);
+    QVERIFY(!target->isOpened());
+}
+
+void TestMineField::testPauseBlocksKeyboardArrowsAndF()
+{
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}});
+    field.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&field));
+    MineButton *start = field.cellAt(2, 2);
+    start->setFocus(Qt::OtherFocusReason);
+    QCOMPARE(field.focusWidget(), start);
+
+    field.setPaused(true);
+
+    // Arrow key blocked → focus stays put.
+    sendKey(start, Qt::Key_Right);
+    QCOMPARE(field.focusWidget(), start);
+
+    // F blocked → marker unchanged.
+    sendKey(start, Qt::Key_F);
+    QCOMPARE(start->marker(), CellMarker::None);
+}
+
+void TestMineField::testResumeRestoresInput()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+
+    field.setPaused(true);
+    sendMousePress(target, Qt::LeftButton);
+    QVERIFY(!target->isOpened());
+
+    field.setPaused(false);
+    QVERIFY(!field.isPaused());
+
+    sendMousePress(target, Qt::LeftButton);
+    QVERIFY(target->isOpened());
+}
+
+void TestMineField::testNewGameClearsPause()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.setPaused(true);
+    QVERIFY(field.isPaused());
+
+    field.newGame(MineField::Beginner);
+    QVERIFY(!field.isPaused());
+
+    // Confirm input restored on the freshly built grid.
+    MineButton *target = field.cellAt(0, 0);
+    sendMousePress(target, Qt::LeftButton);
+    QVERIFY(target->isOpened());
+}
+
+void TestMineField::testReplayClearsPause()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    // Trigger a "first click" so a layout is recorded for replay.
+    field.cellAt(2, 2)->Open();
+    QVERIFY(field.canReplay());
+
+    field.setPaused(true);
+    QVERIFY(field.isPaused());
+
+    QVERIFY(field.newGameReplay());
+    QVERIFY(!field.isPaused());
+}
+
+void TestMineField::testPauseToggleIdempotent()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.setPaused(true);
+    field.setPaused(true); // idempotent
+    QVERIFY(field.isPaused());
+
+    field.setPaused(false);
+    field.setPaused(false); // idempotent
+    QVERIFY(!field.isPaused());
+
+    // Confirm input still works after redundant toggles.
+    MineButton *target = field.cellAt(2, 2);
+    sendMousePress(target, Qt::LeftButton);
+    QVERIFY(target->isOpened());
 }
 
 QTEST_MAIN(TestMineField)

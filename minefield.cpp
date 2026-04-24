@@ -1,8 +1,11 @@
 #include "minefield.h"
 
+#include <QCoreApplication>
 #include <QEvent>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QSizePolicy>
+#include <QVBoxLayout>
 
 #include <algorithm>
 #include <random>
@@ -30,10 +33,15 @@ void MineField::newGame(Difficulty diff)
     m_openedSafeCount = 0;
     m_flagCount = 0;
     m_minesPlaced = false;
+    m_paused = false;
     m_lastMinePositions.clear();
 
     clearGrid();
     buildGrid();
+    if (m_pauseOverlay)
+    {
+        m_pauseOverlay->hide();
+    }
     updateMineCountLabel();
     emit mineCountChanged(remainingMines());
 }
@@ -56,11 +64,16 @@ bool MineField::newGameReplay()
     m_state = GameState::Ready;
     m_openedSafeCount = 0;
     m_flagCount = 0;
+    m_paused = false;
     // Mines are already known for this layout — skip first-click placement.
     m_minesPlaced = true;
 
     clearGrid();
     buildGrid();
+    if (m_pauseOverlay)
+    {
+        m_pauseOverlay->hide();
+    }
 
     for (const auto &p : mines)
     {
@@ -164,6 +177,26 @@ void MineField::wireButton(MineButton *button)
 
 bool MineField::eventFilter(QObject *watched, QEvent *event)
 {
+    // Pause swallows every interaction at the cell boundary. The overlay
+    // already absorbs mouse events geometrically, but a focused cell can
+    // still receive key events (focus is widget-based, not z-order based)
+    // — gating here is the only path that catches both.
+    if (m_paused && qobject_cast<MineButton *>(watched))
+    {
+        switch (event->type())
+        {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::KeyPress:
+        case QEvent::KeyRelease:
+            return true;
+        default:
+            // ShortcutOverride is deliberately NOT swallowed — the global
+            // P/Ctrl+Q/F2/etc. shortcuts must keep working while paused.
+            break;
+        }
+    }
     if (event->type() == QEvent::KeyPress)
     {
         if (auto *cell = qobject_cast<MineButton *>(watched))
@@ -176,6 +209,47 @@ bool MineField::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return QWidget::eventFilter(watched, event);
+}
+
+bool MineField::isPaused() const noexcept { return m_paused; }
+
+void MineField::setPaused(bool paused)
+{
+    if (m_paused == paused)
+    {
+        return;
+    }
+    m_paused = paused;
+
+    if (paused)
+    {
+        if (!m_pauseOverlay)
+        {
+            // Lazy-construct the overlay the first time we need it; the rest
+            // of the field's lifetime keeps it as a hidden child. Parented to
+            // the MineField so it sits on top of every cell in z-order and
+            // naturally absorbs mouse clicks aimed at the grid.
+            auto *frame = new QFrame(this);
+            frame->setFrameShape(QFrame::NoFrame);
+            frame->setStyleSheet(QStringLiteral("QFrame { background-color: rgba(0, 0, 0, 140); }"
+                                                "QLabel { color: white; font-size: 22px; font-weight: bold;"
+                                                " background: transparent; }"));
+            auto *layout = new QVBoxLayout(frame);
+            layout->setContentsMargins(0, 0, 0, 0);
+            auto *label = new QLabel(tr("Paused"), frame);
+            label->setObjectName(QStringLiteral("pauseLabel"));
+            label->setAlignment(Qt::AlignCenter);
+            layout->addWidget(label);
+            m_pauseOverlay = frame;
+        }
+        m_pauseOverlay->setGeometry(rect());
+        m_pauseOverlay->raise();
+        m_pauseOverlay->show();
+    }
+    else if (m_pauseOverlay)
+    {
+        m_pauseOverlay->hide();
+    }
 }
 
 bool MineField::handleCellKey(MineButton *cell, int key)
@@ -556,10 +630,15 @@ void MineField::setFixedLayout(std::uint32_t width, std::uint32_t height, const 
     m_state = GameState::Ready;
     m_openedSafeCount = 0;
     m_flagCount = 0;
+    m_paused = false;
     m_minesPlaced = true;
 
     clearGrid();
     buildGrid();
+    if (m_pauseOverlay)
+    {
+        m_pauseOverlay->hide();
+    }
 
     m_lastMinePositions.clear();
     m_lastMinePositions.reserve(minePositions.size());

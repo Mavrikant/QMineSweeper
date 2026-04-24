@@ -152,6 +152,12 @@ void MainWindow::buildMenus()
     connect(m_replayAction, &QAction::triggered, this, &MainWindow::onReplaySameLayout);
     ui->menuGame->addAction(m_replayAction);
 
+    m_pauseAction = new QAction(tr("&Pause"), this);
+    m_pauseAction->setShortcut(QKeySequence(Qt::Key_P));
+    m_pauseAction->setEnabled(false);
+    connect(m_pauseAction, &QAction::triggered, this, &MainWindow::onTogglePause);
+    ui->menuGame->addAction(m_pauseAction);
+
     ui->menuGame->addSeparator();
 
     auto *diffMenu = ui->menuGame->addMenu(tr("&Difficulty"));
@@ -278,6 +284,7 @@ void MainWindow::onNewGame()
     {
         m_replayAction->setEnabled(false);
     }
+    clearPauseState();
     resetTimerUi();
     setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
@@ -295,6 +302,7 @@ void MainWindow::onReplaySameLayout()
         // available. Only a fresh newGame() wipes it.
         m_replayAction->setEnabled(replayed);
     }
+    clearPauseState();
     resetTimerUi();
     setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
@@ -314,6 +322,7 @@ void MainWindow::onDifficultyChanged(Difficulty diff)
     {
         m_replayAction->setEnabled(false);
     }
+    clearPauseState();
     resetTimerUi();
     setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
@@ -346,6 +355,7 @@ void MainWindow::onDifficultyCustom()
     {
         m_replayAction->setEnabled(false);
     }
+    clearPauseState();
     resetTimerUi();
     setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
@@ -450,6 +460,8 @@ void MainWindow::refitWindowToContents()
 void MainWindow::onGameStarted()
 {
     m_gameTimer.start();
+    m_pausedTotalMs = 0;
+    m_pauseStartMs = 0;
     m_displayTimer->start();
     setSmileyState(GameState::Playing);
     setWindowTitle(tr("QMineSweeper — Playing"));
@@ -457,6 +469,10 @@ void MainWindow::onGameStarted()
     if (m_replayAction)
     {
         m_replayAction->setEnabled(true);
+    }
+    if (m_pauseAction)
+    {
+        m_pauseAction->setEnabled(true);
     }
     Telemetry::recordEvent(QStringLiteral("game.started"), {
                                                                {QStringLiteral("difficulty"), difficultyName(m_currentDifficulty)},
@@ -471,6 +487,7 @@ void MainWindow::onGameWon()
 {
     m_displayTimer->stop();
     m_lastElapsedSeconds = elapsedSeconds();
+    clearPauseState();
     updateTimerLabel();
     setSmileyState(GameState::Won);
     setWindowTitle(tr("QMineSweeper — You won!"));
@@ -495,6 +512,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
 {
     m_displayTimer->stop();
     m_lastElapsedSeconds = elapsedSeconds();
+    clearPauseState();
     updateTimerLabel();
     setSmileyState(GameState::Lost);
     setWindowTitle(tr("QMineSweeper — Boom"));
@@ -621,7 +639,84 @@ void MainWindow::applySmiley()
     }
 }
 
-double MainWindow::elapsedSeconds() const noexcept { return static_cast<double>(m_gameTimer.elapsed()) / 1000.0; }
+double MainWindow::elapsedSeconds() const noexcept
+{
+    if (!m_gameTimer.isValid())
+    {
+        return 0.0;
+    }
+    const qint64 raw = m_gameTimer.elapsed();
+    qint64 paused = m_pausedTotalMs;
+    if (m_paused)
+    {
+        // Active pause segment — subtract the time accumulated since the
+        // current pause began so the on-screen timer freezes mid-pause.
+        paused += raw - m_pauseStartMs;
+    }
+    return static_cast<double>(raw - paused) / 1000.0;
+}
+
+void MainWindow::onTogglePause()
+{
+    // Pause is meaningful only mid-play. The action is disabled outside
+    // Playing already, but guard defensively in case the shortcut fires
+    // before the menu state catches up.
+    if (ui->mineFieldWidget->state() != GameState::Playing)
+    {
+        return;
+    }
+
+    if (!m_paused)
+    {
+        m_pauseStartMs = m_gameTimer.elapsed();
+        m_paused = true;
+        // Snapshot the current playing time so updateTimerLabel — which falls
+        // back to m_lastElapsedSeconds when the display timer is inactive —
+        // freezes the on-screen counter at the moment of pause.
+        m_lastElapsedSeconds = elapsedSeconds();
+        m_displayTimer->stop();
+        ui->mineFieldWidget->setPaused(true);
+        Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("pause"));
+    }
+    else
+    {
+        m_pausedTotalMs += m_gameTimer.elapsed() - m_pauseStartMs;
+        m_pauseStartMs = 0;
+        m_paused = false;
+        ui->mineFieldWidget->setPaused(false);
+        m_displayTimer->start();
+        Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("resume"));
+    }
+    updatePauseAction();
+    updateTimerLabel();
+}
+
+void MainWindow::clearPauseState()
+{
+    m_paused = false;
+    m_pausedTotalMs = 0;
+    m_pauseStartMs = 0;
+    if (ui && ui->mineFieldWidget)
+    {
+        ui->mineFieldWidget->setPaused(false);
+    }
+    if (m_pauseAction)
+    {
+        // Re-enable only when a game is actually in progress; the next
+        // gameStarted will flip this on.
+        m_pauseAction->setEnabled(false);
+    }
+    updatePauseAction();
+}
+
+void MainWindow::updatePauseAction()
+{
+    if (!m_pauseAction)
+    {
+        return;
+    }
+    m_pauseAction->setText(m_paused ? tr("&Resume") : tr("&Pause"));
+}
 
 void MainWindow::updateTimerLabel()
 {

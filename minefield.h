@@ -3,6 +3,7 @@
 
 #include "minebutton.h"
 
+#include <QFrame>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPointer>
@@ -55,6 +56,15 @@ class MineField : public QWidget
     [[nodiscard]] std::uint32_t mineCount() const noexcept;
     [[nodiscard]] int remainingMines() const noexcept;
     [[nodiscard]] const Difficulty &difficulty() const noexcept;
+
+    // Pause/resume — orthogonal to the GameState enum. While paused, the
+    // eventFilter swallows all mouse + keyboard input on every cell, and
+    // a translucent overlay covers the grid. The state machine is left
+    // untouched (a paused game is still GameState::Playing) so win-check
+    // and freeze invariants don't need to know about pause. Auto-cleared
+    // by every newGame / newGameReplay / setFixedLayout call.
+    [[nodiscard]] bool isPaused() const noexcept;
+    void setPaused(bool paused);
 
     void setMineCountLabel(QLabel *label);
 
@@ -111,12 +121,14 @@ class MineField : public QWidget
     QGridLayout *m_grid{nullptr};
     std::vector<std::vector<MineButton *>> m_buttons;
     QPointer<QLabel> m_mineCountLabel;
+    QPointer<QFrame> m_pauseOverlay;
 
     Difficulty m_difficulty{Beginner};
     GameState m_state{GameState::Ready};
     std::uint32_t m_openedSafeCount{0};
     int m_flagCount{0};
     bool m_minesPlaced{false};
+    bool m_paused{false};
     std::vector<std::pair<std::uint32_t, std::uint32_t>> m_lastMinePositions;
 };
 
