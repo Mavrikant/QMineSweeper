@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include "minefield.h"
+#include "smiley.h"
 
 #include <QElapsedTimer>
 #include <QMainWindow>
@@ -43,6 +44,7 @@ class MainWindow : public QMainWindow
     void buildMenus();
     void resetTimerUi();
     void updateTimerLabel();
+    void setSmileyState(GameState state);
     void showEndDialog(bool won, bool newRecord);
     void maybeAskTelemetryConsent();
     void restartApp();

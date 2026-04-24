@@ -65,6 +65,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_uniq
     m_displayTimer->setInterval(50);
     connect(m_displayTimer, &QTimer::timeout, this, &MainWindow::updateTimerLabel);
 
+    // Smiley button — clickable "new game" affordance and at-a-glance status
+    // indicator. Reuses the existing "New Game" string so no new translation.
+    ui->smileyButton->setToolTip(tr("New Game"));
+    setSmileyState(GameState::Ready);
+    connect(ui->smileyButton, &QPushButton::clicked, this, &MainWindow::onNewGame);
+
     buildMenus();
 
     QSettings settings;
@@ -247,6 +253,7 @@ void MainWindow::onNewGame()
         m_replayAction->setEnabled(false);
     }
     resetTimerUi();
+    setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
     refitWindowToContents();
     Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("new game"));
@@ -263,6 +270,7 @@ void MainWindow::onReplaySameLayout()
         m_replayAction->setEnabled(replayed);
     }
     resetTimerUi();
+    setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
     refitWindowToContents();
     Telemetry::addBreadcrumb(QStringLiteral("ui"), replayed ? QStringLiteral("replay same layout") : QStringLiteral("replay fallback to new"));
@@ -281,6 +289,7 @@ void MainWindow::onDifficultyChanged(Difficulty diff)
         m_replayAction->setEnabled(false);
     }
     resetTimerUi();
+    setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
     refitWindowToContents();
     Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("difficulty: ") + difficultyName(diff));
@@ -312,6 +321,7 @@ void MainWindow::onDifficultyCustom()
         m_replayAction->setEnabled(false);
     }
     resetTimerUi();
+    setSmileyState(GameState::Ready);
     setWindowTitle(tr("QMineSweeper"));
     refitWindowToContents();
     Telemetry::addBreadcrumb(QStringLiteral("ui"), QStringLiteral("difficulty: Custom %1x%2/%3").arg(out.width).arg(out.height).arg(out.mineCount));
@@ -415,6 +425,7 @@ void MainWindow::onGameStarted()
 {
     m_gameTimer.start();
     m_displayTimer->start();
+    setSmileyState(GameState::Playing);
     setWindowTitle(tr("QMineSweeper — Playing"));
     // Once a mine layout exists, the user can replay it.
     if (m_replayAction)
@@ -435,6 +446,7 @@ void MainWindow::onGameWon()
     m_displayTimer->stop();
     m_lastElapsedSeconds = elapsedSeconds();
     updateTimerLabel();
+    setSmileyState(GameState::Won);
     setWindowTitle(tr("QMineSweeper — You won!"));
     const QString diffName = difficultyName(m_currentDifficulty);
     // Replays don't update played/won counters or best-time — the layout was
@@ -458,6 +470,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     m_displayTimer->stop();
     m_lastElapsedSeconds = elapsedSeconds();
     updateTimerLabel();
+    setSmileyState(GameState::Lost);
     setWindowTitle(tr("QMineSweeper — Boom"));
     const QString diffName = difficultyName(m_currentDifficulty);
     if (!m_isReplay && !m_isCustom)
@@ -556,6 +569,14 @@ void MainWindow::resetTimerUi()
     m_displayTimer->stop();
     m_lastElapsedSeconds = 0.0;
     ui->Time->setText(QStringLiteral("000.0"));
+}
+
+void MainWindow::setSmileyState(GameState state)
+{
+    if (ui && ui->smileyButton)
+    {
+        ui->smileyButton->setText(smileyForState(state));
+    }
 }
 
 double MainWindow::elapsedSeconds() const noexcept { return static_cast<double>(m_gameTimer.elapsed()) / 1000.0; }
