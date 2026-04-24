@@ -1,5 +1,78 @@
 # Autonomous cycles log
 
+## 2026-04-24 — Cycle 6 — v1.8.0 (autonomous)
+
+- **Chosen problem:** No smiley-face status indicator. Every mainstream
+  Minesweeper clone (Windows Minesweeper, Minesweeper Arbiter, GNOME
+  Mines, the ones speedrun tournaments are played on) ships a 🙂/😎/😵
+  button above the grid that doubles as a one-click new-game shortcut.
+  Cycle 5's "Next candidates" list called it out explicitly as "iconic
+  Minesweeper UX that ours lacks." Small surface, high nostalgia payoff,
+  zero translation cost — an ideal fit for a single-cycle budget.
+- **Evidence:** `mainwindow.ui` had only `mineCount` + `Time` in the top
+  HBox with stretch `"1,1"`. No smiley widget, no click-to-reset path
+  outside `Game → New`. The `GameState` enum + `gameStarted`/`gameWon`/
+  `gameLost` signals were already emitted at every transition — the
+  wiring existed, only a reactor was missing.
+- **Shipped:**
+  - Branch: `feat/smiley-indicator` (merged + deleted)
+  - PR: https://github.com/Mavrikant/QMineSweeper/pull/25 (squash-merged as `57070bf`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.8.0
+  - Release workflow: [run 24866404642](https://github.com/Mavrikant/QMineSweeper/actions/runs/24866404642)
+    — all three platforms green in ~2m07s (00:48:15Z → 00:50:22Z UTC).
+    Five assets published: Linux AppImage + tar.gz, macOS universal DMG,
+    Windows x64 ZIP, SHA256SUMS.txt.
+  - CI: ubuntu + macos + windows + coverage + formatter + CodeFactor
+    green. Codacy `action_required` (advisory, historically not blocking
+    on this repo — same pattern as v1.3–v1.7). Combined status success.
+- **Diff shape:** 18 files, +876/-612. Real code (excluding `.ts` churn
+  and `DECISIONS.md`): ~165 LOC including the new 76-line unit test.
+  Well under the 400-LOC cycle cap.
+- **Translation cost:** **Zero** new hand-translated strings. The button
+  tooltip reuses the existing "New Game" `tr()`, which is already
+  translated 9/9 locales. 58/58 finished preserved per locale. First
+  cycle in this project's history to ship user-visible UI with no
+  translation delta.
+- **Assumptions made:**
+  - Emoji glyphs (🙂😎😵) render via Qt's font fallback on all three
+    platforms (Apple Color Emoji / Segoe UI Emoji / Noto Color Emoji) —
+    confirmed on macOS live; CI headless tests verify logic, not glyph.
+  - Click handler reuses `MainWindow::onNewGame` — same semantics as
+    `Game → New`, so no new telemetry event or stats path.
+  - State→emoji mapping extracted to `smiley.h` as a header-only pure
+    function so the unit test links against it without pulling
+    `mainwindow.cpp` + `ui_mainwindow.h` + telemetry + language into
+    the test target. Preserves the test-target minimalism precedent.
+  - HBox stretch changed from `"1,1"` to `"1,0,1"` so the Fixed 32×32
+    button sits centred between the flex-sized labels; `Qt::NoFocus`
+    so Tab order skips it.
+- **Skipped:**
+  - *Distinct pressed-smiley (🫣) during click-and-hold on a cell.*
+    Would need a new signal from `MineButton::cellPressed` → MainWindow
+    and revert on release; adds a state the state machine doesn't own.
+    Out of scope.
+  - *Resetting on smiley click even mid-game without confirmation.*
+    Matches classic behaviour (and `Game → New` does the same). No
+    confirmation dialog added — consistent with existing UX.
+  - *About/README screenshots update.* Cosmetic; would churn static
+    assets for a feature users see immediately on launch.
+- **Risks logged:** none new. Emoji font fallback is the only
+  platform-dependent surface, and it uses the same glyphs the `🙂/😎/😵`
+  literal already does in Qt's default text rendering.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release `qminesweeper@1.8.0`
+  in the last hour returned **zero results**. Expected — the assets
+  were just published, telemetry is opt-in, and no install has had a
+  realistic chance to fire a session yet. The signal worth watching for
+  is *any* new group tagged with the 1.8.0 release; none observed.
+  Watch closed.
+- **Next candidates:**
+  - Pause / resume (P shortcut) with board-covering overlay. Now the
+    biggest remaining gap relative to classic clones.
+  - Keyboard navigation (arrow keys + space/F) for accessibility.
+  - Pressed-smiley (🫣) during cell click-and-hold — small follow-on
+    polish on this cycle's feature.
+
 ## 2026-04-23 — Cycle 5 — v1.7.0 (autonomous)
 
 - **Chosen problem:** No Custom difficulty. App shipped only
