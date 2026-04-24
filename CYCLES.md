@@ -1,5 +1,102 @@
 # Autonomous cycles log
 
+## 2026-04-24 — Cycle 9 — v1.11.0 (autonomous)
+
+- **Chosen problem:** The minefield was mouse-only. `MainWindow` wired
+  menu shortcuts (F2 / Ctrl+Q / etc.) but focusing a cell with Tab did
+  nothing useful — arrow keys didn't move focus, Space/Enter did
+  nothing on closed cells (Qt's default `QAbstractButton` handling was
+  wrong for a game grid), and there was no visible focus indicator.
+  Keyboard navigation has been on the "Next candidates" list for five
+  consecutive cycles (#7–#8) and is the baseline accessibility ask for
+  a grid-based game; this cycle took it.
+- **Evidence:** No `keyPressEvent` or `installEventFilter` anywhere in
+  `MineButton` or `MineField`. `setFocusPolicy` unset (macOS
+  defaulted `QPushButton` to `Qt::TabFocus`, blocking click-focus).
+  No focus-ring paint code. `MineButton` had no public
+  `row()` / `col()` getters — the grid coords were only stored as
+  private members.
+- **Shipped:**
+  - Branch: `feat/keyboard-navigation` (squash-merged + deleted)
+  - PR: [#29](https://github.com/Mavrikant/QMineSweeper/pull/29)
+  - Tag: `v1.11.0`
+  - Release: [v1.11.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.11.0)
+- **Diff shape:** 7 files, +427/-2 LOC — 111 of which is the
+  `MineField::eventFilter` / `handleCellKey` / `focusCell` path,
+  ~35 in `MineButton` (row/col getters, `Qt::StrongFocus`, focus-ring
+  `paintEvent`), 163 in `tests/tst_minefield.cpp` (8 new cases),
+  107 in `DECISIONS.md`. Real-code slice well under the 400-LOC cycle
+  cap. No translation churn.
+- **Translation cost:** 0 new strings. All 10 locales untouched —
+  still 81/81 finished, 0 unfinished.
+- **Assumptions made:**
+  - **Event filter on `MineField`, not per-cell `keyPressEvent`.**
+    `MineField` installs itself as event filter on every `MineButton`
+    so it intercepts arrow/Space/Enter before `QAbstractButton`'s
+    default keyPress eats them. Centralising keeps `MineButton`
+    back-pointer-free (architecture invariant preserved).
+  - **`Qt::StrongFocus` set explicitly.** macOS `QPushButton` defaults
+    to `Qt::TabFocus`, which blocks click-to-focus. Must be set so
+    a mouse-click on a cell immediately activates keyboard nav.
+  - **Focus ring drawn in `paintEvent`, not `:focus` stylesheet.**
+    The cell's stylesheet changes as it opens / gets flagged /
+    explodes — a `:focus` pseudo-state would fight those. Painting in
+    `paintEvent` is stylesheet-independent and survives every state
+    transition.
+  - **Space/Enter dispatches on opened-state.** On a covered cell it
+    opens; on an opened number it chords (matching middle-click). D
+    is the dedicated force-chord for users who prefer Space = reveal
+    only.
+  - **`MineButton::cycleMarker()` public.** The F keybind drives it
+    directly from `MineField::handleCellKey` — making it public is
+    cheaper than a second `QMetaObject::invokeMethod`-via-signals
+    hop and matches the "signals up, slots down" invariant (the
+    method is a slot-equivalent, not a signal).
+  - **Only arrows active after Won/Lost.** The board is frozen by
+    `freezeAllCells`; allowing F/Space/Enter post-game would either
+    be a no-op or confuse state. Arrows still work so the user can
+    inspect the revealed layout.
+  - **No auto-focus on `gameStarted`.** The user takes focus by
+    clicking a cell. Auto-focusing a cell on load would fight tab
+    order for users driving menus from the keyboard first.
+- **Skipped:**
+  - *Pause / resume.* Parked now for the seventh cycle running; still
+    the highest-value deferred candidate.
+  - *No-flag speedrun achievement.* Parked one more cycle; budget
+    spent on the accessibility path.
+  - *Overlay-with-bubbles tutorial upgrade.* Parked, no complaints
+    since v1.10.0 shipped.
+  - *Custom difficulty (dialog-driven width/height/mines).* New idea
+    surfaced during keyboard-nav review — parked for a future cycle.
+- **Risks logged:** Platform drift on `Qt::TabFocus` vs.
+  `Qt::StrongFocus`. Explicit `setFocusPolicy(Qt::StrongFocus)` in
+  `MineButton` ctor neutralises the Mac default; Linux/Windows were
+  already `StrongFocus` by default so no regression. If a future Qt
+  bump changes `QPushButton`'s default, the explicit call still wins.
+- **Post-release watch (T+~5min):** Release workflow
+  [run 24901736532](https://github.com/Mavrikant/QMineSweeper/actions/runs/24901736532)
+  green across all three platforms in ~2 min (build-cache hit on all
+  runners); five assets published (Linux AppImage 35.9 MB, Linux
+  tar.gz 35.5 MB, macOS universal DMG 23.2 MB, Windows x64 ZIP
+  44.1 MB, plus `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.11.0` in the last hour returned **zero results**.
+  Expected — telemetry is opt-in and assets were just published, no
+  install has had a chance to fire a session yet. Pre-existing
+  `qminesweeper@1.10.0` traffic shows the three benign game-lifecycle
+  events (`game.started` / `game.won` / `game.lost`) grouped as
+  issues — these are intentional telemetry breadcrumbs, not crashes.
+  GitHub release body rewritten from the auto-generated stub to
+  user-facing prose covering the four keybinds, the Won/Lost arrow
+  gating, per-platform downloads, and the macOS quarantine note.
+  Watch closed.
+- **Next candidates:**
+  - Pause / resume (P shortcut) with board-covering overlay.
+  - No-flag speedrun achievement.
+  - Custom difficulty dialog (width × height × mine-count inputs).
+  - Overlay-with-bubbles tutorial upgrade (optional, only if
+    complaints arrive).
+
 ## 2026-04-24 — Cycle 8 — v1.10.0 (closes #26)
 
 - **Chosen problem:** First-time players landed on the minefield cold —
