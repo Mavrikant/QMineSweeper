@@ -85,6 +85,31 @@ TR: dict[str, str] = {
     "Width:": "Genişlik:",
     "Height:": "Yükseklik:",
     "Mines:": "Mayın sayısı:",
+    "&Tutorial": "&Öğretici",
+    "Tutorial": "Öğretici",
+    "Next": "İleri",
+    "Back": "Geri",
+    "Finish": "Bitir",
+    "Skip": "Atla",
+    "Step %1 of %2": "%1 / %2. adım",
+    "Welcome": "Hoş geldiniz",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "QMineSweeper’a hoş geldiniz! Gizli mayınlardan herhangi birine basmadan güvenli hücrelere tıklayın. Bu kısa tur yaklaşık 30 saniye sürer.",
+    "Left-click to reveal": "Sol tıkla aç",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "Bir hücreyi açmak için sol tıklayın. İlk tıklamanız her zaman güvenlidir ve büyük bir alan açar.",
+    "Numbers count mines": "Sayılar mayınları sayar",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "Bir hücredeki sayı, ona temas eden mayın adedini gösterir. \"3\" yazan bir hücre, çevresindeki sekiz hücre arasında üç mayın gizlendiği anlamına gelir.",
+    "Flag and question mark": "Bayrak ve soru işareti",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "Şüphelendiğiniz bir mayına bayrak koymak için sağ tıklayın. Tekrar sağ tıklarsanız \"?\" (kendinize bir not) görünür, bir daha tıklarsanız temizlenir.",
+    "Chord click": "Komşu açma",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "Tatmin edilmiş bir sayıya orta tuşla (veya sol+sağ birlikte) tıklayarak bayraksız komşularının tümünü tek seferde açabilirsiniz.",
+    "Explore the menus": "Menüleri keşfedin",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "Bol şans! Zorluğu Oyun → Zorluk, sürelerinizi Oyun → İstatistikler, dili ise Ayarlar → Dil altından değiştirebilirsiniz.",
 }
 
 ES: dict[str, str] = {
@@ -145,6 +170,31 @@ ES: dict[str, str] = {
     "Width:": "Ancho:",
     "Height:": "Alto:",
     "Mines:": "Minas:",
+    "&Tutorial": "&Tutorial",
+    "Tutorial": "Tutorial",
+    "Next": "Siguiente",
+    "Back": "Atrás",
+    "Finish": "Finalizar",
+    "Skip": "Omitir",
+    "Step %1 of %2": "Paso %1 de %2",
+    "Welcome": "Bienvenido",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "¡Bienvenido a QMineSweeper! Haz clic en las casillas seguras sin pisar ninguna de las minas ocultas. Este breve recorrido dura unos 30 segundos.",
+    "Left-click to reveal": "Clic izquierdo para revelar",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "Haz clic izquierdo en una casilla para revelarla. Tu primer clic siempre es seguro y abre un área completa.",
+    "Numbers count mines": "Los números cuentan minas",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "Un número en una casilla indica cuántas minas la tocan. Un \"3\" significa que hay tres minas escondidas entre las ocho casillas que la rodean.",
+    "Flag and question mark": "Bandera y signo de interrogación",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "Haz clic derecho sobre una mina sospechosa para poner una bandera. Otro clic derecho cambia a \"?\" (una nota personal), y uno más la quita.",
+    "Chord click": "Clic de acorde",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "Haz clic central (o izquierdo+derecho a la vez) sobre un número ya satisfecho para abrir automáticamente todas sus casillas vecinas sin bandera.",
+    "Explore the menus": "Explora los menús",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "¡Buena suerte! Cambia la dificultad en Juego → Dificultad, consulta tus tiempos en Juego → Estadísticas, o elige el idioma en Ajustes → Idioma.",
 }
 
 FR: dict[str, str] = {
@@ -205,6 +255,31 @@ FR: dict[str, str] = {
     "Width:": "Largeur :",
     "Height:": "Hauteur :",
     "Mines:": "Mines :",
+    "&Tutorial": "&Tutoriel",
+    "Tutorial": "Tutoriel",
+    "Next": "Suivant",
+    "Back": "Précédent",
+    "Finish": "Terminer",
+    "Skip": "Passer",
+    "Step %1 of %2": "Étape %1 sur %2",
+    "Welcome": "Bienvenue",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "Bienvenue dans QMineSweeper ! Cliquez sur les cases sûres sans toucher aux mines cachées. Ce bref tour prend environ 30 secondes.",
+    "Left-click to reveal": "Clic gauche pour révéler",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "Cliquez avec le bouton gauche sur une case pour la révéler. Votre tout premier clic est toujours sûr et ouvre toute une zone.",
+    "Numbers count mines": "Les chiffres comptent les mines",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "Un chiffre sur une case indique combien de mines la touchent. Un « 3 » signifie que trois mines sont cachées parmi les huit cases voisines.",
+    "Flag and question mark": "Drapeau et point d’interrogation",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "Cliquez avec le bouton droit sur une mine suspectée pour poser un drapeau. Un second clic droit affiche un « ? » (une note pour vous-même), un troisième l’efface.",
+    "Chord click": "Ouverture en chaîne",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "Cliquez avec le bouton du milieu (ou gauche+droit ensemble) sur un chiffre déjà satisfait pour ouvrir d’un coup toutes ses voisines non drapeautées.",
+    "Explore the menus": "Découvrir les menus",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "Bonne chance ! Changez la difficulté dans Jeu → Difficulté, consultez vos temps dans Jeu → Statistiques, ou la langue dans Paramètres → Langue.",
 }
 
 DE: dict[str, str] = {
@@ -265,6 +340,31 @@ DE: dict[str, str] = {
     "Width:": "Breite:",
     "Height:": "Höhe:",
     "Mines:": "Minen:",
+    "&Tutorial": "&Anleitung",
+    "Tutorial": "Anleitung",
+    "Next": "Weiter",
+    "Back": "Zurück",
+    "Finish": "Fertig",
+    "Skip": "Überspringen",
+    "Step %1 of %2": "Schritt %1 von %2",
+    "Welcome": "Willkommen",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "Willkommen bei QMineSweeper! Klicke auf sichere Felder, ohne eine der versteckten Minen zu treffen. Diese kurze Tour dauert etwa 30 Sekunden.",
+    "Left-click to reveal": "Linksklick zum Aufdecken",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "Linksklick auf ein Feld deckt es auf. Dein allererster Klick ist immer sicher und öffnet einen ganzen Bereich.",
+    "Numbers count mines": "Zahlen zählen Minen",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "Eine Zahl auf einem Feld zeigt, wie viele Minen es berühren. Eine \"3\" bedeutet, dass drei Minen unter den acht umliegenden Feldern versteckt sind.",
+    "Flag and question mark": "Flagge und Fragezeichen",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "Rechtsklick auf eine vermutete Mine setzt eine Flagge. Noch ein Rechtsklick zeigt ein \"?\" (eine Notiz für dich selbst), ein weiterer entfernt beides.",
+    "Chord click": "Akkord-Klick",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "Mittelklick (oder links+rechts gleichzeitig) auf eine erfüllte Zahl öffnet alle ihre nicht markierten Nachbarn auf einmal.",
+    "Explore the menus": "Menüs entdecken",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "Viel Glück! Ändere die Schwierigkeit unter Spiel → Schwierigkeit, sieh dir deine Zeiten unter Spiel → Statistiken an oder wechsle die Sprache unter Einstellungen → Sprache.",
 }
 
 RU: dict[str, str] = {
@@ -325,6 +425,31 @@ RU: dict[str, str] = {
     "Width:": "Ширина:",
     "Height:": "Высота:",
     "Mines:": "Мин:",
+    "&Tutorial": "&Обучение",
+    "Tutorial": "Обучение",
+    "Next": "Далее",
+    "Back": "Назад",
+    "Finish": "Готово",
+    "Skip": "Пропустить",
+    "Step %1 of %2": "Шаг %1 из %2",
+    "Welcome": "Добро пожаловать",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "Добро пожаловать в QMineSweeper! Открывайте безопасные клетки, не наступая на спрятанные мины. Этот короткий тур занимает около 30 секунд.",
+    "Left-click to reveal": "Левый клик открывает",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "Щёлкните левой кнопкой мыши по клетке, чтобы открыть её. Самый первый клик всегда безопасен и открывает целую область.",
+    "Numbers count mines": "Цифры считают мины",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "Цифра на клетке показывает, сколько мин её касаются. «3» означает, что среди восьми соседних клеток спрятаны три мины.",
+    "Flag and question mark": "Флаг и знак вопроса",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "Щёлкните правой кнопкой по подозрительной клетке, чтобы поставить флажок. Ещё один правый клик показывает «?» (заметку для себя), следующий — убирает.",
+    "Chord click": "Аккордный клик",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "Щёлкните средней кнопкой (или левой+правой одновременно) по уже «закрытой» цифре, чтобы разом открыть все её не помеченные соседние клетки.",
+    "Explore the menus": "Знакомство с меню",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "Удачи! Смените сложность в Игра → Сложность, посмотрите результаты в Игра → Статистика или выберите язык в Настройки → Язык.",
 }
 
 PT: dict[str, str] = {
@@ -385,6 +510,31 @@ PT: dict[str, str] = {
     "Width:": "Largura:",
     "Height:": "Altura:",
     "Mines:": "Minas:",
+    "&Tutorial": "&Tutorial",
+    "Tutorial": "Tutorial",
+    "Next": "Próximo",
+    "Back": "Voltar",
+    "Finish": "Concluir",
+    "Skip": "Pular",
+    "Step %1 of %2": "Passo %1 de %2",
+    "Welcome": "Bem-vindo",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "Bem-vindo ao QMineSweeper! Clique nas células seguras sem pisar em nenhuma das minas escondidas. Este breve tour leva cerca de 30 segundos.",
+    "Left-click to reveal": "Clique esquerdo para revelar",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "Clique com o botão esquerdo em uma célula para revelá-la. Seu primeiro clique é sempre seguro e abre uma área inteira.",
+    "Numbers count mines": "Os números contam minas",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "Um número em uma célula indica quantas minas a tocam. Um \"3\" significa que há três minas escondidas entre as oito células vizinhas.",
+    "Flag and question mark": "Bandeira e ponto de interrogação",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "Clique com o botão direito em uma mina suspeita para colocar uma bandeira. Um novo clique direito mostra \"?\" (um lembrete pessoal); mais um limpa.",
+    "Chord click": "Clique de acorde",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "Clique com o botão do meio (ou esquerdo+direito juntos) sobre um número já satisfeito para abrir automaticamente todas as suas vizinhas sem bandeira.",
+    "Explore the menus": "Explore os menus",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "Boa sorte! Mude a dificuldade em Jogo → Dificuldade, veja seus tempos em Jogo → Estatísticas ou troque o idioma em Configurações → Idioma.",
 }
 
 ZH: dict[str, str] = {
@@ -445,6 +595,31 @@ ZH: dict[str, str] = {
     "Width:": "宽度：",
     "Height:": "高度：",
     "Mines:": "雷数：",
+    "&Tutorial": "教程(&T)",
+    "Tutorial": "教程",
+    "Next": "下一步",
+    "Back": "上一步",
+    "Finish": "完成",
+    "Skip": "跳过",
+    "Step %1 of %2": "第 %1 步，共 %2 步",
+    "Welcome": "欢迎",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "欢迎使用 QMineSweeper！点击安全格子，避开所有隐藏的地雷。本导览大约 30 秒。",
+    "Left-click to reveal": "左键揭示",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "左键点击格子即可揭示它。您的第一次点击始终安全,并会展开一整片区域。",
+    "Numbers count mines": "数字表示地雷数",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "格子上的数字表示它相邻的地雷数。\"3\" 表示其周围八个格子中藏有三颗雷。",
+    "Flag and question mark": "旗帜与问号",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "右键点击疑似地雷的格子以放置旗帜。再次右键切换到 \"?\"（自己的备注），再按一次则清除。",
+    "Chord click": "弦击",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "在数字已满足的格子上按中键（或同时按左右键），可一次性打开其所有未标记的邻居。",
+    "Explore the menus": "探索菜单",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "祝好运！在\"游戏 → 难度\"中更改难度，在\"游戏 → 统计\"中查看用时，或在\"设置 → 语言\"中切换语言。",
 }
 
 HI: dict[str, str] = {
@@ -505,6 +680,31 @@ HI: dict[str, str] = {
     "Width:": "चौड़ाई:",
     "Height:": "ऊँचाई:",
     "Mines:": "माइन:",
+    "&Tutorial": "&ट्यूटोरियल",
+    "Tutorial": "ट्यूटोरियल",
+    "Next": "आगे",
+    "Back": "पीछे",
+    "Finish": "समाप्त",
+    "Skip": "छोड़ें",
+    "Step %1 of %2": "चरण %1 / %2",
+    "Welcome": "स्वागत है",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "QMineSweeper में आपका स्वागत है! किसी भी छिपे हुए माइन पर पैर रखे बिना सुरक्षित कोशिकाओं पर क्लिक करें। यह छोटा सा दौरा लगभग 30 सेकंड का है।",
+    "Left-click to reveal": "खोलने के लिए बाएँ क्लिक",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "किसी कोशिका को खोलने के लिए बाएँ क्लिक करें। आपका पहला क्लिक हमेशा सुरक्षित होता है और पूरा क्षेत्र खोलता है।",
+    "Numbers count mines": "संख्याएँ माइन गिनती हैं",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "किसी कोशिका पर संख्या यह बताती है कि कितने माइन उसे छूते हैं। \"3\" का अर्थ है कि आसपास के आठ कोशिकाओं में तीन माइन छिपे हैं।",
+    "Flag and question mark": "झंडा और प्रश्न चिह्न",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "किसी संदिग्ध माइन पर झंडा लगाने के लिए दाएँ क्लिक करें। दोबारा दाएँ क्लिक पर \"?\" (खुद के लिए एक नोट) दिखता है, फिर एक और क्लिक इसे मिटा देता है।",
+    "Chord click": "कॉर्ड क्लिक",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "संतुष्ट संख्या पर मध्य क्लिक (या बाएँ+दाएँ एक साथ) करें ताकि उसके सभी बिना-झंडे वाले पड़ोसी एक साथ खुल जाएँ।",
+    "Explore the menus": "मेनू देखें",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "शुभकामनाएँ! कठिनाई खेल → कठिनाई में बदलें, अपने समय खेल → आँकड़े में देखें, या भाषा सेटिंग्स → भाषा में बदलें।",
 }
 
 AR: dict[str, str] = {
@@ -565,6 +765,31 @@ AR: dict[str, str] = {
     "Width:": "العرض:",
     "Height:": "الارتفاع:",
     "Mines:": "الألغام:",
+    "&Tutorial": "ال&درس التعليمي",
+    "Tutorial": "الدرس التعليمي",
+    "Next": "التالي",
+    "Back": "السابق",
+    "Finish": "إنهاء",
+    "Skip": "تخطي",
+    "Step %1 of %2": "الخطوة %1 من %2",
+    "Welcome": "مرحباً",
+    "Welcome to QMineSweeper! Click safe cells without hitting any of the hidden mines. This short tour takes about 30 seconds.":
+        "مرحباً بك في QMineSweeper! انقر على الخلايا الآمنة دون أن تطأ أياً من الألغام المخفية. تستغرق هذه الجولة السريعة حوالي 30 ثانية.",
+    "Left-click to reveal": "النقر الأيسر للكشف",
+    "Left-click a cell to reveal it. Your very first click is always safe and opens a whole area.":
+        "انقر بالزر الأيسر على الخلية لكشفها. نقرتك الأولى دائماً آمنة وتفتح منطقة كاملة.",
+    "Numbers count mines": "الأرقام تعدّ الألغام",
+    "A number on a cell tells you how many mines touch it. A \"3\" means three mines are hidden among the eight surrounding cells.":
+        "الرقم على الخلية يوضح عدد الألغام الملامسة لها. \"3\" يعني أن ثلاثة ألغام مختبئة بين الخلايا الثماني المحيطة.",
+    "Flag and question mark": "العلم وعلامة الاستفهام",
+    "Right-click a suspected mine to plant a flag. Right-click again for a \"?\" (a note to yourself), once more to clear.":
+        "انقر بالزر الأيمن على لغم مشتبه به لوضع علم. نقرة يمنى أخرى تُظهر \"?\" (ملاحظة لنفسك)، وثالثة تمسحها.",
+    "Chord click": "النقر الوتري",
+    "Middle-click (or left+right together) on a satisfied number to auto-open all of its unflagged neighbours at once.":
+        "انقر بالزر الأوسط (أو الأيسر+الأيمن معاً) على رقم مكتمل لفتح جميع جيرانه غير المعلّمين بعلم دفعةً واحدة.",
+    "Explore the menus": "استكشف القوائم",
+    "Good luck! Change difficulty under Game → Difficulty, track your times under Game → Statistics, or switch language under Settings → Language.":
+        "بالتوفيق! غيّر الصعوبة من اللعبة → الصعوبة، وراجع أوقاتك من اللعبة → الإحصائيات، أو بدّل اللغة من الإعدادات → اللغة.",
 }
 
 LOCALES: dict[str, dict[str, str]] = {

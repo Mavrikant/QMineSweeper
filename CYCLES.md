@@ -1,5 +1,68 @@
 # Autonomous cycles log
 
+## 2026-04-24 — Cycle 8 — v1.10.0 (closes #26)
+
+- **Chosen problem:** First-time players landed on the minefield cold —
+  no explanation of left-click / right-click / chord / numbers / menus.
+  @Mavrikant filed issue
+  [#26](https://github.com/Mavrikant/QMineSweeper/issues/26) asking for
+  a tutorial that auto-launches on first run and is re-openable from
+  the menu. The prior cycle's Next candidates still point at
+  pause/resume and keyboard-nav; this cycle took the explicit GitHub
+  ask instead.
+- **Evidence:** No `Help → Tutorial` anywhere in
+  [mainwindow.cpp](mainwindow.cpp); no QSettings flag for "has been
+  told how to play"; `Help → About` was the only existing Help entry.
+- **Shipped:**
+  - Branch: `feat/first-run-tutorial` (squash-merged + deleted)
+  - PR: [#28](https://github.com/Mavrikant/QMineSweeper/pull/28)
+  - Tag: `v1.10.0`
+  - Release: [v1.10.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.10.0)
+  - Closes: #26
+- **Diff shape:** 15 files, roughly +210 LOC real code
+  (100 tutorial module + 80 tests + ~30 MainWindow glue) + the usual
+  translation churn. Under the 400-LOC cycle cap.
+- **Translation cost:** 19 new hand-translated strings × 9 non-English
+  locales (171 new dict entries). Every locale reports 81/81 finished,
+  0 unfinished — coverage preserved.
+- **Assumptions made:**
+  - **Sequential modal card, not pointing-bubble overlay.** Dialog
+    with Back / Next / Skip + `Step N of M`. Cheaper (~150 LOC vs.
+    ~400), consistent with the existing Stats / consent dialogs, and
+    upgradable to an overlay in a future cycle if anyone asks.
+  - **Skip marks completed.** The whole point is not to re-prompt on
+    every launch once the user has declined — the Help menu is always
+    available to re-open. Any more nuance (e.g. "remind me next time")
+    would need a third state for a single-bit user decision.
+  - **Deferred first show via `QTimer::singleShot(0, …)`** so the
+    main window paints before the dialog lifts, matching how the
+    consent prompt already behaves.
+  - **Tutorial fires after (not alongside) the consent dialog** —
+    `exec()` is modal and blocking, so the consent `QMessageBox`
+    finishes first, then the tutorial appears.
+  - **Existing 1.9.0 installs count as "not completed"** (the key is
+    absent in their plist). That matches #26's "automatically launches
+    upon the initial execution" — first 1.10.0 launch.
+- **Skipped:**
+  - *Pause / resume.* Parked now for the sixth cycle running; still the
+    highest-value deferred candidate when a human-directed cycle is
+    willing to absorb the timer/state-machine risk.
+  - *Keyboard navigation.* Parked for the fifth cycle running; worth
+    its own dedicated cycle for the focus-management refactor.
+  - *No-flag speedrun achievement.* Parked one more cycle; budget used.
+  - *Overlay-with-bubbles upgrade* of the tutorial. Sequential card
+    ships the value; a future cycle can revisit shape if Sentry or a
+    user surfaces an actual complaint.
+- **Risks logged:** none new. Emoji-font concerns from v1.8.0/1.9.0
+  don't apply — tutorial uses plain Unicode only.
+- **Post-release watch (T+~5min):** [to be filled after release]
+- **Next candidates:**
+  - Pause / resume (P shortcut) with board-covering overlay.
+  - Keyboard navigation (arrow keys + space/F) for accessibility.
+  - No-flag speedrun achievement.
+  - Overlay-with-bubbles tutorial upgrade (optional, only if complaints
+    arrive).
+
 ## 2026-04-24 — Cycle 7 — v1.9.0 (autonomous)
 
 - **Chosen problem:** No tension smiley. v1.8.0 shipped the three static

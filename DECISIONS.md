@@ -1,5 +1,87 @@
 # Cycle decisions
 
+## 2026-04-24 — First-run tutorial (v1.10.0, closes #26)
+
+**Chosen:** A six-step modal-card tutorial opens once automatically on the
+first launch for each install, and is re-openable any time via
+`Help → Tutorial`. Skip and Finish both mark the tutorial completed so
+the next launch doesn't re-prompt; the Help menu is the escape hatch.
+
+**Why this one:**
+- **It's the one open GitHub issue.**
+  [#26](https://github.com/Mavrikant/QMineSweeper/issues/26) — filed by
+  the repo owner — asks for exactly this. Closing a product-owner
+  request beats pulling another parked candidate from the cycle log.
+- Small, self-contained: ~100 LOC of tutorial module + ~80 LOC of tests
+  + ~30 LOC of MainWindow wiring. No `minefield.cpp`/`minebutton.cpp`
+  changes, no state-machine surface, no new timers, no new telemetry
+  schema. Translation surface is 19 strings × 9 locales.
+- Backwards compatible — pure additive UI. Existing installs get the
+  tutorial once (their plist has no `tutorial/completed` key) and then
+  behave identically to v1.9.0.
+- Testable in isolation — `tst_tutorial.cpp` exercises step-list shape,
+  Back/Next navigation, Finish-on-last-step completion signal,
+  Skip-emits-skipped signal, and QSettings persistence, all without
+  touching `mainwindow.cpp` or the `.ui`-generated header.
+
+**Rejected alternatives:**
+- *Pointing-bubble overlay that highlights each UI element.* Polished
+  but ~400 LOC of custom painting + target-widget geometry tracking.
+  Doesn't earn the budget for a one-shot feature. A future cycle can
+  upgrade if users or Sentry surface actual complaints.
+- *Replaying the existing consent/language prompts as a "welcome wizard"
+  sequence.* Would conflate two user decisions (privacy choice vs. "how
+  do I play"). Kept them separate — consent first, tutorial after.
+- *Shipping the pointing-bubble version as a Settings toggle.* Adds a
+  settings key for a UI flavour 99% of users will never touch. No.
+
+**Implementation choices:**
+
+1. **`Tutorial::steps()` returns a static `QVector<Step>` of
+   `{const char *title, const char *body}` wrapped in `QT_TR_NOOP`.**
+   Same pattern as the difficulty menu (`mainwindow.cpp` lines ~121–135)
+   and the existing Stats rows. `lupdate` extracts the literals; the
+   runtime `tr(raw)` at the use site resolves them via the installed
+   translator. A single place to edit step content.
+
+2. **`TutorialDialog` is a plain `QDialog`, not a `QMessageBox`.** Body
+   text is long enough to need word-wrap and a minimum width; the
+   built-in buttons need to be three not two (Back / Next / Skip with
+   Back disabled on step 1 and Next turning into "Finish" on the last
+   step). A `QDialog` with a hand-laid-out button row is cleaner than
+   fighting `QMessageBox`'s standard-button bitmask.
+
+3. **Skip marks completed the same way Finish does.** If the user
+   Skips once and then changes their mind, they can always re-open it
+   from `Help → Tutorial`. Any more nuance (e.g. "remind me next
+   launch") adds a third state machine position for a single-bit user
+   decision.
+
+4. **Deferred first show via `QTimer::singleShot(0, this,
+   &MainWindow::showTutorialDialog)`.** Stacking two `exec()`-modal
+   dialogs inside the ctor (consent prompt + tutorial) works, but the
+   deferred show lets the main window paint first so the tutorial
+   lifts over a visible board rather than an empty grey frame.
+
+5. **`closeEvent` emits `skipped()` unless `completed()` already fired.**
+   Matches classic "close-box == cancel" behaviour; the QSettings flag
+   still flips so the close-box isn't a re-prompt loophole.
+
+6. **Help-menu action inserted *before* About.** `Tutorial` at the top
+   of `Help` is the expected hierarchy (most-useful first).
+
+**Assumptions:**
+- Six steps is the right length. Any fewer and the chord-click + "?"
+  mechanics get skipped; any more and the text fatigue outweighs the
+  payoff. Matches how Windows Minesweeper, Minesweeper Arbiter and
+  GNOME Mines all do it.
+- The chord step mentions "left+right together" because the middle
+  button is unreliable on modern MacBooks. Sentry has no platform
+  breakdown yet for who uses which chord input; this copy is the
+  safest bet.
+- `tutorial.completed` is intentionally app-wide (not per-difficulty
+  or per-language) — the mechanics don't change per preset.
+
 ## 2026-04-24 — Tension smiley during cell hold (v1.9.0)
 
 **Chosen:** While a cell is being held down during an active game, the header

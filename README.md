@@ -30,6 +30,7 @@ A modern implementation of the classic **Minesweeper** game, written in **C++20*
 - Automatic flood-fill reveal for empty regions
 - Win / loss detection with end-of-game dialog and remaining-mine auto-flagging
 - **Lifetime statistics** (Played / Won / Best time) per difficulty, saved via `QSettings` and viewable under `Game → Statistics…`, with a 🏆 "New record!" flair on the win dialog when you beat your best time
+- **First-run tutorial** — a six-step walkthrough opens automatically the first time you launch the app; re-openable any time under `Help → Tutorial`
 - Real-time elapsed-time display (starts on first click) and live mine counter
 - Game → New (Ctrl+N) and difficulty selection persisted via `QSettings`
 - Cross-platform: Linux, Windows and macOS (universal binary on macOS)
