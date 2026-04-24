@@ -66,6 +66,13 @@ class MineField : public QWidget
     [[nodiscard]] bool isPaused() const noexcept;
     void setPaused(bool paused);
 
+    // True if the user placed at least one flag during the current game. Stays
+    // true even if the flag is later cycled off — it tracks whether a flag was
+    // ever used, not whether one is currently set. Reset by every newGame /
+    // newGameReplay / setFixedLayout. Used by MainWindow to credit no-flag
+    // wins toward the per-difficulty no-flag best-time record.
+    [[nodiscard]] bool anyFlagPlaced() const noexcept;
+
     void setMineCountLabel(QLabel *label);
 
     // Sweep the live board and reset any Question-marked cell to None. Used when
@@ -129,6 +136,7 @@ class MineField : public QWidget
     int m_flagCount{0};
     bool m_minesPlaced{false};
     bool m_paused{false};
+    bool m_anyFlagPlaced{false};
     std::vector<std::pair<std::uint32_t, std::uint32_t>> m_lastMinePositions;
 };
 

@@ -34,6 +34,7 @@ void MineField::newGame(Difficulty diff)
     m_flagCount = 0;
     m_minesPlaced = false;
     m_paused = false;
+    m_anyFlagPlaced = false;
     m_lastMinePositions.clear();
 
     clearGrid();
@@ -65,6 +66,7 @@ bool MineField::newGameReplay()
     m_openedSafeCount = 0;
     m_flagCount = 0;
     m_paused = false;
+    m_anyFlagPlaced = false;
     // Mines are already known for this layout — skip first-click placement.
     m_minesPlaced = true;
 
@@ -212,6 +214,8 @@ bool MineField::eventFilter(QObject *watched, QEvent *event)
 }
 
 bool MineField::isPaused() const noexcept { return m_paused; }
+
+bool MineField::anyFlagPlaced() const noexcept { return m_anyFlagPlaced; }
 
 void MineField::setPaused(bool paused)
 {
@@ -479,6 +483,18 @@ void MineField::onMineExploded(std::uint32_t row, std::uint32_t col)
 void MineField::onFlagToggled(std::uint32_t /*row*/, std::uint32_t /*col*/, bool flagged)
 {
     m_flagCount += flagged ? 1 : -1;
+    // Gate the no-flag bookkeeping on a still-live game. The win path calls
+    // flagAllMines() which auto-flags every mine after m_state flips to Won —
+    // those celebratory flags must not poison anyFlagPlaced. A user flagging
+    // before their first left-click is still in GameState::Ready; that counts.
+    if (flagged && m_state != GameState::Won && m_state != GameState::Lost)
+    {
+        // Sticky for the rest of the game. Removing the flag later does not
+        // reset this — the no-flag credit is "did you get through without
+        // ever leaning on the flag affordance", not "is the board flag-free
+        // right now".
+        m_anyFlagPlaced = true;
+    }
     updateMineCountLabel();
     emit mineCountChanged(remainingMines());
 }
@@ -631,6 +647,7 @@ void MineField::setFixedLayout(std::uint32_t width, std::uint32_t height, const 
     m_openedSafeCount = 0;
     m_flagCount = 0;
     m_paused = false;
+    m_anyFlagPlaced = false;
     m_minesPlaced = true;
 
     clearGrid();

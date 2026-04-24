@@ -18,6 +18,9 @@ Record load(const QString &difficultyName)
     r.bestSeconds = settings.value(key(difficultyName, QStringLiteral("best_seconds")), 0.0).toDouble();
     const QString dateStr = settings.value(key(difficultyName, QStringLiteral("best_date")), QString{}).toString();
     r.bestDate = dateStr.isEmpty() ? QDate{} : QDate::fromString(dateStr, Qt::ISODate);
+    r.bestNoflagSeconds = settings.value(key(difficultyName, QStringLiteral("best_noflag_seconds")), 0.0).toDouble();
+    const QString noflagDateStr = settings.value(key(difficultyName, QStringLiteral("best_noflag_date")), QString{}).toString();
+    r.bestNoflagDate = noflagDateStr.isEmpty() ? QDate{} : QDate::fromString(noflagDateStr, Qt::ISODate);
     return r;
 }
 
@@ -35,6 +38,15 @@ void save(const QString &difficultyName, const Record &r)
     {
         settings.remove(key(difficultyName, QStringLiteral("best_date")));
     }
+    settings.setValue(key(difficultyName, QStringLiteral("best_noflag_seconds")), r.bestNoflagSeconds);
+    if (r.bestNoflagDate.isValid())
+    {
+        settings.setValue(key(difficultyName, QStringLiteral("best_noflag_date")), r.bestNoflagDate.toString(Qt::ISODate));
+    }
+    else
+    {
+        settings.remove(key(difficultyName, QStringLiteral("best_noflag_date")));
+    }
 }
 
 void reset(const QString &difficultyName)
@@ -44,6 +56,8 @@ void reset(const QString &difficultyName)
     settings.remove(key(difficultyName, QStringLiteral("won")));
     settings.remove(key(difficultyName, QStringLiteral("best_seconds")));
     settings.remove(key(difficultyName, QStringLiteral("best_date")));
+    settings.remove(key(difficultyName, QStringLiteral("best_noflag_seconds")));
+    settings.remove(key(difficultyName, QStringLiteral("best_noflag_date")));
 }
 
 void resetAll()
@@ -74,5 +88,23 @@ bool recordWin(const QString &difficultyName, double seconds, const QDate &onDat
     }
     save(difficultyName, r);
     return newRecord && seconds > 0.0;
+}
+
+bool recordNoflagBest(const QString &difficultyName, double seconds, const QDate &onDate)
+{
+    if (seconds <= 0.0)
+    {
+        return false;
+    }
+    Record r = load(difficultyName);
+    const bool newRecord = (r.bestNoflagSeconds <= 0.0) || (seconds < r.bestNoflagSeconds);
+    if (!newRecord)
+    {
+        return false;
+    }
+    r.bestNoflagSeconds = seconds;
+    r.bestNoflagDate = onDate;
+    save(difficultyName, r);
+    return true;
 }
 } // namespace Stats

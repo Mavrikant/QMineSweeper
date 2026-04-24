@@ -31,6 +31,18 @@ class TestStats : public QObject
     void testLossDoesNotTouchDate();
     void testResetWipesDate();
     void testLegacyRecordWithoutDateLoadsAsInvalid();
+
+    // no-flag best-time bracket
+    void testNoflagDefaultsZero();
+    void testRecordNoflagBestSetsOnFirstCall();
+    void testFasterNoflagBeatsAndStampsDate();
+    void testSlowerNoflagKeepsOriginal();
+    void testRecordNoflagBestDoesNotTouchOverall();
+    void testRecordWinDoesNotTouchNoflag();
+    void testResetWipesNoflag();
+    void testResetAllWipesNoflag();
+    void testLegacyRecordWithoutNoflagLoadsAsZero();
+    void testRecordNoflagBestZeroSecondsRejected();
 };
 
 void TestStats::initTestCase()
@@ -193,6 +205,119 @@ void TestStats::testLegacyRecordWithoutDateLoadsAsInvalid()
     QCOMPARE(r.won, 3u);
     QCOMPARE(r.bestSeconds, 42.0);
     QVERIFY(!r.bestDate.isValid());
+}
+
+void TestStats::testNoflagDefaultsZero()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestNoflagSeconds, 0.0);
+    QVERIFY(!r.bestNoflagDate.isValid());
+}
+
+void TestStats::testRecordNoflagBestSetsOnFirstCall()
+{
+    const QDate d{2026, 4, 25};
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 12.3, d));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestNoflagSeconds, 12.3);
+    QCOMPARE(r.bestNoflagDate, d);
+    // Played/won unchanged — recordNoflagBest is best-time only.
+    QCOMPARE(r.played, 0u);
+    QCOMPARE(r.won, 0u);
+}
+
+void TestStats::testFasterNoflagBeatsAndStampsDate()
+{
+    const QDate oldDate{2026, 1, 1};
+    const QDate newDate{2026, 4, 25};
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 30.0, oldDate));
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 18.5, newDate));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestNoflagSeconds, 18.5);
+    QCOMPARE(r.bestNoflagDate, newDate);
+}
+
+void TestStats::testSlowerNoflagKeepsOriginal()
+{
+    const QDate originalDate{2026, 1, 1};
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 18.5, originalDate));
+    QVERIFY(!Stats::recordNoflagBest(QStringLiteral("Beginner"), 40.0, QDate{2026, 4, 25}));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestNoflagSeconds, 18.5);
+    QCOMPARE(r.bestNoflagDate, originalDate);
+}
+
+void TestStats::testRecordNoflagBestDoesNotTouchOverall()
+{
+    // First seed an overall record at 30s.
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 1, 1}));
+    // Now record a faster no-flag run at 20s. Overall best stays 30 because
+    // recordNoflagBest is best-time only — it does not update bestSeconds.
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 20.0, QDate{2026, 4, 25}));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestSeconds, 30.0);
+    QCOMPARE(r.bestDate, (QDate{2026, 1, 1}));
+    QCOMPARE(r.bestNoflagSeconds, 20.0);
+    QCOMPARE(r.bestNoflagDate, (QDate{2026, 4, 25}));
+    QCOMPARE(r.played, 1u);
+    QCOMPARE(r.won, 1u);
+}
+
+void TestStats::testRecordWinDoesNotTouchNoflag()
+{
+    // Seed a no-flag best, then record a faster win-with-flags. The no-flag
+    // bracket must not be overwritten by the regular win path.
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 25.0, QDate{2026, 1, 1}));
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 10.0, QDate{2026, 4, 25}));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestSeconds, 10.0);
+    QCOMPARE(r.bestNoflagSeconds, 25.0);
+    QCOMPARE(r.bestNoflagDate, (QDate{2026, 1, 1}));
+}
+
+void TestStats::testResetWipesNoflag()
+{
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 18.5, QDate{2026, 4, 25}));
+    Stats::reset(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestNoflagSeconds, 0.0);
+    QVERIFY(!r.bestNoflagDate.isValid());
+}
+
+void TestStats::testResetAllWipesNoflag()
+{
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Beginner"), 18.0, QDate{2026, 4, 25}));
+    QVERIFY(Stats::recordNoflagBest(QStringLiteral("Expert"), 250.0, QDate{2026, 4, 25}));
+    Stats::resetAll();
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestNoflagSeconds, 0.0);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestNoflagSeconds, 0.0);
+}
+
+void TestStats::testLegacyRecordWithoutNoflagLoadsAsZero()
+{
+    // Pre-1.13 record: no best_noflag_* keys present.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 42.0);
+    settings.setValue(QStringLiteral("stats/Beginner/best_date"), QStringLiteral("2026-01-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestSeconds, 42.0);
+    QCOMPARE(r.bestNoflagSeconds, 0.0);
+    QVERIFY(!r.bestNoflagDate.isValid());
+}
+
+void TestStats::testRecordNoflagBestZeroSecondsRejected()
+{
+    // Zero/negative durations are guard-railed: they never set the no-flag
+    // best, even on a virgin record. Mirrors the recordWin sentinel for 0.
+    QVERIFY(!Stats::recordNoflagBest(QStringLiteral("Beginner"), 0.0));
+    QVERIFY(!Stats::recordNoflagBest(QStringLiteral("Beginner"), -1.0));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestNoflagSeconds, 0.0);
+    QVERIFY(!r.bestNoflagDate.isValid());
 }
 
 QTEST_MAIN(TestStats)
