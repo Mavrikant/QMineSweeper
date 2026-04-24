@@ -73,6 +73,11 @@ class MineField : public QWidget
     void gameWon();
     void gameLost(std::uint32_t row, std::uint32_t col);
     void mineCountChanged(int remaining);
+    // Forwarded from MineButton::pressStart/pressEnd so MainWindow can drive
+    // the tension smiley without needing per-cell wiring. Cell-agnostic on
+    // purpose — the indicator doesn't care which cell is being held.
+    void cellInteractionStarted();
+    void cellInteractionEnded();
 
   private slots:
     void onCellPressed(std::uint32_t row, std::uint32_t col);

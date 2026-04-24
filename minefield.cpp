@@ -155,6 +155,8 @@ void MineField::wireButton(MineButton *button)
     connect(button, &MineButton::checkNeighbours, this, &MineField::onCheckNeighbours);
     connect(button, &MineButton::flagToggled, this, &MineField::onFlagToggled);
     connect(button, &MineButton::chordRequested, this, &MineField::onChordRequested);
+    connect(button, &MineButton::pressStart, this, &MineField::cellInteractionStarted);
+    connect(button, &MineButton::pressEnd, this, &MineField::cellInteractionEnded);
 }
 
 void MineField::fillMines(std::uint32_t safeRow, std::uint32_t safeCol)

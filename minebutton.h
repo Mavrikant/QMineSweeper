@@ -54,9 +54,16 @@ class MineButton : public QPushButton
     // and does NOT fire again when it returns to None from Question.
     void flagToggled(std::uint32_t row, std::uint32_t col, bool flagged);
     void chordRequested(std::uint32_t row, std::uint32_t col);
+    // Fires while a left/middle/chord mouse button is held down on the cell
+    // (before any reveal/chord is processed). Right-click-only presses do not
+    // fire pressStart — they just cycle the marker without any hold feedback.
+    // MainWindow uses these to drive the classic 😮 "tension" smiley.
+    void pressStart();
+    void pressEnd();
 
   protected:
     void mousePressEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *e) override;
 
   private:
     void cycleMarker();

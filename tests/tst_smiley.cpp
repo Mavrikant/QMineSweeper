@@ -2,6 +2,8 @@
 #include "../minefield.h"
 #include "../smiley.h"
 
+#include <QCoreApplication>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QtTest>
 
@@ -16,6 +18,9 @@ class TestSmiley : public QObject
     void testLostFace();
     void testAllFacesAreDistinctExceptReadyPlaying();
     void testIntegrationWithMineFieldSignals();
+    void testTensionFaceWhilePressing();
+    void testTensionIgnoredAfterGameOver();
+    void testPressReleaseDrivesTension();
 };
 
 void TestSmiley::testReadyFace() { QCOMPARE(smileyForState(GameState::Ready), QStringLiteral("🙂")); }
@@ -70,6 +75,83 @@ void TestSmiley::testIntegrationWithMineFieldSignals()
     field.cellAt(0, 0)->Open();
     QCOMPARE(field.state(), GameState::Lost);
     QCOMPARE(button.text(), QStringLiteral("😵"));
+}
+
+void TestSmiley::testTensionFaceWhilePressing()
+{
+    // While a cell is held down in Ready or Playing, the indicator flips to
+    // the classic 😮 "holding my breath" face.
+    QCOMPARE(smileyForTensionState(GameState::Ready, true), QStringLiteral("😮"));
+    QCOMPARE(smileyForTensionState(GameState::Playing, true), QStringLiteral("😮"));
+    // Not pressing — falls back to the plain state face.
+    QCOMPARE(smileyForTensionState(GameState::Ready, false), QStringLiteral("🙂"));
+    QCOMPARE(smileyForTensionState(GameState::Playing, false), QStringLiteral("🙂"));
+}
+
+void TestSmiley::testTensionIgnoredAfterGameOver()
+{
+    // After win/loss the cells are frozen, so any lingering "pressing" flag
+    // must not override the final 😎/😵 — the indicator should stay put.
+    QCOMPARE(smileyForTensionState(GameState::Won, true), QStringLiteral("😎"));
+    QCOMPARE(smileyForTensionState(GameState::Lost, true), QStringLiteral("😵"));
+    QCOMPARE(smileyForTensionState(GameState::Won, false), QStringLiteral("😎"));
+    QCOMPARE(smileyForTensionState(GameState::Lost, false), QStringLiteral("😵"));
+}
+
+void TestSmiley::testPressReleaseDrivesTension()
+{
+    // Full wiring: MineButton press/release → MineField forwards →
+    // button text flips between 🙂 and 😮 for left-click, and stays on 🙂 for
+    // right-click (flag-only presses must not trigger tension).
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    GameState lastState = GameState::Ready;
+    bool pressing = false;
+    QPushButton button;
+    const auto refresh = [&] { button.setText(smileyForTensionState(lastState, pressing)); };
+    refresh();
+
+    QObject::connect(&field, &MineField::gameStarted, &button,
+                     [&]
+                     {
+                         lastState = GameState::Playing;
+                         refresh();
+                     });
+    QObject::connect(&field, &MineField::cellInteractionStarted, &button,
+                     [&]
+                     {
+                         pressing = true;
+                         refresh();
+                     });
+    QObject::connect(&field, &MineField::cellInteractionEnded, &button,
+                     [&]
+                     {
+                         pressing = false;
+                         refresh();
+                     });
+
+    auto *cell = field.cellAt(1, 1);
+    QVERIFY(cell != nullptr);
+
+    // Left-click: press → tension. Release → tension off, state=Playing.
+    QCOMPARE(button.text(), QStringLiteral("🙂"));
+    QMouseEvent press(QEvent::MouseButtonPress, QPointF(5, 5), QPointF(5, 5), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(cell, &press);
+    QCOMPARE(button.text(), QStringLiteral("😮"));
+    QMouseEvent release(QEvent::MouseButtonRelease, QPointF(5, 5), QPointF(5, 5), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(cell, &release);
+    QCOMPARE(button.text(), QStringLiteral("🙂"));
+    QCOMPARE(field.state(), GameState::Playing);
+
+    // Right-click on an un-opened neighbour: no tension at any point.
+    auto *neighbour = field.cellAt(2, 2);
+    QVERIFY(neighbour != nullptr);
+    QMouseEvent rpress(QEvent::MouseButtonPress, QPointF(5, 5), QPointF(5, 5), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(neighbour, &rpress);
+    QCOMPARE(button.text(), QStringLiteral("🙂"));
+    QMouseEvent rrelease(QEvent::MouseButtonRelease, QPointF(5, 5), QPointF(5, 5), Qt::RightButton, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(neighbour, &rrelease);
+    QCOMPARE(button.text(), QStringLiteral("🙂"));
 }
 
 QTEST_MAIN(TestSmiley)

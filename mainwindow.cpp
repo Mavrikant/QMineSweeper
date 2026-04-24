@@ -116,6 +116,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_uniq
     connect(ui->mineFieldWidget, &MineField::gameWon, this, &MainWindow::onGameWon);
     connect(ui->mineFieldWidget, &MineField::gameLost, this, &MainWindow::onGameLost);
     connect(ui->mineFieldWidget, &MineField::mineCountChanged, this, [this](int remaining) { ui->mineCount->setNum(remaining); });
+    connect(ui->mineFieldWidget, &MineField::cellInteractionStarted, this, [this] { setSmileyTension(true); });
+    connect(ui->mineFieldWidget, &MineField::cellInteractionEnded, this, [this] { setSmileyTension(false); });
 
     resetTimerUi();
     setWindowTitle(tr("QMineSweeper"));
@@ -573,9 +575,25 @@ void MainWindow::resetTimerUi()
 
 void MainWindow::setSmileyState(GameState state)
 {
+    m_smileyState = state;
+    // A new game / game end always clears any lingering tension flag — the
+    // mouse-release that matched the earlier press may never arrive if the
+    // cell-freeze on win/loss intercepted the event.
+    m_smileyPressing = false;
+    applySmiley();
+}
+
+void MainWindow::setSmileyTension(bool pressing)
+{
+    m_smileyPressing = pressing;
+    applySmiley();
+}
+
+void MainWindow::applySmiley()
+{
     if (ui && ui->smileyButton)
     {
-        ui->smileyButton->setText(smileyForState(state));
+        ui->smileyButton->setText(smileyForTensionState(m_smileyState, m_smileyPressing));
     }
 }
 
