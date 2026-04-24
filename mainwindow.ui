@@ -61,7 +61,7 @@
        <enum>QLayout::SetMinimumSize</enum>
       </property>
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,1">
+       <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,1">
         <property name="spacing">
          <number>6</number>
         </property>
@@ -99,6 +99,37 @@
           </property>
           <property name="text">
            <string>10</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="smileyButton">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>32</width>
+            <height>32</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>32</width>
+            <height>32</height>
+           </size>
+          </property>
+          <property name="focusPolicy">
+           <enum>Qt::NoFocus</enum>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton { font-size: 18px; padding: 0px; border: 1px solid #2f4b1d; border-radius: 4px; background-color: #cbd1b6; } QPushButton:pressed { background-color: #a6af8a; }</string>
+          </property>
+          <property name="text">
+           <string notr="true">🙂</string>
           </property>
          </widget>
         </item>

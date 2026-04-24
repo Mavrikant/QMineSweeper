@@ -1,5 +1,100 @@
 # Cycle decisions
 
+## 2026-04-24 — Smiley status indicator (v1.8.0)
+
+**Chosen:** Add a clickable smiley button above the minefield, between the
+remaining-mines counter and the elapsed-time counter. It displays game state
+via emoji — 🙂 while ready / playing, 😎 on win, 😵 on loss — and clicking
+it starts a new game (equivalent to `Game → New`).
+
+**Why this one:**
+- Concrete user value — the yellow smiley-face reset button is one of the most
+  recognisable visual elements of classic Minesweeper. Windows Minesweeper,
+  Minesweeper Arbiter, GNOME Mines (kmines), and every clone on
+  minesweepergame.com ship a clickable face as the primary "new game" gesture
+  and the at-a-glance win/loss indicator. Ours had neither — the new-game
+  affordance was hidden behind `Game → New` / `Ctrl+N`.
+- Small, self-contained: ~30 LOC of real code in `mainwindow.{ui,cpp}` plus a
+  one-function `smiley.h` header (pure state→emoji mapping) and a 3-test
+  `tst_smiley.cpp`. No `minefield.cpp`/`minebutton.cpp` changes, no
+  `QSettings` schema churn, no new dependencies.
+- Low regression risk — the button is a consumer of existing
+  `gameStarted`/`gameWon`/`gameLost` signals; the state machine itself is
+  untouched. Clicking the button reuses `MainWindow::onNewGame()` — the same
+  slot `Game → New` already calls. No new code paths through the state machine.
+- Backwards compatible — pure UI addition; existing keyboard shortcuts and
+  menus behave unchanged. The header layout still has the mine counter on the
+  left and the timer on the right; the smiley is inserted centred between
+  them with zero stretch so the two existing counters keep the same width
+  allocation.
+- Testable in isolation — factored the state→emoji mapping into a pure
+  `smileyForState(GameState)` helper in `smiley.h`, which the new unit test
+  exercises for all four `GameState` values including the transition paths.
+- Low translation burden — 1 new hand-translated string × 9 non-English
+  locales for the "New game" tooltip.
+
+**Rejected alternatives from the prior `Next candidates` list:**
+- *Pause / resume.* Higher regression risk on the timer/state machine and
+  adds ~3 new strings × 10 locales (overlay text, resume button). Parked
+  again — a fifth cycle deferral, but the risk profile hasn't changed.
+- *Keyboard navigation.* Touches focus management on every cell; medium
+  surface, zero translation cost, strong accessibility win but less
+  immediately user-visible than the smiley for the same implementation
+  budget. Parked for a future cycle.
+
+**Implementation choices:**
+
+1. **Emoji text on a `QPushButton`, not image assets.** The three v1.8.0
+   states reuse the same Unicode code points already proven in the
+   end-of-game dialog (🏆 since v1.2.0). Qt's font-fallback stack handles
+   these consistently across macOS (Apple Color Emoji), Windows (Segoe UI
+   Emoji since Windows 10), and Linux (Noto Color Emoji on every modern
+   distro). Shipping PNG assets for four states × three resolutions would
+   balloon the resource bundle for no visual win.
+
+2. **State→emoji mapping lives in `smiley.h` as an inline pure function,
+   not a static member of `MainWindow`.** Avoids pulling `mainwindow.cpp`
+   (and the `.ui`-generated header + `telemetry.cpp` + `language.cpp` +
+   `QMS_VERSION` define + `resources.qrc`) into the test target just to
+   exercise a four-case switch. The test links the existing
+   `QMineSweeperCore` plus the one-header helper.
+
+3. **Click handler reuses `MainWindow::onNewGame()` directly.** No separate
+   code path — the button click is semantically identical to invoking
+   `Game → New`. Both breadcrumbs and QSettings updates flow through the
+   same slot; there is no way for the two entry points to drift.
+
+4. **Smiley is centred with zero stretch inside the header row.** Changed
+   the `horizontalLayout` stretch from `1,1` (mine counter and timer each
+   claim half) to `1,0,1` (mine counter and timer keep their share of the
+   width; the smiley takes exactly its sizeHint in the middle). This keeps
+   the header compact on Beginner's narrow window and the timer/counter
+   still right-aligned on wider difficulties.
+
+5. **Button is square and fixed-size (32×32 px) so it doesn't visually
+   fight with the counter labels.** `sizePolicy=Fixed` prevents layout
+   engines on different platforms from stretching it asymmetrically.
+
+6. **No stats or telemetry tagging on the button click.** Clicking the
+   smiley is indistinguishable from `Game → New`; we already breadcrumb
+   `ui: new game` in `onNewGame`. No separate `ui: smiley clicked` event —
+   counting two sources of the same action would inflate the metric.
+
+**Assumptions:**
+- Emojis render consistently. Validated by the fact that 🏆 has shipped
+  without rendering complaints in Sentry or GitHub issues since v1.2.0.
+- A tooltip ("New game") is enough accessibility; no additional aria-role
+  or keyboard shortcut on the button itself — `Ctrl+N` already works via
+  the menu and the visual button is redundant for keyboard users.
+- The middle-click "tension face" (😮 while a cell is pressed) common to
+  Windows Minesweeper is excluded from v1.8.0. It requires hooking into
+  `MineButton::cellPressed` + mouse-release propagation, which is
+  materially bigger than the win/loss indicator alone. Park for later if
+  a user actually asks.
+- Changing the horizontalLayout stretch from `1,1` to `1,0,1` does not
+  break existing behaviour since neither counter was visibly stretching
+  before (both are fixed-size QLabels).
+
 ## 2026-04-23 — Custom difficulty (v1.7.0)
 
 **Chosen:** Add `Game → Difficulty → Custom…` — a small dialog that lets the
