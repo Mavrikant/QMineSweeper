@@ -1,5 +1,80 @@
 # Cycle decisions
 
+## 2026-04-25 — No-flag speedrun bracket (v1.13.0)
+
+**Chosen:** Track per-game whether the player ever placed a flag, and
+when a win occurs without one, record a separate per-difficulty "Best
+(no flag)" time. Surface it on the end-of-game dialog as a
+`🏃 No-flag run!` badge (stacked above the existing `🏆 New record!`
+when applicable) and as a 5th column in `Game → Statistics…`. Excluded
+from Custom and Replay runs (consistent with the existing best-time
+exclusion).
+
+**Why this one (cycle 11):** Lowest-risk parked candidate from cycle
+10. Pure additive — no rule changes, no UI rearrangement, no schema
+break. Speedrun depth without a "hardcore mode" toggle: flagging is
+still encouraged for normal play, the bracket just rewards players who
+opt out implicitly. Diff stays well under 400 LOC.
+
+**Rejected alternatives:**
+
+- **Hardcore mode toggle that disables flagging.** Would force a UX
+  decision (menu item? difficulty variant?) and split the player base
+  across two leaderboards before there's even one. The implicit-bracket
+  approach gets 90% of the value with zero new mode surface.
+- **Track flag count not just presence.** Tempting (e.g. "best with ≤5
+  flags") but multiplies the bracket count and adds tuning knobs we'd
+  have to defend. Binary flag/no-flag is the cleanest cut.
+- **Combine into single Best column with a 🏃 badge if no-flag.** Would
+  hide the parallel record. Players who flag normally would never see
+  a no-flag time, removing the aspirational pull. Two columns it is.
+
+**Implementation invariants:**
+
+- **Sticky bit.** `MineField::m_anyFlagPlaced` is set on the first flag
+  placement of a run and never cleared until `newGame` / `newGameReplay`
+  / `setFixedLayout`. Removing a flag mid-game does **not** un-set it —
+  otherwise a player could clear flags before the final click and game
+  the bracket.
+- **AutoFlag gate.** `flagAllMines()` (called from `checkWin()`) emits
+  `flagToggled(true)` for every remaining mine. The `m_anyFlagPlaced`
+  setter is gated `if (flagged && m_state != Won && m_state != Lost)`
+  so the win-time auto-flag does not poison the bracket. Regression
+  test: `testAnyFlagPlacedFalseAfterNoflagWin`.
+- **Ready-state allowance.** First-click safety places no flag, so the
+  bit can only flip in `Ready` (pre-first-click flag is allowed) or
+  `Playing`. Won/Lost are gated; Paused is logically Playing.
+- **No `recordWin` signature change.** Added a parallel
+  `Stats::recordNoflagBest(name, seconds, date)` rather than threading
+  a `bool noflag` through `recordWin`. Avoids touching ~10 existing
+  call sites and tests; the two best-time tracks stay independent in
+  storage as well (`stats/<diff>/{best_seconds,best_noflag_seconds}`).
+- **Replay / Custom exclusion.** Reuses existing `m_excludeFromBest`
+  flag — if it's set, neither bracket is updated.
+- **Telemetry.** `game.won` event gets a `noflag=1|0` tag. No new event
+  type.
+- **Question marks don't count.** Cycling `None → Flag → Question`
+  passes through `Flag`, which sets the bit. Cycling
+  `None → Question` directly does not. Right-click cycles through Flag
+  before Question, so a player who only ever uses question marks will
+  still trip the bit unless they're careful — acceptable, the cycle
+  was designed before the bracket existed and the bit reflects intent.
+  Test: `testAnyFlagPlacedNotSetByQuestionMark` covers the direct path
+  (no flag involvement).
+
+**Risks / mitigations:**
+
+- **QSettings schema additive.** New keys `best_noflag_seconds` /
+  `best_noflag_date` default to 0 / null on legacy installs; load path
+  treats absent keys as zero, so old users see "—" until they earn a
+  no-flag win. Test: legacy-record-loads-as-zero.
+- **Stats dialog width.** 5 columns instead of 4. Verified with
+  `formatBest` lambda producing consistent "—" placeholders so the
+  table doesn't ragged-edge for legacy users.
+- **Translation cost.** Two new strings × 9 non-English locales =
+  18 hand translations; all done in this cycle, no `tr()` literals
+  left unfilled.
+
 ## 2026-04-25 — Pause / resume (v1.12.0)
 
 **Chosen:** Add a pause/resume toggle that freezes the game timer, blocks

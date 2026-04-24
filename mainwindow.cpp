@@ -498,14 +498,20 @@ void MainWindow::onGameWon()
     // Stats dialog only lists the three standard presets — a lifetime best at
     // an arbitrary grid size is not comparable to the standards.
     const bool excludedFromStats = m_isReplay || m_isCustom;
+    const bool noflagWin = !ui->mineFieldWidget->anyFlagPlaced();
     const bool newRecord = !excludedFromStats && Stats::recordWin(diffName, m_lastElapsedSeconds);
+    if (!excludedFromStats && noflagWin)
+    {
+        Stats::recordNoflagBest(diffName, m_lastElapsedSeconds);
+    }
     Telemetry::recordEvent(QStringLiteral("game.won"), {
                                                            {QStringLiteral("difficulty"), diffName},
                                                            {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                            {QStringLiteral("new_record"), newRecord ? QStringLiteral("true") : QStringLiteral("false")},
                                                            {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
+                                                           {QStringLiteral("noflag"), noflagWin ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord);
+    showEndDialog(true, newRecord, noflagWin);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -526,7 +532,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                             {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false);
+    showEndDialog(false, false, false);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -724,13 +730,17 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(QString::asprintf("%05.1f", secs));
 }
 
-void MainWindow::showEndDialog(bool won, bool newRecord)
+void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
     if (won)
     {
         QString text = tr("You cleared the field in %1 seconds.").arg(QString::asprintf("%.1f", m_lastElapsedSeconds));
+        if (noflagWin)
+        {
+            text.prepend(tr("🏃 No-flag run!") + QStringLiteral("  "));
+        }
         if (newRecord)
         {
             text.prepend(tr("🏆 New record!") + QStringLiteral("  "));
@@ -780,8 +790,8 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(3, 4, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time")});
+    auto *table = new QTableWidget(3, 5, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -798,30 +808,31 @@ void MainWindow::showStatsDialog()
         {QT_TR_NOOP("Intermediate"), "Intermediate"},
         {QT_TR_NOOP("Expert"), "Expert"},
     };
+    const auto formatBest = [](double seconds, const QDate &date)
+    {
+        if (seconds <= 0.0)
+        {
+            return QStringLiteral("—");
+        }
+        QString s = QString::asprintf("%.1f s", seconds);
+        if (date.isValid())
+        {
+            // Locale-formatted date in parentheses, e.g. "15.5 s (23.04.2026)".
+            // Inline (vs. a separate column) keeps the row narrow and avoids
+            // introducing another translatable column header per stat.
+            s += QStringLiteral("  (") + QLocale().toString(date, QLocale::ShortFormat) + QStringLiteral(")");
+        }
+        return s;
+    };
     for (int i = 0; i < 3; ++i)
     {
         const Stats::Record rec = Stats::load(QString::fromLatin1(rows[i].key));
-        QString best;
-        if (rec.bestSeconds > 0.0)
-        {
-            best = QString::asprintf("%.1f s", rec.bestSeconds);
-            if (rec.bestDate.isValid())
-            {
-                // Locale-formatted date in parentheses, e.g. "15.5 s (23.04.2026)".
-                // Inline (vs. a separate column) keeps the dialog narrow and avoids
-                // introducing a new translatable column header.
-                best += QStringLiteral("  (") + QLocale().toString(rec.bestDate, QLocale::ShortFormat) + QStringLiteral(")");
-            }
-        }
-        else
-        {
-            best = QStringLiteral("—");
-        }
         const QString winRate = rec.played > 0 ? QStringLiteral(" (%1%)").arg(100 * rec.won / rec.played) : QString{};
         table->setItem(i, 0, new QTableWidgetItem(tr(rows[i].label)));
         table->setItem(i, 1, new QTableWidgetItem(QString::number(rec.played)));
         table->setItem(i, 2, new QTableWidgetItem(QString::number(rec.won) + winRate));
-        table->setItem(i, 3, new QTableWidgetItem(best));
+        table->setItem(i, 3, new QTableWidgetItem(formatBest(rec.bestSeconds, rec.bestDate)));
+        table->setItem(i, 4, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
     }
     table->resizeColumnsToContents();
 

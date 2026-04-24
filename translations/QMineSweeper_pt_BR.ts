@@ -50,7 +50,7 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="155"/>
-        <location filename="../mainwindow.cpp" line="718"/>
+        <location filename="../mainwindow.cpp" line="724"/>
         <source>&amp;Pause</source>
         <translation>&amp;Pausar</translation>
     </message>
@@ -150,168 +150,178 @@
         <translation>QMineSweeper — Você venceu!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="518"/>
+        <location filename="../mainwindow.cpp" line="524"/>
         <source>QMineSweeper — Boom</source>
         <translation>QMineSweeper — Bum!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="560"/>
+        <location filename="../mainwindow.cpp" line="566"/>
         <source>Language changed</source>
         <translation>Idioma alterado</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="562"/>
+        <location filename="../mainwindow.cpp" line="568"/>
         <source>Language changes take effect after restart.</source>
         <translation>As alterações de idioma entram em vigor após reiniciar.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="563"/>
+        <location filename="../mainwindow.cpp" line="569"/>
         <source>Restart QMineSweeper now?</source>
         <translation>Reiniciar o QMineSweeper agora?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="564"/>
+        <location filename="../mainwindow.cpp" line="570"/>
         <source>Restart now</source>
         <translation>Reiniciar agora</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="565"/>
+        <location filename="../mainwindow.cpp" line="571"/>
         <source>Later</source>
         <translation>Mais tarde</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="587"/>
+        <location filename="../mainwindow.cpp" line="593"/>
         <source>Help improve QMineSweeper</source>
         <translation>Ajude a melhorar o QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="589"/>
+        <location filename="../mainwindow.cpp" line="595"/>
         <source>Would you like to send anonymous crash reports and usage data?</source>
         <translation>Você gostaria de enviar relatórios de falhas e dados de uso anônimos?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="590"/>
+        <location filename="../mainwindow.cpp" line="596"/>
         <source>We collect: app crashes, game results (win/loss, duration, difficulty), OS name, CPU architecture, Qt version, and an anonymous install ID.&lt;br/&gt;&lt;br/&gt;We do &lt;b&gt;not&lt;/b&gt; collect: your name, email, IP address, file paths, or any in-game actions.&lt;br/&gt;&lt;br/&gt;You can change this later in &lt;b&gt;Settings&lt;/b&gt;.</source>
         <translation>Coletamos: falhas do aplicativo, resultados de partidas (vitória/derrota, duração, dificuldade), nome do sistema operacional, arquitetura de CPU, versão do Qt e um ID de instalação anônimo.&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Não&lt;/b&gt; coletamos: seu nome, e-mail, endereço IP, caminhos de arquivos nem ações dentro do jogo.&lt;br/&gt;&lt;br/&gt;Você pode alterar isso depois em &lt;b&gt;Configurações&lt;/b&gt;.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="598"/>
+        <location filename="../mainwindow.cpp" line="604"/>
         <source>Yes, send</source>
         <translation>Sim, enviar</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="599"/>
+        <location filename="../mainwindow.cpp" line="605"/>
         <source>No thanks</source>
         <translation>Não, obrigado</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="718"/>
+        <location filename="../mainwindow.cpp" line="724"/>
         <source>&amp;Resume</source>
         <translation>&amp;Retomar</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="730"/>
+        <location filename="../mainwindow.cpp" line="736"/>
         <source>You won!</source>
         <translation>Você venceu!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="730"/>
+        <location filename="../mainwindow.cpp" line="736"/>
         <source>Boom</source>
         <translation>Bum!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="733"/>
+        <location filename="../mainwindow.cpp" line="739"/>
         <source>You cleared the field in %1 seconds.</source>
         <translation>Você limpou o campo em %1 segundos.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="736"/>
+        <location filename="../mainwindow.cpp" line="742"/>
+        <source>🏃 No-flag run!</source>
+        <translation>🏃 Sem bandeiras!</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="746"/>
         <source>🏆 New record!</source>
         <translation>🏆 Novo recorde!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="743"/>
+        <location filename="../mainwindow.cpp" line="753"/>
         <source>You stepped on a mine.</source>
         <translation>Você pisou em uma mina.</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="71"/>
-        <location filename="../mainwindow.cpp" line="746"/>
+        <location filename="../mainwindow.cpp" line="756"/>
         <source>New Game</source>
         <translation>Novo jogo</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="747"/>
+        <location filename="../mainwindow.cpp" line="757"/>
         <source>Close</source>
         <translation>Fechar</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="779"/>
+        <location filename="../mainwindow.cpp" line="789"/>
         <source>Statistics</source>
         <translation>Estatísticas</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="784"/>
+        <location filename="../mainwindow.cpp" line="794"/>
         <source>Difficulty</source>
         <translation>Dificuldade</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="784"/>
+        <location filename="../mainwindow.cpp" line="794"/>
         <source>Played</source>
         <translation>Jogadas</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="784"/>
+        <location filename="../mainwindow.cpp" line="794"/>
         <source>Won</source>
         <translation>Vitórias</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="784"/>
+        <location filename="../mainwindow.cpp" line="794"/>
         <source>Best time</source>
         <translation>Melhor tempo</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="797"/>
+        <location filename="../mainwindow.cpp" line="794"/>
+        <source>Best (no flag)</source>
+        <translation>Recorde (sem bandeira)</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="807"/>
         <source>Beginner</source>
         <translation>Iniciante</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="798"/>
+        <location filename="../mainwindow.cpp" line="808"/>
         <source>Intermediate</source>
         <translation>Intermediário</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="799"/>
+        <location filename="../mainwindow.cpp" line="809"/>
         <source>Expert</source>
         <translation>Especialista</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="831"/>
+        <location filename="../mainwindow.cpp" line="842"/>
         <source>Reset all</source>
         <translation>Redefinir tudo</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="837"/>
+        <location filename="../mainwindow.cpp" line="848"/>
         <source>Reset statistics?</source>
         <translation>Redefinir estatísticas?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="837"/>
+        <location filename="../mainwindow.cpp" line="848"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>Apagar permanentemente todos os registros de partidas / vitórias / melhores tempos?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="857"/>
+        <location filename="../mainwindow.cpp" line="868"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;Compilado com Qt %1 em %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="858"/>
+        <location filename="../mainwindow.cpp" line="869"/>
         <source>About QMineSweeper</source>
         <translation>Sobre o QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="851"/>
+        <location filename="../mainwindow.cpp" line="862"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Um jogo Campo Minado baseado em Qt6.&lt;/p&gt;&lt;p&gt;Clique esquerdo para revelar, clique direito para marcar com bandeira, clique do meio sobre um número satisfeito para revelar os vizinhos.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>
@@ -319,7 +329,7 @@
 <context>
     <name>MineField</name>
     <message>
-        <location filename="../minefield.cpp" line="240"/>
+        <location filename="../minefield.cpp" line="243"/>
         <source>Paused</source>
         <translation>Pausado</translation>
     </message>

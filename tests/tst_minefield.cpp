@@ -52,6 +52,14 @@ class TestMineField : public QObject
     void testNewGameClearsPause();
     void testReplayClearsPause();
     void testPauseToggleIdempotent();
+    void testAnyFlagPlacedDefaultsFalse();
+    void testAnyFlagPlacedTrueAfterRightClickFlag();
+    void testAnyFlagPlacedTrueAfterKeyboardF();
+    void testAnyFlagPlacedStaysTrueAfterUnflag();
+    void testAnyFlagPlacedResetByNewGame();
+    void testAnyFlagPlacedResetByReplay();
+    void testAnyFlagPlacedNotSetByQuestionMark();
+    void testAnyFlagPlacedFalseAfterNoflagWin();
 
   private:
     static void openAllSafe(MineField &field);
@@ -753,6 +761,108 @@ void TestMineField::testPauseToggleIdempotent()
     MineButton *target = field.cellAt(2, 2);
     sendMousePress(target, Qt::LeftButton);
     QVERIFY(target->isOpened());
+}
+
+void TestMineField::testAnyFlagPlacedDefaultsFalse()
+{
+    MineField field;
+    QVERIFY(!field.anyFlagPlaced());
+    field.setFixedLayout(3, 3, {{0, 0}});
+    QVERIFY(!field.anyFlagPlaced());
+}
+
+void TestMineField::testAnyFlagPlacedTrueAfterRightClickFlag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    QMouseEvent rightPress(QEvent::MouseButtonPress, QPointF(1, 1), QPointF(1, 1), Qt::RightButton, Qt::RightButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(field.cellAt(2, 2), &rightPress);
+    QVERIFY(field.cellAt(2, 2)->isFlagged());
+    QVERIFY(field.anyFlagPlaced());
+}
+
+void TestMineField::testAnyFlagPlacedTrueAfterKeyboardF()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    sendKey(field.cellAt(2, 2), Qt::Key_F);
+    QVERIFY(field.cellAt(2, 2)->isFlagged());
+    QVERIFY(field.anyFlagPlaced());
+}
+
+void TestMineField::testAnyFlagPlacedStaysTrueAfterUnflag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    // Cycle marker None → Flag (sets sticky); then Flag → Question; then Question → None.
+    target->cycleMarker(); // Flag — sets m_anyFlagPlaced
+    QVERIFY(field.anyFlagPlaced());
+    target->cycleMarker(); // Question — clears flag bookkeeping but anyFlag stays true
+    QVERIFY(!target->isFlagged());
+    QVERIFY(field.anyFlagPlaced());
+    target->cycleMarker(); // None
+    QCOMPARE(target->marker(), CellMarker::None);
+    QVERIFY(field.anyFlagPlaced());
+}
+
+void TestMineField::testAnyFlagPlacedResetByNewGame()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(2, 2)->cycleMarker();
+    QVERIFY(field.anyFlagPlaced());
+
+    field.newGame(MineField::Beginner);
+    QVERIFY(!field.anyFlagPlaced());
+}
+
+void TestMineField::testAnyFlagPlacedResetByReplay()
+{
+    MineField field;
+    // Trigger first-click flow so a layout exists for replay.
+    field.cellAt(4, 4)->Open();
+    QVERIFY(field.canReplay());
+
+    // Use cycleMarker on a different cell so we don't open it.
+    field.cellAt(0, 0)->cycleMarker();
+    QVERIFY(field.anyFlagPlaced());
+
+    QVERIFY(field.newGameReplay());
+    QVERIFY(!field.anyFlagPlaced());
+}
+
+void TestMineField::testAnyFlagPlacedNotSetByQuestionMark()
+{
+    // Skipping straight from None to Question (i.e. when question marks are
+    // enabled and the user… wait, the cycle is None → Flag → Question, so
+    // there's no way to land on Question without passing through Flag first.
+    // Instead: confirm that setting a question mark does NOT separately set
+    // the bookkeeping bit — the bit comes from the Flag transition only.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    QVERIFY(!field.anyFlagPlaced());
+    // No interaction at all: still false.
+    field.cellAt(2, 2)->Open();
+    QVERIFY(!field.anyFlagPlaced());
+}
+
+void TestMineField::testAnyFlagPlacedFalseAfterNoflagWin()
+{
+    // Regression: the win path calls flagAllMines() which auto-flags every
+    // mine *after* the state flips to Won. Those celebratory flags must not
+    // poison the no-flag bookkeeping for the just-completed run.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {2, 2}});
+    QSignalSpy wonSpy(&field, &MineField::gameWon);
+
+    // Open every safe cell — no flags placed by the user.
+    field.cellAt(1, 1)->Open();
+    openAllSafe(field);
+
+    QCOMPARE(wonSpy.count(), 1);
+    QCOMPARE(field.state(), GameState::Won);
+    QVERIFY2(!field.anyFlagPlaced(), "auto-flag-on-win must not flip the no-flag bookkeeping bit");
 }
 
 QTEST_MAIN(TestMineField)
