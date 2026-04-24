@@ -60,6 +60,15 @@ class TestMineField : public QObject
     void testAnyFlagPlacedResetByReplay();
     void testAnyFlagPlacedNotSetByQuestionMark();
     void testAnyFlagPlacedFalseAfterNoflagWin();
+    void testBoardValueZeroBeforeMinesPlaced();
+    void testBoardValueSingleOpening();
+    void testBoardValueAllNumberedNoZeros();
+    void testBoardValueTwoSeparateOpenings();
+    void testBoardValueIsolatedNumberedCells();
+    void testBoardValueFullBoardOfMinesEdgeCase();
+    void testBoardValueResetByNewGame();
+    void testBoardValueComputedAfterFirstClick();
+    void testBoardValueReplayPreservesValue();
 
   private:
     static void openAllSafe(MineField &field);
@@ -863,6 +872,100 @@ void TestMineField::testAnyFlagPlacedFalseAfterNoflagWin()
     QCOMPARE(wonSpy.count(), 1);
     QCOMPARE(field.state(), GameState::Won);
     QVERIFY2(!field.anyFlagPlaced(), "auto-flag-on-win must not flip the no-flag bookkeeping bit");
+}
+
+void TestMineField::testBoardValueZeroBeforeMinesPlaced()
+{
+    MineField field;
+    QCOMPARE(field.boardValue(), 0);
+}
+
+void TestMineField::testBoardValueSingleOpening()
+{
+    // 5x5 with two corner mines: every safe cell is connected via zero cells,
+    // so the entire safe region is one opening. BV = 1.
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}, {4, 4}});
+    QCOMPARE(field.boardValue(), 1);
+}
+
+void TestMineField::testBoardValueAllNumberedNoZeros()
+{
+    // 3x3 with center mine: every surrounding cell has number 1 and there
+    // are no zero cells. BV = 8 (each non-mine must be clicked individually).
+    MineField field;
+    field.setFixedLayout(3, 3, {{1, 1}});
+    QCOMPARE(field.boardValue(), 8);
+}
+
+void TestMineField::testBoardValueTwoSeparateOpenings()
+{
+    // 7x3 with a horizontal wall of mines in row 3 separates the board into
+    // two zero regions (rows 0–1 and rows 5–6). Row 2 and row 4 are fringe
+    // numbered cells absorbed by their respective openings. BV = 2.
+    MineField field;
+    field.setFixedLayout(3, 7, {{3, 0}, {3, 1}, {3, 2}});
+    QCOMPARE(field.boardValue(), 2);
+}
+
+void TestMineField::testBoardValueIsolatedNumberedCells()
+{
+    // 5x5 with a horizontal wall of mines in row 1 cuts off row 0 from any
+    // zero region (row 2 is a fringe of the lower opening, but row 0 is
+    // separated by the mine wall — every row 0 cell is numbered and adjacent
+    // only to other numbered cells). One opening (rows 2–4) + 5 isolated
+    // row-0 numbered cells. BV = 1 + 5 = 6.
+    MineField field;
+    field.setFixedLayout(5, 5, {{1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4}});
+    QCOMPARE(field.boardValue(), 6);
+}
+
+void TestMineField::testBoardValueFullBoardOfMinesEdgeCase()
+{
+    // No safe cells → no clicks possible → BV = 0. Pathological layout (the
+    // game would never reach this), but compute3BV must not divide-by-zero
+    // or count phantoms.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {0, 1}, {0, 2}, {1, 0}, {1, 1}, {1, 2}, {2, 0}, {2, 1}, {2, 2}});
+    QCOMPARE(field.boardValue(), 0);
+}
+
+void TestMineField::testBoardValueResetByNewGame()
+{
+    // After a layout is in place, boardValue() is non-zero. newGame must
+    // wipe the cache back to zero (mines aren't placed yet on the new game).
+    MineField field;
+    field.setFixedLayout(3, 3, {{1, 1}});
+    QVERIFY(field.boardValue() > 0);
+    field.newGame(MineField::Beginner);
+    QCOMPARE(field.boardValue(), 0);
+}
+
+void TestMineField::testBoardValueComputedAfterFirstClick()
+{
+    // Realistic flow: fresh MineField has BV=0, the first click triggers
+    // mine placement and 3BV computation, after which BV must be ≥ 1
+    // (any non-empty Beginner board has at least one opening from the
+    // first-click safety zero zone).
+    MineField field;
+    field.newGame(MineField::Beginner);
+    QCOMPARE(field.boardValue(), 0);
+    QSignalSpy started(&field, &MineField::gameStarted);
+    field.cellAt(4, 4)->Open();
+    QCOMPARE(started.count(), 1);
+    QVERIFY(field.boardValue() >= 1);
+}
+
+void TestMineField::testBoardValueReplayPreservesValue()
+{
+    // Replays use the snapshotted mine positions, so BV must compute to the
+    // same value the original layout produced.
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}, {4, 4}});
+    const int initialBV = field.boardValue();
+    QVERIFY(initialBV >= 1);
+    QVERIFY(field.newGameReplay());
+    QCOMPARE(field.boardValue(), initialBV);
 }
 
 QTEST_MAIN(TestMineField)

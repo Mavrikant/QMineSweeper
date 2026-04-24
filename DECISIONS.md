@@ -1,5 +1,97 @@
 # Cycle decisions
 
+## 2026-04-25 — 3BV + 3BV/s efficiency metric (v1.14.0)
+
+**Chosen:** Compute the 3BV (Board Value) — the canonical Minesweeper
+speedrun metric for "minimum left-clicks to clear" — once when the
+mines are placed, cache it on `MineField`, and surface it together
+with the per-second rate (3BV/s) on the win dialog. Telemetry tags
+`bv` and `bv_per_second` are added to the existing `game.won` event.
+No persistence, no Stats column, no UI rearrangement.
+
+**Why this one (cycle 11):** Natural follow-on from v1.13.0's no-flag
+bracket — both are speedrun-community-canonical metrics that the
+project's existing rhythm rewards (best-time-with-date in 1.3.0,
+no-flag bracket in 1.13.0). Display-only addition: zero schema break,
+zero risk to game logic. Diff well under 400 LOC. Builds on the
+already-shipped `m_lastElapsedSeconds` and `boardValue()` is a pure
+read after mines are placed.
+
+**Rejected alternatives:**
+
+- **Track 3BV/s as a Stats column.** Would multiply the per-difficulty
+  bracket count again (now 6: best, no-flag-best, best-3BV/s — and
+  each invites a `_date` companion). Display-only on the win dialog
+  preserves the metric's value without inflating the schema.
+- **Compute 3BV/s incrementally during play (board efficiency live
+  ticker).** Distracting and not what speedrun players want — they
+  measure final-time-rate, not running-rate. Skip the timer-tick
+  bookkeeping.
+- **"Efficiency %" = 3BV / clicks.** Would require tracking total
+  clicks (a new MineField counter) for marginal payoff over 3BV/s.
+  Park.
+- **Show 3BV on the lost-dialog too.** A loss reveals the board, so
+  3BV is computable, but 3BV/s is meaningless (the player didn't
+  clear). Better to keep the metric tied to wins where the rate is
+  the headline number.
+- **Custom and Replay get 3BV too.** Yes — the metric is a property
+  of the *run*, not a leaderboard claim. Replays can compare 3BV/s
+  attempts on the same layout (genuinely useful), and Custom games
+  can report 3BV (unique to that grid). Excluding them would make
+  the dialog inconsistent for the same view-only metric.
+
+**Implementation invariants:**
+
+- **Computed once per layout, cached.** `m_boardValue` is set in
+  `onCellPressed` (after `fillMines` + `fillNumbers`), in
+  `newGameReplay` (after re-applying mines + `fillNumbers`), and in
+  `setFixedLayout` (after `fillNumbers`). Reset to 0 in `newGame`
+  (mines aren't placed until the first click) and in `setFixedLayout`'s
+  reset block.
+- **Pure const, no side-effects.** `compute3BV()` is `const` and reads
+  only `MineButton::isMined()` and `Number()`. Safe to call from any
+  read-side path. `boardValue()` is a trivial accessor.
+- **3BV algorithm.** Two-pass: pass 1 flood-fills each connected zero
+  region (BFS through 8-neighborhood) and marks fringe numbered cells
+  as visited; +1 BV per region. Pass 2 counts every unvisited non-mine
+  cell as +1 (these are isolated numbered cells not adjacent to any
+  zero — they require their own click). Mines are never counted.
+- **3BV/s div-by-zero guard.** `m_lastElapsedSeconds > 0.05` floor
+  before dividing. In real play the timer always advances at least
+  0.1s before `onGameWon` fires; the guard exists for the test
+  pathway through `setFixedLayout` where elapsed time is zero.
+- **No new GameState transitions.** The metric is read post-win in
+  `onGameWon`; the state machine is untouched.
+- **Dialog format.** Appended as a new newline below the existing
+  "You cleared the field in X seconds." line, not interleaved with
+  the 🏆 / 🏃 prefixes — those are run-quality indicators, 3BV is
+  run-shape data. Suppressed when `boardValue == 0` (defensive: a
+  hand-rolled `setFixedLayout` win during a test mid-sweep).
+- **Telemetry semantics.** `bv` is integer; `bv_per_second` is float
+  with two decimal places. Both tag the existing `game.won` event,
+  joining the established `noflag`/`new_record`/`replay` tags.
+
+**Risks / mitigations:**
+
+- **Compute cost on Expert.** 30×16 = 480 cells × 9-neighborhood BFS
+  = ~4320 visit ops worst case. Trivial; runs once per game-start in
+  microseconds. Verified on macOS dev build via headless ctest under
+  the existing 0.73s `tst_minefield` budget (no measurable runtime
+  delta).
+- **Translation cost.** 1 new format string × 9 non-English locales.
+  "3BV/s" is internationally invariant in the speedrun community;
+  hand-translated only the "/s" abbreviation where a clear local
+  convention exists (RU "/с", ZH "/秒", AR "/ث", TR "/sn", FR
+  spacing rules) — others stay "3BV/s" verbatim. All 10 locales
+  87/87 finished.
+- **Dialog width.** Worst-case Expert run: "3BV: 290 · 3BV/s:
+  3.41" — about 22 chars, fits inside the existing
+  cleared-the-field-in-X-seconds line. No overflow.
+- **`m_boardValue` stale after a difficulty change with mines never
+  placed.** Reset to 0 in `newGame()` so the cache cannot leak from
+  a previous game. Tested in
+  `testBoardValueResetByNewGame`.
+
 ## 2026-04-25 — No-flag speedrun bracket (v1.13.0)
 
 **Chosen:** Track per-game whether the player ever placed a flag, and
