@@ -55,7 +55,21 @@
     user surfaces an actual complaint.
 - **Risks logged:** none new. Emoji-font concerns from v1.8.0/1.9.0
   don't apply — tutorial uses plain Unicode only.
-- **Post-release watch (T+~5min):** [to be filled after release]
+- **Post-release watch (T+~5min):** Release workflow
+  [run 24900943307](https://github.com/Mavrikant/QMineSweeper/actions/runs/24900943307)
+  green across all three platforms; five assets published (Linux
+  AppImage 34.2 MB, Linux tar.gz 33.9 MB, macOS universal DMG 22.1 MB,
+  Windows x64 ZIP 42.0 MB, plus `SHA256SUMS.txt`). Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.10.0` in the last hour returned **zero
+  results**. Expected — assets were just published, telemetry is
+  opt-in, and no install has had a realistic chance to fire a session
+  yet. GitHub release body rewritten from the auto-generated stub
+  (222 → 2522 chars) to user-facing prose covering the six steps,
+  menu re-opener, downloads per-platform, and the macOS quarantine
+  note. Issue [#26](https://github.com/Mavrikant/QMineSweeper/issues/26)
+  auto-closed by the squash-merge commit message (`state_reason=completed`
+  at 2026-04-24T16:42:39Z). Watch closed.
 - **Next candidates:**
   - Pause / resume (P shortcut) with board-covering overlay.
   - Keyboard navigation (arrow keys + space/F) for accessibility.
