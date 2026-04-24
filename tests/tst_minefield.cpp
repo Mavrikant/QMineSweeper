@@ -35,9 +35,18 @@ class TestMineField : public QObject
     void testCustomDifficultyGridSize();
     void testCustomDifficultyFirstClickSafety();
     void testCustomDifficultyMineCountBoundary();
+    void testKeyboardArrowsMoveFocus();
+    void testKeyboardArrowsRespectBounds();
+    void testKeyboardSpaceRevealsCell();
+    void testKeyboardSpaceOnOpenedChords();
+    void testKeyboardFTogglesFlag();
+    void testKeyboardDChordsOpenedCell();
+    void testKeyboardSpaceOnFlaggedIsNoop();
+    void testKeyboardIgnoredAfterLoss();
 
   private:
     static void openAllSafe(MineField &field);
+    static void sendKey(MineButton *target, int key);
 };
 
 void TestMineField::testConstruction()
@@ -437,6 +446,160 @@ void TestMineField::testCustomDifficultyMineCountBoundary()
     }
     QCOMPARE(mines, 72u);
     QVERIFY(!field.cellAt(4, 4)->isMined());
+}
+
+void TestMineField::sendKey(MineButton *target, int key)
+{
+    QKeyEvent press(QEvent::KeyPress, key, Qt::NoModifier);
+    QCoreApplication::sendEvent(target, &press);
+}
+
+void TestMineField::testKeyboardArrowsMoveFocus()
+{
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}});
+    field.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&field));
+
+    MineButton *start = field.cellAt(2, 2);
+    start->setFocus(Qt::OtherFocusReason);
+    QCOMPARE(field.focusWidget(), start);
+
+    sendKey(start, Qt::Key_Right);
+    QCOMPARE(field.focusWidget(), field.cellAt(2, 3));
+
+    sendKey(field.cellAt(2, 3), Qt::Key_Down);
+    QCOMPARE(field.focusWidget(), field.cellAt(3, 3));
+
+    sendKey(field.cellAt(3, 3), Qt::Key_Left);
+    QCOMPARE(field.focusWidget(), field.cellAt(3, 2));
+
+    sendKey(field.cellAt(3, 2), Qt::Key_Up);
+    QCOMPARE(field.focusWidget(), field.cellAt(2, 2));
+}
+
+void TestMineField::testKeyboardArrowsRespectBounds()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{2, 2}});
+    field.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&field));
+
+    MineButton *corner = field.cellAt(0, 0);
+    corner->setFocus(Qt::OtherFocusReason);
+    QCOMPARE(field.focusWidget(), corner);
+
+    sendKey(corner, Qt::Key_Up);
+    QCOMPARE(field.focusWidget(), corner); // stays put, no wrap
+    sendKey(corner, Qt::Key_Left);
+    QCOMPARE(field.focusWidget(), corner);
+
+    MineButton *farCorner = field.cellAt(2, 2);
+    farCorner->setFocus(Qt::OtherFocusReason);
+    sendKey(farCorner, Qt::Key_Down);
+    QCOMPARE(field.focusWidget(), farCorner);
+    sendKey(farCorner, Qt::Key_Right);
+    QCOMPARE(field.focusWidget(), farCorner);
+}
+
+void TestMineField::testKeyboardSpaceRevealsCell()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    QVERIFY(!target->isOpened());
+
+    sendKey(target, Qt::Key_Space);
+    QVERIFY(target->isOpened());
+    // (2,2) has no mine neighbours, flood-fill opens the plateau.
+    QVERIFY(field.cellAt(1, 1)->isOpened());
+}
+
+void TestMineField::testKeyboardSpaceOnOpenedChords()
+{
+    MineField field;
+    // Mine at (0,0); (1,1) has number 1.
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(1, 1)->Open();
+    QCOMPARE(field.cellAt(1, 1)->Number(), 1u);
+
+    // Flag the mine.
+    field.cellAt(0, 0)->cycleMarker();
+    QVERIFY(field.cellAt(0, 0)->isFlagged());
+
+    // Space on opened (1,1) should chord and open all safe neighbours.
+    sendKey(field.cellAt(1, 1), Qt::Key_Space);
+    QVERIFY(field.cellAt(0, 1)->isOpened());
+    QVERIFY(field.cellAt(1, 0)->isOpened());
+    QVERIFY(field.cellAt(2, 0)->isOpened());
+    QVERIFY(field.cellAt(2, 2)->isOpened());
+    QVERIFY(!field.cellAt(0, 0)->isOpened()); // stays flagged
+}
+
+void TestMineField::testKeyboardFTogglesFlag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    QLabel label;
+    field.setMineCountLabel(&label);
+
+    MineButton *target = field.cellAt(2, 2);
+    QCOMPARE(label.text(), QString::number(1));
+
+    sendKey(target, Qt::Key_F);
+    QCOMPARE(target->marker(), CellMarker::Flag);
+    QCOMPARE(label.text(), QString::number(0));
+
+    sendKey(target, Qt::Key_F);
+    // Default: question marks enabled → second F goes to Question, not None.
+    QCOMPARE(target->marker(), CellMarker::Question);
+    QCOMPARE(label.text(), QString::number(1)); // flag cleared, mine count back up
+
+    sendKey(target, Qt::Key_F);
+    QCOMPARE(target->marker(), CellMarker::None);
+}
+
+void TestMineField::testKeyboardDChordsOpenedCell()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(1, 1)->Open();
+    field.cellAt(0, 0)->cycleMarker(); // flag
+
+    sendKey(field.cellAt(1, 1), Qt::Key_D);
+    QVERIFY(field.cellAt(0, 1)->isOpened());
+    QVERIFY(field.cellAt(2, 2)->isOpened());
+}
+
+void TestMineField::testKeyboardSpaceOnFlaggedIsNoop()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    target->cycleMarker(); // flag it
+    QVERIFY(target->isFlagged());
+
+    sendKey(target, Qt::Key_Space);
+    QVERIFY(!target->isOpened()); // flag protects from reveal
+    QVERIFY(target->isFlagged());
+}
+
+void TestMineField::testKeyboardIgnoredAfterLoss()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(0, 0)->Open(); // boom
+    QCOMPARE(field.state(), GameState::Lost);
+
+    MineButton *safe = field.cellAt(2, 2);
+    QVERIFY(!safe->isOpened());
+    sendKey(safe, Qt::Key_F);
+    QCOMPARE(safe->marker(), CellMarker::None); // F ignored after loss
+    sendKey(safe, Qt::Key_Space);
+    // Note: after Lost, handleCellKey returns false for Space, so the event
+    // falls through to QPushButton. But QAbstractButton activation calls
+    // clicked() which nothing is wired to; cell remains un-opened either way.
+    QVERIFY(!safe->isOpened());
 }
 
 QTEST_MAIN(TestMineField)

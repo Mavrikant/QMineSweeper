@@ -20,6 +20,9 @@ class MineButton : public QPushButton
 
     explicit MineButton(std::uint32_t row, std::uint32_t col, QWidget *parent = nullptr);
 
+    [[nodiscard]] std::uint32_t row() const noexcept;
+    [[nodiscard]] std::uint32_t col() const noexcept;
+
     void setNumber(std::uint32_t number);
     [[nodiscard]] std::uint32_t Number() const noexcept;
 
@@ -33,6 +36,11 @@ class MineButton : public QPushButton
     [[nodiscard]] bool isOpened() const noexcept;
 
     void Open();
+    // Advance the marker state (None → Flag → Question → None, or
+    // None → Flag → None when question marks are disabled). Emits
+    // flagToggled on Flag-on / Flag-off transitions. Called internally
+    // on right-click; also used by the keyboard-navigation path.
+    void cycleMarker();
     void setCellEnabled(bool enabled) noexcept;
     void revealAsMine();
     void revealAsWrongFlag();
@@ -64,9 +72,9 @@ class MineButton : public QPushButton
   protected:
     void mousePressEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
+    void paintEvent(QPaintEvent *e) override;
 
   private:
-    void cycleMarker();
     void applyBaseStyle();
     void applyOpenedStyle();
     void renderMarker();

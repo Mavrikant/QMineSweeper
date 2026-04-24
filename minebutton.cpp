@@ -5,6 +5,8 @@
 #include <QFont>
 #include <QIcon>
 #include <QMouseEvent>
+#include <QPainter>
+#include <QPen>
 #include <QSizePolicy>
 #include <QString>
 
@@ -54,8 +56,16 @@ MineButton::MineButton(std::uint32_t row, std::uint32_t col, QWidget *parent) : 
     setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Minimum);
     setFont(QFont{"Arial", 12, QFont::Bold});
     setCursor(Qt::PointingHandCursor);
+    // Explicit StrongFocus so keyboard navigation works uniformly across
+    // platforms (macOS defaults to Qt::TabFocus for push buttons, which
+    // would make arrow-key navigation inconsistent with Linux/Windows).
+    setFocusPolicy(Qt::StrongFocus);
     applyBaseStyle();
 }
+
+std::uint32_t MineButton::row() const noexcept { return m_row; }
+
+std::uint32_t MineButton::col() const noexcept { return m_col; }
 
 void MineButton::applyBaseStyle() { setStyleSheet(((m_row + m_col) % 2) ? kOddCellStyle : kEvenCellStyle); }
 
@@ -282,4 +292,21 @@ void MineButton::mouseReleaseEvent(QMouseEvent *e)
     // so an unmatched pressEnd (e.g. after a right-click-only press that never
     // emitted pressStart) is a harmless no-op.
     emit pressEnd();
+}
+
+void MineButton::paintEvent(QPaintEvent *e)
+{
+    QPushButton::paintEvent(e);
+    if (!hasFocus())
+    {
+        return;
+    }
+    // Keyboard-focus indicator. The cell stylesheet uses border: 0 and suppresses
+    // the native focus ring; draw a thin inset rectangle so keyboard users can
+    // see which cell is selected.
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing, false);
+    p.setPen(QPen(QColor(40, 90, 200), 2));
+    p.setBrush(Qt::NoBrush);
+    p.drawRect(1, 1, width() - 2, height() - 2);
 }

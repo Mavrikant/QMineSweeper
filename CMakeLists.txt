@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 project(QMineSweeper
-    VERSION 1.10.0
+    VERSION 1.11.0
     DESCRIPTION "A Qt6-based Minesweeper game"
     HOMEPAGE_URL "https://github.com/Mavrikant/QMineSweeper"
     LANGUAGES CXX

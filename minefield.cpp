@@ -1,5 +1,7 @@
 #include "minefield.h"
 
+#include <QEvent>
+#include <QKeyEvent>
 #include <QSizePolicy>
 
 #include <algorithm>
@@ -157,6 +159,115 @@ void MineField::wireButton(MineButton *button)
     connect(button, &MineButton::chordRequested, this, &MineField::onChordRequested);
     connect(button, &MineButton::pressStart, this, &MineField::cellInteractionStarted);
     connect(button, &MineButton::pressEnd, this, &MineField::cellInteractionEnded);
+    button->installEventFilter(this);
+}
+
+bool MineField::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress)
+    {
+        if (auto *cell = qobject_cast<MineButton *>(watched))
+        {
+            auto *ke = static_cast<QKeyEvent *>(event);
+            if (handleCellKey(cell, ke->key()))
+            {
+                return true;
+            }
+        }
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+bool MineField::handleCellKey(MineButton *cell, int key)
+{
+    if (m_state == GameState::Won || m_state == GameState::Lost)
+    {
+        // Board is frozen; let arrow keys still move focus so the user can
+        // look at cells, but swallow action keys so they can't re-enter logic.
+        switch (key)
+        {
+        case Qt::Key_Up:
+        case Qt::Key_Down:
+        case Qt::Key_Left:
+        case Qt::Key_Right:
+            break;
+        default:
+            return false;
+        }
+    }
+
+    const std::uint32_t r = cell->row();
+    const std::uint32_t c = cell->col();
+
+    switch (key)
+    {
+    case Qt::Key_Up:
+        if (r > 0)
+        {
+            focusCell(r - 1, c);
+        }
+        return true;
+    case Qt::Key_Down:
+        if (r + 1 < m_difficulty.height)
+        {
+            focusCell(r + 1, c);
+        }
+        return true;
+    case Qt::Key_Left:
+        if (c > 0)
+        {
+            focusCell(r, c - 1);
+        }
+        return true;
+    case Qt::Key_Right:
+        if (c + 1 < m_difficulty.width)
+        {
+            focusCell(r, c + 1);
+        }
+        return true;
+    case Qt::Key_Space:
+    case Qt::Key_Return:
+    case Qt::Key_Enter:
+        // Space/Enter on an opened numbered cell chords, matching mouse UX
+        // (middle-click / left+right). On an unopened non-flag cell it reveals.
+        // On a flagged cell it is a deliberate no-op — mirrors left-click.
+        if (cell->isOpened())
+        {
+            onChordRequested(r, c);
+        }
+        else if (!cell->isFlagged())
+        {
+            cell->Open();
+        }
+        return true;
+    case Qt::Key_F:
+        // Toggle marker, same cycle as right-click.
+        cell->cycleMarker();
+        return true;
+    case Qt::Key_D:
+        // Chord-only shortcut for keyboard users — the Space path auto-picks
+        // reveal vs. chord based on opened state; D forces chord. Matches the
+        // middle-click affordance for players who memorise the opened state.
+        if (cell->isOpened())
+        {
+            onChordRequested(r, c);
+        }
+        return true;
+    default:
+        return false;
+    }
+}
+
+void MineField::focusCell(std::uint32_t row, std::uint32_t col)
+{
+    if (row >= m_difficulty.height || col >= m_difficulty.width)
+    {
+        return;
+    }
+    if (auto *target = m_buttons[row][col])
+    {
+        target->setFocus(Qt::TabFocusReason);
+    }
 }
 
 void MineField::fillMines(std::uint32_t safeRow, std::uint32_t safeCol)
