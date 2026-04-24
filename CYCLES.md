@@ -1,5 +1,117 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 11 — v1.14.0 (autonomous)
+
+- **Chosen problem:** No efficiency metric on the win dialog. The
+  project has been leaning speedrun-aware for several cycles
+  (best-time-with-date in 1.3.0, no-flag bracket in 1.13.0) but it
+  still didn't surface 3BV — the canonical Minesweeper community
+  measure of how hard the board was — or 3BV/s, the per-second
+  efficiency rate that tournaments worldwide use as the single-number
+  skill measure. Natural follow-on to v1.13.0; display-only, no Stats
+  schema break, no risk to game logic.
+- **Evidence:** No `compute3BV`/`boardValue`/`bv` anywhere in tree.
+  `MainWindow::onGameWon` already had `m_lastElapsedSeconds`; the only
+  missing piece was a board-side number to divide by. Standard in
+  Minesweeper Online, Minesweeper Arbiter, Active Minesweeper.
+- **Shipped:**
+  - Branch: `feat/3bv-metric` (squash-merged + deleted)
+  - PR: [#32](https://github.com/Mavrikant/QMineSweeper/pull/32)
+  - Tag: `v1.14.0`
+  - Release: [v1.14.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.14.0)
+- **Diff shape:** 18 files, +763/-375 LOC — ~108 of which is
+  `MineField::compute3BV` + integration (4 wire-points: newGame reset,
+  onCellPressed, newGameReplay, setFixedLayout), 12 in the header,
+  ~20 in `MainWindow` (dialog format + telemetry tags), 103 in
+  `tests/tst_minefield.cpp` (9 new cases), 92 in `DECISIONS.md`,
+  9 in `apply_translations.py`, and the rest is `.ts` regeneration
+  across 10 locales. Productive slice (C++ + tests) ~245 LOC, well
+  under the 400-LOC cycle cap.
+- **Translation cost:** 1 new format string × 9 non-English locales
+  = 9 hand translations. "3BV" is invariant in the speedrun
+  community; the "/s" abbreviation is locale-aware where conventions
+  exist (RU `/с`, ZH `/秒`, AR `/ث`, TR `/sn`, FR spacing rules) —
+  others stay `/s` per international convention. All 10 locales now
+  87/87 finished, 0 unfinished.
+- **Assumptions made:**
+  - **Two-pass BFS algorithm.** Pass 1 flood-fills each connected
+    zero-region through the 8-neighborhood (`std::queue` with a
+    visited bitmap), counting one BV per region and marking the
+    numbered fringe cells visited along the way. Pass 2 sweeps for
+    every remaining unvisited non-mine cell — those are isolated
+    numbered cells not adjacent to any zero, and each requires its
+    own click. Mines are never counted. Result matches the
+    speedrun-community canonical 3BV definition.
+  - **Computed once at mine placement, cached.** `m_boardValue` is
+    set in three places — `onCellPressed` (after `fillMines` +
+    `fillNumbers`), `newGameReplay` (after re-applying mines +
+    `fillNumbers`), and `setFixedLayout` (same). Reset to 0 in
+    `newGame()` so the cache cannot leak from a prior game. Pure
+    `const` read after that.
+  - **3BV/s div-by-zero guard at 0.05s.** Real play always crosses
+    the 0.1s timer-tick before `onGameWon` fires; the floor is for
+    the test pathway through `setFixedLayout` where elapsed time
+    can be exactly zero.
+  - **Replay and Custom wins get the metric too.** It's a property
+    of the *run*, not a leaderboard claim. Excluding them would
+    make the dialog feel inconsistent for what's view-only data;
+    Replay-vs-Replay 3BV/s comparisons on the same layout are
+    genuinely useful for self-coaching.
+  - **No Stats column.** Already 5 columns after v1.13.0; adding a
+    6th (and its `_date` companion) for a per-run-shape number
+    would inflate the bracket count without value. Display-only on
+    the dialog preserves the metric without the schema cost.
+  - **No live ticker during play.** Speedrunners measure
+    final-time-rate, not running-rate; a live `displayTimer`-driven
+    update would distract more than inform.
+  - **Telemetry additive.** `bv` (int) and `bv_per_second` (float,
+    2dp) join the existing `noflag`/`new_record`/`replay` tags on
+    the `game.won` event. No new event type.
+  - **Suppressed on `bv == 0`.** Defensive: a hand-rolled
+    `setFixedLayout` win during a test mid-sweep can technically
+    reach `onGameWon` with bv = 0; the dialog skips the line in
+    that case rather than printing "3BV: 0 · 3BV/s: 0.00".
+- **Skipped:**
+  - *Save-and-resume games across launches.* Still bigger
+    (board-state + marker-state + timer-offset serialization +
+    QSettings schema bump); parked for a future cycle.
+  - *Overlay-with-bubbles tutorial upgrade.* Cosmetic; no
+    complaints since v1.10.0.
+  - *Undo last action.* Risky — interacts with first-click safety
+    and mine placement timing; also undermines the no-flag bracket
+    semantics. Park.
+  - *Efficiency % (3BV / clicks).* Would need a click counter on
+    `MineField` for marginal payoff over 3BV/s. Park for a
+    follow-on cycle if a click-count is wanted for other reasons.
+  - *3BV in Stats column.* Captured under "Assumptions made" — the
+    schema cost was the dominant reason.
+- **Risks logged:** none new. Worst-case Expert compute is 480 cells
+  × 9-neighborhood BFS = ~4320 visit ops, runs once at game start in
+  microseconds — measured no detectable runtime delta in the existing
+  `tst_minefield` 0.73s budget.
+- **Post-release watch (T+~3min):** Release workflow
+  [run 24917034512](https://github.com/Mavrikant/QMineSweeper/actions/runs/24917034512)
+  green across all three platforms in ~1m42s; five assets published
+  (Linux AppImage 35.9 MB, Linux tar.gz 35.5 MB, macOS universal DMG
+  23.2 MB, Windows x64 ZIP 44.1 MB, plus `SHA256SUMS.txt`). Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.14.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and assets were just
+  published, no install has had a chance to fire a session yet.
+  GitHub release body rewritten from the auto-generated stub to
+  user-facing prose covering the metric definition, the dialog
+  format, per-platform downloads, and the macOS quarantine note.
+  Watch closed.
+- **Next candidates:**
+  - Save-and-resume games across launches (parked across multiple
+    cycles — would need board-state + marker-state + timer-offset
+    serialization).
+  - Efficiency % via click-count (small follow-on if 3BV/s sees
+    user interest).
+  - Per-layout best-time leaderboard (would need a hash of the
+    mine positions + a new persistence schema; bigger).
+  - Overlay-with-bubbles tutorial upgrade (still no complaints).
+
 ## 2026-04-25 — Cycle 10 — v1.12.0 (autonomous)
 
 - **Chosen problem:** Timed runs could be interrupted mid-game (phone
