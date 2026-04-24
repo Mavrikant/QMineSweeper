@@ -8,6 +8,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <queue>
 #include <random>
 
 namespace
@@ -35,6 +36,7 @@ void MineField::newGame(Difficulty diff)
     m_minesPlaced = false;
     m_paused = false;
     m_anyFlagPlaced = false;
+    m_boardValue = 0;
     m_lastMinePositions.clear();
 
     clearGrid();
@@ -85,6 +87,7 @@ bool MineField::newGameReplay()
         }
     }
     fillNumbers();
+    m_boardValue = compute3BV();
 
     updateMineCountLabel();
     emit mineCountChanged(remainingMines());
@@ -216,6 +219,8 @@ bool MineField::eventFilter(QObject *watched, QEvent *event)
 bool MineField::isPaused() const noexcept { return m_paused; }
 
 bool MineField::anyFlagPlaced() const noexcept { return m_anyFlagPlaced; }
+
+int MineField::boardValue() const noexcept { return m_boardValue; }
 
 void MineField::setPaused(bool paused)
 {
@@ -440,6 +445,7 @@ void MineField::onCellPressed(std::uint32_t row, std::uint32_t col)
     {
         fillMines(row, col);
         fillNumbers();
+        m_boardValue = compute3BV();
         m_minesPlaced = true;
     }
     m_state = GameState::Playing;
@@ -648,6 +654,7 @@ void MineField::setFixedLayout(std::uint32_t width, std::uint32_t height, const 
     m_flagCount = 0;
     m_paused = false;
     m_anyFlagPlaced = false;
+    m_boardValue = 0;
     m_minesPlaced = true;
 
     clearGrid();
@@ -668,6 +675,107 @@ void MineField::setFixedLayout(std::uint32_t width, std::uint32_t height, const 
         }
     }
     fillNumbers();
+    m_boardValue = compute3BV();
     updateMineCountLabel();
     emit mineCountChanged(remainingMines());
+}
+
+int MineField::compute3BV() const
+{
+    // 3BV = minimum number of left-clicks to clear the board, assuming no
+    // flags or chords. Two contributions:
+    //   1. Each connected component of zero-count cells (and the numbered
+    //      cells on its border, which auto-open with the flood) counts as 1.
+    //      A single click anywhere in the component opens the whole region.
+    //   2. Every numbered cell that is NOT adjacent to any zero must be
+    //      clicked individually — +1 per such cell.
+    // Mines are excluded; the player never has to click them.
+    const auto h = m_difficulty.height;
+    const auto w = m_difficulty.width;
+    if (h == 0 || w == 0)
+    {
+        return 0;
+    }
+    if (m_buttons.size() != h)
+    {
+        return 0;
+    }
+
+    std::vector<std::vector<bool>> visited(h, std::vector<bool>(w, false));
+    int bv = 0;
+
+    // Pass 1: flood-fill each zero-region opening; +1 per region. Mark every
+    // cell touched by the flood (zeros and their numbered fringe) as visited
+    // so pass 2 doesn't double-count fringe cells.
+    for (std::uint32_t r = 0; r < h; ++r)
+    {
+        for (std::uint32_t c = 0; c < w; ++c)
+        {
+            const auto *cell = m_buttons[r][c];
+            if (cell == nullptr || cell->isMined() || visited[r][c])
+            {
+                continue;
+            }
+            if (cell->Number() != 0)
+            {
+                continue;
+            }
+            std::queue<std::pair<std::uint32_t, std::uint32_t>> q;
+            q.emplace(r, c);
+            visited[r][c] = true;
+            while (!q.empty())
+            {
+                auto [rr, cc] = q.front();
+                q.pop();
+                for (int dr = -1; dr <= 1; ++dr)
+                {
+                    for (int dc = -1; dc <= 1; ++dc)
+                    {
+                        if (dr == 0 && dc == 0)
+                        {
+                            continue;
+                        }
+                        const int nr = static_cast<int>(rr) + dr;
+                        const int nc = static_cast<int>(cc) + dc;
+                        if (!inBounds(nr, nc, h, w))
+                        {
+                            continue;
+                        }
+                        if (visited[nr][nc])
+                        {
+                            continue;
+                        }
+                        const auto *n = m_buttons[nr][nc];
+                        if (n == nullptr || n->isMined())
+                        {
+                            continue;
+                        }
+                        visited[nr][nc] = true;
+                        // Flood continues only through zero cells; numbered
+                        // neighbours mark the fringe — visited but not enqueued.
+                        if (n->Number() == 0)
+                        {
+                            q.emplace(static_cast<std::uint32_t>(nr), static_cast<std::uint32_t>(nc));
+                        }
+                    }
+                }
+            }
+            ++bv;
+        }
+    }
+
+    // Pass 2: every remaining unvisited non-mine cell is a numbered cell
+    // isolated from any zero region — must be clicked on its own.
+    for (std::uint32_t r = 0; r < h; ++r)
+    {
+        for (std::uint32_t c = 0; c < w; ++c)
+        {
+            const auto *cell = m_buttons[r][c];
+            if (cell != nullptr && !cell->isMined() && !visited[r][c])
+            {
+                ++bv;
+            }
+        }
+    }
+    return bv;
 }

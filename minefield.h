@@ -73,6 +73,16 @@ class MineField : public QWidget
     // wins toward the per-difficulty no-flag best-time record.
     [[nodiscard]] bool anyFlagPlaced() const noexcept;
 
+    // Board value (3BV): the minimum number of left-clicks required to clear
+    // the current board, assuming optimal play with no flags or chords. Each
+    // connected zero-count region (an "opening") contributes 1, plus one for
+    // every numbered cell that is not adjacent to any zero. Computed once when
+    // mines are placed and cached. Returns 0 before mines have been placed
+    // (i.e. while still in Ready before the first click). Used by MainWindow
+    // to surface the canonical Minesweeper speedrun efficiency metric (3BV/s)
+    // on the win dialog.
+    [[nodiscard]] int boardValue() const noexcept;
+
     void setMineCountLabel(QLabel *label);
 
     // Sweep the live board and reset any Question-marked cell to None. Used when
@@ -117,6 +127,7 @@ class MineField : public QWidget
     void wireButton(MineButton *button);
     void fillMines(std::uint32_t safeRow, std::uint32_t safeCol);
     void fillNumbers();
+    int compute3BV() const;
     void revealAllMines();
     void flagAllMines();
     void freezeAllCells();
@@ -137,6 +148,7 @@ class MineField : public QWidget
     bool m_minesPlaced{false};
     bool m_paused{false};
     bool m_anyFlagPlaced{false};
+    int m_boardValue{0};
     std::vector<std::pair<std::uint32_t, std::uint32_t>> m_lastMinePositions;
 };
 

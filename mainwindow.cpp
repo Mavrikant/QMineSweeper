@@ -504,14 +504,20 @@ void MainWindow::onGameWon()
     {
         Stats::recordNoflagBest(diffName, m_lastElapsedSeconds);
     }
+    const int bv = ui->mineFieldWidget->boardValue();
+    // Guard against div-by-zero on a sub-tick win (pathological setFixedLayout
+    // case in tests; in real play the timer always advances at least 0.1s).
+    const double bvRate = (m_lastElapsedSeconds > 0.05) ? (bv / m_lastElapsedSeconds) : 0.0;
     Telemetry::recordEvent(QStringLiteral("game.won"), {
                                                            {QStringLiteral("difficulty"), diffName},
                                                            {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                            {QStringLiteral("new_record"), newRecord ? QStringLiteral("true") : QStringLiteral("false")},
                                                            {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                            {QStringLiteral("noflag"), noflagWin ? QStringLiteral("true") : QStringLiteral("false")},
+                                                           {QStringLiteral("bv"), QString::number(bv)},
+                                                           {QStringLiteral("bv_per_second"), QString::asprintf("%.2f", bvRate)},
                                                        });
-    showEndDialog(true, newRecord, noflagWin);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -532,7 +538,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                             {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false);
+    showEndDialog(false, false, false, 0, 0.0);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -730,13 +736,21 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(QString::asprintf("%05.1f", secs));
 }
 
-void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin)
+void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
     if (won)
     {
         QString text = tr("You cleared the field in %1 seconds.").arg(QString::asprintf("%.1f", m_lastElapsedSeconds));
+        // Speedrun efficiency footer — 3BV is the canonical Minesweeper board
+        // value (minimum left-clicks to clear); 3BV/s is the per-second rate.
+        // Always shown on wins regardless of replay/custom — it's a property
+        // of the run itself, not a leaderboard claim.
+        if (boardValue > 0)
+        {
+            text += QStringLiteral("\n") + tr("3BV: %1 · 3BV/s: %2").arg(boardValue).arg(QString::asprintf("%.2f", bvPerSecond));
+        }
         if (noflagWin)
         {
             text.prepend(tr("🏃 No-flag run!") + QStringLiteral("  "));
