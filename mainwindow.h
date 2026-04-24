@@ -36,6 +36,7 @@ class MainWindow : public QMainWindow
     void onGameLost(std::uint32_t row, std::uint32_t col);
     void showAboutDialog();
     void showStatsDialog();
+    void showTutorialDialog();
     void toggleTelemetry(bool enabled);
     void onLanguageChosen(const QString &code);
     void toggleQuestionMarks(bool enabled);

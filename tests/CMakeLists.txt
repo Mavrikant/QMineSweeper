@@ -9,6 +9,7 @@ add_library(QMineSweeperCore STATIC
     ../minebutton.cpp
     ../minefield.cpp
     ../stats.cpp
+    ../tutorial.cpp
 )
 target_include_directories(QMineSweeperCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries(QMineSweeperCore PUBLIC Qt6::Widgets)
@@ -39,3 +40,4 @@ qms_add_test(tst_minebutton)
 qms_add_test(tst_minefield)
 qms_add_test(tst_stats)
 qms_add_test(tst_smiley)
+qms_add_test(tst_tutorial)

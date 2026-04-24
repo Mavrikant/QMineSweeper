@@ -4,6 +4,7 @@
 #include "language.h"
 #include "stats.h"
 #include "telemetry.h"
+#include "tutorial.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -127,6 +128,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_uniq
     setFixedSize(sizeHint());
 
     maybeAskTelemetryConsent();
+
+    // First-run tutorial: show once on the initial launch for each install.
+    // Deferred so the main window has a chance to paint underneath.
+    if (!Tutorial::isCompleted())
+    {
+        QTimer::singleShot(0, this, &MainWindow::showTutorialDialog);
+    }
 }
 
 MainWindow::~MainWindow() = default;
@@ -243,6 +251,22 @@ void MainWindow::buildMenus()
     if (ui->actionAbout)
     {
         connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
+    }
+
+    // Help → Tutorial (always re-openable, regardless of first-run flag).
+    if (ui->menuHelp)
+    {
+        auto *tutorialAction = new QAction(tr("&Tutorial"), this);
+        connect(tutorialAction, &QAction::triggered, this, &MainWindow::showTutorialDialog);
+        // Insert before About if present so the order is Tutorial / About.
+        if (ui->actionAbout)
+        {
+            ui->menuHelp->insertAction(ui->actionAbout, tutorialAction);
+        }
+        else
+        {
+            ui->menuHelp->addAction(tutorialAction);
+        }
     }
 }
 
@@ -632,6 +656,26 @@ void MainWindow::showEndDialog(bool won, bool newRecord)
     {
         onNewGame();
     }
+}
+
+void MainWindow::showTutorialDialog()
+{
+    TutorialDialog dlg(this);
+    connect(&dlg, &TutorialDialog::completed,
+            []
+            {
+                Tutorial::markCompleted();
+                Telemetry::recordEvent(QStringLiteral("tutorial.completed"), {});
+            });
+    connect(&dlg, &TutorialDialog::skipped,
+            []
+            {
+                // Mark completed on skip too — the whole point is not to re-prompt
+                // on every launch once the user has declined once.
+                Tutorial::markCompleted();
+                Telemetry::recordEvent(QStringLiteral("tutorial.skipped"), {});
+            });
+    dlg.exec();
 }
 
 void MainWindow::showStatsDialog()
