@@ -6,10 +6,10 @@
     <message>
         <location filename="../mainwindow.ui" line="20"/>
         <location filename="../mainwindow.cpp" line="124"/>
-        <location filename="../mainwindow.cpp" line="283"/>
-        <location filename="../mainwindow.cpp" line="300"/>
-        <location filename="../mainwindow.cpp" line="319"/>
-        <location filename="../mainwindow.cpp" line="351"/>
+        <location filename="../mainwindow.cpp" line="290"/>
+        <location filename="../mainwindow.cpp" line="308"/>
+        <location filename="../mainwindow.cpp" line="328"/>
+        <location filename="../mainwindow.cpp" line="361"/>
         <source>QMineSweeper</source>
         <translation></translation>
     </message>
@@ -49,260 +49,279 @@
         <translation>&amp;वही खाका फिर से खेलें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="157"/>
+        <location filename="../mainwindow.cpp" line="155"/>
+        <location filename="../mainwindow.cpp" line="718"/>
+        <source>&amp;Pause</source>
+        <translation>&amp;रोकें</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="163"/>
         <source>&amp;Difficulty</source>
         <translation>&amp;कठिनाई</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="170"/>
+        <location filename="../mainwindow.cpp" line="176"/>
         <source>&amp;Beginner  (9×9, 10 mines)</source>
         <translation>&amp;शुरुआती  (9×9, 10 माइन)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="171"/>
+        <location filename="../mainwindow.cpp" line="177"/>
         <source>&amp;Intermediate  (16×16, 40 mines)</source>
         <translation>&amp;मध्यम  (16×16, 40 माइन)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="172"/>
+        <location filename="../mainwindow.cpp" line="178"/>
         <source>&amp;Expert  (30×16, 99 mines)</source>
         <translation>&amp;विशेषज्ञ  (30×16, 99 माइन)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="186"/>
+        <location filename="../mainwindow.cpp" line="192"/>
         <source>&amp;Custom…</source>
         <translation>&amp;कस्टम…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="195"/>
+        <location filename="../mainwindow.cpp" line="201"/>
         <source>&amp;Statistics…</source>
         <translation>&amp;आँकड़े…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="201"/>
+        <location filename="../mainwindow.cpp" line="207"/>
         <source>&amp;Quit</source>
         <translation>&amp;बाहर निकलें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="206"/>
+        <location filename="../mainwindow.cpp" line="212"/>
         <source>&amp;Settings</source>
         <translation>&amp;सेटिंग्स</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="209"/>
+        <location filename="../mainwindow.cpp" line="215"/>
         <source>&amp;Language</source>
         <translation>&amp;भाषा</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="227"/>
+        <location filename="../mainwindow.cpp" line="233"/>
         <source>Auto (system)</source>
         <translation>स्वतः (सिस्टम)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="235"/>
+        <location filename="../mainwindow.cpp" line="241"/>
         <source>Enable &amp;question marks</source>
         <translation>&amp;प्रश्न चिह्न सक्षम करें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="244"/>
+        <location filename="../mainwindow.cpp" line="250"/>
         <source>Send anonymous &amp;crash reports and usage data</source>
         <translation>अनाम &amp;क्रैश रिपोर्ट और उपयोग डेटा भेजें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="259"/>
+        <location filename="../mainwindow.cpp" line="265"/>
         <source>&amp;Tutorial</source>
         <translation>&amp;ट्यूटोरियल</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="365"/>
+        <location filename="../mainwindow.cpp" line="375"/>
         <source>Custom difficulty</source>
         <translation>कस्टम कठिनाई</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="373"/>
+        <location filename="../mainwindow.cpp" line="383"/>
         <source>Width:</source>
         <translation>चौड़ाई:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="378"/>
+        <location filename="../mainwindow.cpp" line="388"/>
         <source>Height:</source>
         <translation>ऊँचाई:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="395"/>
+        <location filename="../mainwindow.cpp" line="405"/>
         <source>Mines:</source>
         <translation>माइन:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="455"/>
+        <location filename="../mainwindow.cpp" line="467"/>
         <source>QMineSweeper — Playing</source>
         <translation>QMineSweeper — खेल जारी है</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="476"/>
+        <location filename="../mainwindow.cpp" line="493"/>
         <source>QMineSweeper — You won!</source>
         <translation>QMineSweeper — आप जीत गए!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="500"/>
+        <location filename="../mainwindow.cpp" line="518"/>
         <source>QMineSweeper — Boom</source>
         <translation>QMineSweeper — धमाका!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="542"/>
+        <location filename="../mainwindow.cpp" line="560"/>
         <source>Language changed</source>
         <translation>भाषा बदली गई</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="544"/>
+        <location filename="../mainwindow.cpp" line="562"/>
         <source>Language changes take effect after restart.</source>
         <translation>भाषा परिवर्तन पुनः आरंभ के बाद लागू होंगे।</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="545"/>
+        <location filename="../mainwindow.cpp" line="563"/>
         <source>Restart QMineSweeper now?</source>
         <translation>क्या अभी QMineSweeper को पुनः आरंभ करें?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="546"/>
+        <location filename="../mainwindow.cpp" line="564"/>
         <source>Restart now</source>
         <translation>अभी पुनः आरंभ करें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="547"/>
+        <location filename="../mainwindow.cpp" line="565"/>
         <source>Later</source>
         <translation>बाद में</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="569"/>
+        <location filename="../mainwindow.cpp" line="587"/>
         <source>Help improve QMineSweeper</source>
         <translation>QMineSweeper को बेहतर बनाने में मदद करें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="571"/>
+        <location filename="../mainwindow.cpp" line="589"/>
         <source>Would you like to send anonymous crash reports and usage data?</source>
         <translation>क्या आप अनाम क्रैश रिपोर्ट और उपयोग डेटा भेजना चाहेंगे?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="572"/>
+        <location filename="../mainwindow.cpp" line="590"/>
         <source>We collect: app crashes, game results (win/loss, duration, difficulty), OS name, CPU architecture, Qt version, and an anonymous install ID.&lt;br/&gt;&lt;br/&gt;We do &lt;b&gt;not&lt;/b&gt; collect: your name, email, IP address, file paths, or any in-game actions.&lt;br/&gt;&lt;br/&gt;You can change this later in &lt;b&gt;Settings&lt;/b&gt;.</source>
         <translation>हम एकत्र करते हैं: ऐप क्रैश, खेल परिणाम (जीत/हार, अवधि, कठिनाई), OS नाम, CPU आर्किटेक्चर, Qt संस्करण और एक अनाम स्थापना ID।&lt;br/&gt;&lt;br/&gt;हम &lt;b&gt;संग्रह नहीं करते&lt;/b&gt;: आपका नाम, ईमेल, IP पता, फ़ाइल पथ या खेल की कोई क्रिया।&lt;br/&gt;&lt;br/&gt;आप इसे बाद में &lt;b&gt;सेटिंग्स&lt;/b&gt; में बदल सकते हैं।</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="580"/>
+        <location filename="../mainwindow.cpp" line="598"/>
         <source>Yes, send</source>
         <translation>हाँ, भेजें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="581"/>
+        <location filename="../mainwindow.cpp" line="599"/>
         <source>No thanks</source>
         <translation>नहीं, धन्यवाद</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="635"/>
+        <location filename="../mainwindow.cpp" line="718"/>
+        <source>&amp;Resume</source>
+        <translation>&amp;जारी रखें</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="730"/>
         <source>You won!</source>
         <translation>आप जीत गए!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="635"/>
+        <location filename="../mainwindow.cpp" line="730"/>
         <source>Boom</source>
         <translation>धमाका!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="638"/>
+        <location filename="../mainwindow.cpp" line="733"/>
         <source>You cleared the field in %1 seconds.</source>
         <translation>आपने %1 सेकंड में मैदान साफ किया।</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="641"/>
+        <location filename="../mainwindow.cpp" line="736"/>
         <source>🏆 New record!</source>
         <translation>🏆 नया रिकॉर्ड!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="648"/>
+        <location filename="../mainwindow.cpp" line="743"/>
         <source>You stepped on a mine.</source>
         <translation>आप एक माइन पर कदम रख गए।</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="71"/>
-        <location filename="../mainwindow.cpp" line="651"/>
+        <location filename="../mainwindow.cpp" line="746"/>
         <source>New Game</source>
         <translation>नया खेल</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="652"/>
+        <location filename="../mainwindow.cpp" line="747"/>
         <source>Close</source>
         <translation>बंद करें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="680"/>
+        <location filename="../mainwindow.cpp" line="779"/>
         <source>Statistics</source>
         <translation>आँकड़े</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Difficulty</source>
         <translation>कठिनाई</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Played</source>
         <translation>खेले</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Won</source>
         <translation>जीते</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Best time</source>
         <translation>सर्वश्रेष्ठ समय</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="698"/>
+        <location filename="../mainwindow.cpp" line="797"/>
         <source>Beginner</source>
         <translation>शुरुआती</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="699"/>
+        <location filename="../mainwindow.cpp" line="798"/>
         <source>Intermediate</source>
         <translation>मध्यम</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="700"/>
+        <location filename="../mainwindow.cpp" line="799"/>
         <source>Expert</source>
         <translation>विशेषज्ञ</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="732"/>
+        <location filename="../mainwindow.cpp" line="831"/>
         <source>Reset all</source>
         <translation>सभी रीसेट करें</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="738"/>
+        <location filename="../mainwindow.cpp" line="837"/>
         <source>Reset statistics?</source>
         <translation>आँकड़े रीसेट करें?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="738"/>
+        <location filename="../mainwindow.cpp" line="837"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>क्या सभी खेल / जीत / सर्वश्रेष्ठ समय के रिकॉर्ड स्थायी रूप से मिटा दिए जाएँ?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="758"/>
+        <location filename="../mainwindow.cpp" line="857"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;Qt %1 के साथ %2 को निर्मित&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="759"/>
+        <location filename="../mainwindow.cpp" line="858"/>
         <source>About QMineSweeper</source>
         <translation>QMineSweeper के बारे में</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="752"/>
+        <location filename="../mainwindow.cpp" line="851"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Qt6 पर आधारित माइनस्वीपर खेल।&lt;/p&gt;&lt;p&gt;बाएँ क्लिक से खोलें, दाएँ क्लिक से झंडा लगाएँ, संख्या पर मध्य क्लिक से आसपास के पड़ोसी खोलें।&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
+    </message>
+</context>
+<context>
+    <name>MineField</name>
+    <message>
+        <location filename="../minefield.cpp" line="240"/>
+        <source>Paused</source>
+        <translation>रोका गया</translation>
     </message>
 </context>
 <context>

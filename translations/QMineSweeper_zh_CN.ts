@@ -6,10 +6,10 @@
     <message>
         <location filename="../mainwindow.ui" line="20"/>
         <location filename="../mainwindow.cpp" line="124"/>
-        <location filename="../mainwindow.cpp" line="283"/>
-        <location filename="../mainwindow.cpp" line="300"/>
-        <location filename="../mainwindow.cpp" line="319"/>
-        <location filename="../mainwindow.cpp" line="351"/>
+        <location filename="../mainwindow.cpp" line="290"/>
+        <location filename="../mainwindow.cpp" line="308"/>
+        <location filename="../mainwindow.cpp" line="328"/>
+        <location filename="../mainwindow.cpp" line="361"/>
         <source>QMineSweeper</source>
         <translation></translation>
     </message>
@@ -49,260 +49,279 @@
         <translation>重玩同一布局(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="157"/>
+        <location filename="../mainwindow.cpp" line="155"/>
+        <location filename="../mainwindow.cpp" line="718"/>
+        <source>&amp;Pause</source>
+        <translation>暂停(&amp;P)</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="163"/>
         <source>&amp;Difficulty</source>
         <translation>难度(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="170"/>
+        <location filename="../mainwindow.cpp" line="176"/>
         <source>&amp;Beginner  (9×9, 10 mines)</source>
         <translation>初级(&amp;B)  (9×9, 10 颗雷)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="171"/>
+        <location filename="../mainwindow.cpp" line="177"/>
         <source>&amp;Intermediate  (16×16, 40 mines)</source>
         <translation>中级(&amp;I)  (16×16, 40 颗雷)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="172"/>
+        <location filename="../mainwindow.cpp" line="178"/>
         <source>&amp;Expert  (30×16, 99 mines)</source>
         <translation>高级(&amp;E)  (30×16, 99 颗雷)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="186"/>
+        <location filename="../mainwindow.cpp" line="192"/>
         <source>&amp;Custom…</source>
         <translation>自定义(&amp;C)…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="195"/>
+        <location filename="../mainwindow.cpp" line="201"/>
         <source>&amp;Statistics…</source>
         <translation>统计(&amp;S)…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="201"/>
+        <location filename="../mainwindow.cpp" line="207"/>
         <source>&amp;Quit</source>
         <translation>退出(&amp;Q)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="206"/>
+        <location filename="../mainwindow.cpp" line="212"/>
         <source>&amp;Settings</source>
         <translation>设置(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="209"/>
+        <location filename="../mainwindow.cpp" line="215"/>
         <source>&amp;Language</source>
         <translation>语言(&amp;L)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="227"/>
+        <location filename="../mainwindow.cpp" line="233"/>
         <source>Auto (system)</source>
         <translation>自动（系统）</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="235"/>
+        <location filename="../mainwindow.cpp" line="241"/>
         <source>Enable &amp;question marks</source>
         <translation>启用问号标记(&amp;Q)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="244"/>
+        <location filename="../mainwindow.cpp" line="250"/>
         <source>Send anonymous &amp;crash reports and usage data</source>
         <translation>发送匿名崩溃报告和使用数据(&amp;C)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="259"/>
+        <location filename="../mainwindow.cpp" line="265"/>
         <source>&amp;Tutorial</source>
         <translation>教程(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="365"/>
+        <location filename="../mainwindow.cpp" line="375"/>
         <source>Custom difficulty</source>
         <translation>自定义难度</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="373"/>
+        <location filename="../mainwindow.cpp" line="383"/>
         <source>Width:</source>
         <translation>宽度：</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="378"/>
+        <location filename="../mainwindow.cpp" line="388"/>
         <source>Height:</source>
         <translation>高度：</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="395"/>
+        <location filename="../mainwindow.cpp" line="405"/>
         <source>Mines:</source>
         <translation>雷数：</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="455"/>
+        <location filename="../mainwindow.cpp" line="467"/>
         <source>QMineSweeper — Playing</source>
         <translation>QMineSweeper — 进行中</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="476"/>
+        <location filename="../mainwindow.cpp" line="493"/>
         <source>QMineSweeper — You won!</source>
         <translation>QMineSweeper — 你赢了！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="500"/>
+        <location filename="../mainwindow.cpp" line="518"/>
         <source>QMineSweeper — Boom</source>
         <translation>QMineSweeper — 轰！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="542"/>
+        <location filename="../mainwindow.cpp" line="560"/>
         <source>Language changed</source>
         <translation>语言已更改</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="544"/>
+        <location filename="../mainwindow.cpp" line="562"/>
         <source>Language changes take effect after restart.</source>
         <translation>语言更改将在重启后生效。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="545"/>
+        <location filename="../mainwindow.cpp" line="563"/>
         <source>Restart QMineSweeper now?</source>
         <translation>现在重启 QMineSweeper？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="546"/>
+        <location filename="../mainwindow.cpp" line="564"/>
         <source>Restart now</source>
         <translation>立即重启</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="547"/>
+        <location filename="../mainwindow.cpp" line="565"/>
         <source>Later</source>
         <translation>稍后</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="569"/>
+        <location filename="../mainwindow.cpp" line="587"/>
         <source>Help improve QMineSweeper</source>
         <translation>帮助改进 QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="571"/>
+        <location filename="../mainwindow.cpp" line="589"/>
         <source>Would you like to send anonymous crash reports and usage data?</source>
         <translation>您是否愿意发送匿名崩溃报告和使用数据？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="572"/>
+        <location filename="../mainwindow.cpp" line="590"/>
         <source>We collect: app crashes, game results (win/loss, duration, difficulty), OS name, CPU architecture, Qt version, and an anonymous install ID.&lt;br/&gt;&lt;br/&gt;We do &lt;b&gt;not&lt;/b&gt; collect: your name, email, IP address, file paths, or any in-game actions.&lt;br/&gt;&lt;br/&gt;You can change this later in &lt;b&gt;Settings&lt;/b&gt;.</source>
         <translation>我们收集：应用崩溃、游戏结果（胜负、时长、难度）、操作系统名称、CPU 架构、Qt 版本以及一个匿名安装 ID。&lt;br/&gt;&lt;br/&gt;我们&lt;b&gt;不&lt;/b&gt;收集：您的姓名、电子邮件、IP 地址、文件路径或任何游戏内操作。&lt;br/&gt;&lt;br/&gt;您可稍后在&lt;b&gt;设置&lt;/b&gt;中更改。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="580"/>
+        <location filename="../mainwindow.cpp" line="598"/>
         <source>Yes, send</source>
         <translation>好的，发送</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="581"/>
+        <location filename="../mainwindow.cpp" line="599"/>
         <source>No thanks</source>
         <translation>不，谢谢</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="635"/>
+        <location filename="../mainwindow.cpp" line="718"/>
+        <source>&amp;Resume</source>
+        <translation>继续(&amp;R)</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="730"/>
         <source>You won!</source>
         <translation>你赢了！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="635"/>
+        <location filename="../mainwindow.cpp" line="730"/>
         <source>Boom</source>
         <translation>轰！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="638"/>
+        <location filename="../mainwindow.cpp" line="733"/>
         <source>You cleared the field in %1 seconds.</source>
         <translation>您用时 %1 秒清扫完成。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="641"/>
+        <location filename="../mainwindow.cpp" line="736"/>
         <source>🏆 New record!</source>
         <translation>🏆 新纪录！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="648"/>
+        <location filename="../mainwindow.cpp" line="743"/>
         <source>You stepped on a mine.</source>
         <translation>您踩到了雷。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="71"/>
-        <location filename="../mainwindow.cpp" line="651"/>
+        <location filename="../mainwindow.cpp" line="746"/>
         <source>New Game</source>
         <translation>新游戏</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="652"/>
+        <location filename="../mainwindow.cpp" line="747"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="680"/>
+        <location filename="../mainwindow.cpp" line="779"/>
         <source>Statistics</source>
         <translation>统计</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Difficulty</source>
         <translation>难度</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Played</source>
         <translation>已玩</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Won</source>
         <translation>获胜</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="685"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Best time</source>
         <translation>最佳时间</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="698"/>
+        <location filename="../mainwindow.cpp" line="797"/>
         <source>Beginner</source>
         <translation>初级</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="699"/>
+        <location filename="../mainwindow.cpp" line="798"/>
         <source>Intermediate</source>
         <translation>中级</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="700"/>
+        <location filename="../mainwindow.cpp" line="799"/>
         <source>Expert</source>
         <translation>高级</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="732"/>
+        <location filename="../mainwindow.cpp" line="831"/>
         <source>Reset all</source>
         <translation>全部重置</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="738"/>
+        <location filename="../mainwindow.cpp" line="837"/>
         <source>Reset statistics?</source>
         <translation>重置统计数据？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="738"/>
+        <location filename="../mainwindow.cpp" line="837"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>是否永久删除所有已玩、获胜与最佳时间记录？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="758"/>
+        <location filename="../mainwindow.cpp" line="857"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;使用 Qt %1 构建于 %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="759"/>
+        <location filename="../mainwindow.cpp" line="858"/>
         <source>About QMineSweeper</source>
         <translation>关于 QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="752"/>
+        <location filename="../mainwindow.cpp" line="851"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;基于 Qt6 的扫雷游戏。&lt;/p&gt;&lt;p&gt;左键揭示，右键标记旗帜，在满足数字的格子上按中键可同时揭开周围格子。&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
+    </message>
+</context>
+<context>
+    <name>MineField</name>
+    <message>
+        <location filename="../minefield.cpp" line="240"/>
+        <source>Paused</source>
+        <translation>已暂停</translation>
     </message>
 </context>
 <context>

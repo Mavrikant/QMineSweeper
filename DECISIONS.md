@@ -1,5 +1,101 @@
 # Cycle decisions
 
+## 2026-04-25 — Pause / resume (v1.12.0)
+
+**Chosen:** Add a pause/resume toggle that freezes the game timer, blocks
+all minefield input (mouse + keyboard), and dims the board with a
+"Paused" overlay until the user resumes. Action lives at `Game → Pause`
+(toggling label "Pause" ↔ "Resume") with the `P` shortcut. Only
+available while a game is in progress (`GameState::Playing`).
+
+**Why this one:**
+- Parked for **seven cycles running** (3, 4, 5, 6, 7, 8, 9). Every
+  prior cycle's "Next candidates" list led with this exact item:
+  *"Pause / resume (P shortcut) with board-covering overlay."* The only
+  recurring rejection reason was timer/state-machine risk in autonomous
+  mode — the rest of the queue (no-flag achievement, tutorial-overlay
+  upgrade, custom difficulty) has been smaller-value or already shipped.
+  At cycle 10, the parked item is the highest-value remaining feature
+  and the timer-offset surgery is contained enough to absorb safely.
+- Real user pain — timed runs that get interrupted (phone, doorbell,
+  Slack ping) currently force the user to abandon a winning Expert run
+  or watch their best-time count climb past truth. Standard in GNOME
+  Mines; Windows Minesweeper Classic shipped pause via the menu too.
+- Self-contained surface: no schema changes, no QSettings keys (pause
+  state is in-memory only — restarting the app starts a fresh game),
+  no telemetry events of consequence (a `pause` breadcrumb is enough).
+
+**Rejected alternatives from the prior `Next candidates` list:**
+- *No-flag speedrun achievement.* Genuinely small (1 string × 9 locales,
+  ~50 LOC). Would have been the contained autonomous default — but
+  pause/resume strictly dominates on user-visible value. Park.
+- *Overlay-with-bubbles tutorial upgrade.* Cosmetic; nobody has
+  complained since v1.10.0 shipped the dialog-style tutorial. Park.
+- *Custom difficulty.* Already shipped in v1.7.0 — the cycle-9 next
+  list inherited a stale entry. Drop.
+
+**Implementation choices:**
+
+1. **No new GameState enum value.** Pause is a *cross-cutting* freeze
+   on input + timer, not a separate machine state. `Playing` remains
+   `Playing` while paused — the win/loss invariants are unchanged, and
+   a parallel `m_paused` flag in `MineField` and `MainWindow` is the
+   minimal-touch path. Adding `GameState::Paused` would have rippled
+   into `MineField::checkWin`, `onChordRequested`, `setSmileyState`,
+   and every test that asserts a state. Far costlier than a boolean.
+
+2. **Block input via `MineField::eventFilter`, not `setCellEnabled`.**
+   `setCellEnabled` is the win/loss freeze path — it disables the
+   button-level `m_enabled` flag and changes the cursor to arrow,
+   which is the right cue for game-over but wrong for pause (the cells
+   are *not* permanently dead; they're just temporarily ignored). The
+   eventFilter already exists for keyboard nav (cycle 9); adding a
+   single `if (m_paused) swallow` guard in front of MouseButtonPress /
+   MouseButtonRelease / MouseButtonDblClick / KeyPress / KeyRelease is
+   ~6 lines and keeps cells visually unchanged so the user sees their
+   board exactly as it was.
+
+3. **Overlay is a child of `MineField` itself.** A `QFrame` parented
+   to the minefield, geometry locked to the field's full rect, with
+   a centered "Paused" label and a translucent dim background. Sits
+   on top of all cells in the Z-order, so even without the eventFilter
+   guard it absorbs mouse events naturally — the eventFilter is
+   defence-in-depth for keyboard/focus paths the overlay can't catch.
+
+4. **Timer offset, not pausable elapsed timer.** `QElapsedTimer` does
+   not expose a pause API. Track `m_pausedTotalMs` (cumulative paused
+   milliseconds across multiple pause/resume cycles in one game) and
+   `m_pauseStartMs` (the `m_gameTimer.elapsed()` value at the moment
+   pause began). On resume, add `(elapsed() - pauseStartMs)` to
+   `pausedTotalMs`. `elapsedSeconds()` subtracts both the running
+   pause segment (if active) and `pausedTotalMs`. Reset to zero on
+   every `newGame` / `newGameReplay` / difficulty change.
+
+5. **`P` shortcut at WindowShortcut context.** Single-key `P` (no Ctrl)
+   matches Windows Minesweeper Classic and GNOME Mines convention.
+   `WindowShortcut` (the QAction default) fires BEFORE focused-widget
+   keyPress handlers, so a focused cell does not need to know about
+   the shortcut and the eventFilter doesn't need a `Key_P` case.
+
+6. **Pause auto-clears on game end / new game / replay / difficulty.**
+   Any state transition that resets the timer also resets the pause
+   accumulator. Eliminates the "I changed difficulty mid-pause and now
+   the new game starts paused" failure mode.
+
+7. **No persistence.** Pause is an in-session concept. Saving "I was
+   paused at 12.4s" to QSettings would imply game-state persistence
+   across launches — a much bigger feature ("save and resume games")
+   that was not asked for. If the user quits while paused, the game
+   is lost. Documented in the PR.
+
+8. **No telemetry event for pause itself, just a breadcrumb.** Pause
+   doesn't change the `game.won` / `game.lost` schema. The duration
+   tagged on those events still uses `elapsedSeconds()` post-offset,
+   so a paused-then-resumed Expert run records its true playing time,
+   not wall-clock time. Adding a `game.paused` event would balloon the
+   Sentry quota for a low-signal lifecycle hook. A breadcrumb gives
+   us the same crash-context value at a fraction of the cost.
+
 ## 2026-04-24 — Keyboard navigation (v1.11.0)
 
 **Chosen:** Add full keyboard control of the minefield — arrow keys move
