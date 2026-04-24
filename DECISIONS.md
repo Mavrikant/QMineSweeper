@@ -1,5 +1,112 @@
 # Cycle decisions
 
+## 2026-04-24 — Keyboard navigation (v1.11.0)
+
+**Chosen:** Add full keyboard control of the minefield — arrow keys move
+focus between cells, Space / Enter reveal (or chord if the focused cell
+is already opened), F toggles the marker (same cycle as right-click),
+and D forces chord. The focused cell gets a distinct blue inset focus
+ring so keyboard users can see where they are.
+
+**Why this one:**
+- Parked for five cycles running (3, 4, 5, 6, 7, 8) with the same
+  rationale each time: "medium surface, zero translation cost, good
+  accessibility win." Nothing else on the parked list has a lower
+  translation burden, and the repo's user-feedback queue is empty — so
+  autonomous cycle 9 is the right moment to clear it.
+- Accessibility: today the app is unplayable without a mouse. A
+  minesweeper grid is a pure keyboard-friendly UI (finite cells,
+  discrete actions) — there's no good reason to gate it on mouse input.
+- Small, self-contained: ~90 LOC of real code (MineButton focus policy
+  + paint ring; MineField eventFilter with a switch-statement dispatcher;
+  no new QSettings keys, no new menu items, no new dialog). Tests:
+  ~130 LOC exercising all eight key paths. Under the 400-LOC cycle cap.
+- **Zero new translatable strings.** The feature has no visible label,
+  tooltip, menu entry, or dialog copy — it's keyboard behaviour plus a
+  focus outline. 81/81 finished per locale preserved.
+
+**Rejected alternatives from the prior `Next candidates` list:**
+- *Pause / resume.* Still the highest-value parked candidate for a
+  human-directed cycle, but ~3 new strings × 10 locales and it touches
+  the timer/state machine — the most critical UI path. Sixth cycle of
+  parking; still the right call for an autonomous budget.
+- *No-flag speedrun achievement.* Genuinely small. Would add 1 new
+  translatable string and a Stats-schema column (best no-flag time).
+  Parked — keyboard nav strictly dominates on both accessibility value
+  and translation cost (zero vs. one).
+- *Overlay-with-bubbles tutorial upgrade.* Cosmetic; nobody has asked.
+
+**Implementation choices:**
+
+1. **Event filter on MineField, not keyPressEvent on MineButton.** The
+   project's bedrock architecture rule is "MineButton has no back-pointer
+   to MineField — signals up, slots down." Handling arrow keys requires
+   knowing the grid to resolve "the cell one row up" — a lookup that
+   only MineField can do. An event filter on the parent wrapping every
+   child runs BEFORE the child's own keyPressEvent, which is the only
+   way to intercept Space/Enter before `QAbstractButton::keyPressEvent`
+   emits `clicked` (which nothing listens to, but that's beside the
+   point — we want our reveal-vs-chord decision, not the default).
+
+2. **Qt::StrongFocus explicit on MineButton.** macOS ships
+   `Qt::TabFocus` by default for push buttons, which makes arrow-key
+   navigation work on Linux/Windows but silently no-op on macOS. An
+   explicit setter rules out platform drift.
+
+3. **Focus ring drawn in `paintEvent` override, not `:focus` stylesheet
+   pseudo-state.** The cell stylesheet uses `border: 0px` (to get the
+   flush checkerboard look) and changes mid-game (opened / mine /
+   wrong-flag). Chaining `:focus { border: ... }` onto every stylesheet
+   mutation would be a correctness landmine. A single `paintEvent`
+   override that draws a 2-px inset rectangle when `hasFocus()` is
+   stylesheet-independent and survives every state change.
+
+4. **Space dispatches reveal-vs-chord based on opened state.**
+   - Opened cell → `onChordRequested(r, c)` (same as middle-click).
+   - Unopened, non-flag cell → `cell->Open()` (same as left-click).
+   - Unopened, flagged cell → no-op (flag protects from reveal, same
+     as left-click).
+   This mirrors the "intuitive single key" UX of GNOME Mines —
+   keyboard users don't want to remember separate keys for reveal
+   and chord when the cell state already disambiguates.
+
+5. **`D` forces chord.** Kept for players who memorise the opened
+   state and want an explicit chord key (parallels middle-click). On
+   an unopened cell D is a no-op, not an error — minimises surprise.
+
+6. **`F` reuses `cycleMarker()`, which is moved from `private` to
+   `public` on MineButton.** `cycleMarker` is idempotent with the
+   mouse right-click path — same state transitions, same
+   `flagToggled` signal emissions, same question-marks setting
+   respect. Making it public is a trivially safe visibility widen;
+   the alternative (synthetic `QMouseEvent` injection) is ugly.
+
+7. **Key events during `GameState::Won`/`Lost` only allow arrow
+   navigation.** After a game ends, `freezeAllCells()` disables cell
+   actions. The event filter short-circuits Space/F/D/Enter at the
+   top of `handleCellKey` when the state is terminal; arrows still
+   work so the user can look around the revealed board.
+
+8. **No auto-focus on new game.** Set-focus-on-build would steal
+   focus from the menu bar and the telemetry-consent dialog on
+   startup. Users who want keyboard control Tab into the grid or
+   click a cell first, then navigate. Matches how every other
+   keyboard-friendly Qt widget behaves.
+
+**Assumptions:**
+- QAbstractButton does not pre-consume arrow keys outside a
+  QButtonGroup (confirmed empirically — arrow keys reach the event
+  filter even without it returning true early). The filter still
+  handles them unconditionally, so this is defence-in-depth.
+- The inset focus ring (2-px blue border at 1-px inset) is visible
+  on every cell stylesheet: green-checker base, tan-checker opened,
+  orange mine-reveal, red wrong-flag. Verified in live app on the
+  green+tan combination; the blue is high-contrast against all four.
+- `D` is not a common muscle-memory shortcut for any minesweeper
+  clone (Windows Minesweeper uses middle-click only). Picked because
+  it's adjacent to F on QWERTY — easy to remember as the "other
+  modifier-free action key."
+
 ## 2026-04-24 — First-run tutorial (v1.10.0, closes #26)
 
 **Chosen:** A six-step modal-card tutorial opens once automatically on the

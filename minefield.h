@@ -68,6 +68,13 @@ class MineField : public QWidget
     // Test helper: direct access for fixture-based tests.
     [[nodiscard]] MineButton *cellAt(std::uint32_t row, std::uint32_t col) const;
 
+  protected:
+    // Keyboard navigation. MineField installs itself as an event filter on
+    // every MineButton so it can intercept key events before QAbstractButton
+    // eats Space/Enter (for click activation) or arrow keys (for button-group
+    // navigation). Centralising in one place keeps MineButton back-pointer-free.
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
   signals:
     void gameStarted();
     void gameWon();
@@ -98,6 +105,8 @@ class MineField : public QWidget
     void freezeAllCells();
     void updateMineCountLabel();
     void checkWin();
+    bool handleCellKey(MineButton *cell, int key);
+    void focusCell(std::uint32_t row, std::uint32_t col);
 
     QGridLayout *m_grid{nullptr};
     std::vector<std::vector<MineButton *>> m_buttons;
