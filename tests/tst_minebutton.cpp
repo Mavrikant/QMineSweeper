@@ -31,6 +31,11 @@ class TestMineButton : public QObject
     void testLeftClickBlockedByFlagNotByQuestion();
     void testQuestionMarksDisabledSkipsQuestion();
     void testClearQuestionResetsMarker();
+    void testLeftPressEmitsPressStart();
+    void testRightPressDoesNotEmitPressStart();
+    void testMiddlePressEmitsPressStart();
+    void testMouseReleaseEmitsPressEnd();
+    void testDisabledCellEmitsNoPressSignals();
     void cleanup();
 };
 
@@ -38,6 +43,12 @@ static void sendMouseClick(MineButton &btn, Qt::MouseButton button)
 {
     QMouseEvent press(QEvent::MouseButtonPress, QPointF(5, 5), QPointF(5, 5), button, button, Qt::NoModifier);
     QCoreApplication::sendEvent(&btn, &press);
+}
+
+static void sendMouseRelease(MineButton &btn, Qt::MouseButton button)
+{
+    QMouseEvent release(QEvent::MouseButtonRelease, QPointF(5, 5), QPointF(5, 5), button, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(&btn, &release);
 }
 
 void TestMineButton::testInitialState()
@@ -297,6 +308,53 @@ void TestMineButton::testClearQuestionResetsMarker()
     QSignalSpy openedSpy(&btn, &MineButton::cellOpened);
     sendMouseClick(btn, Qt::LeftButton);
     QCOMPARE(openedSpy.count(), 1);
+}
+
+void TestMineButton::testLeftPressEmitsPressStart()
+{
+    MineButton btn(0, 0, nullptr);
+    QSignalSpy startSpy(&btn, &MineButton::pressStart);
+    sendMouseClick(btn, Qt::LeftButton);
+    QCOMPARE(startSpy.count(), 1);
+}
+
+void TestMineButton::testRightPressDoesNotEmitPressStart()
+{
+    // Flag-only clicks must NOT trigger the tension smiley — only cells that
+    // could actually be revealed (or chorded) contribute to the hold state.
+    MineButton btn(0, 0, nullptr);
+    QSignalSpy startSpy(&btn, &MineButton::pressStart);
+    sendMouseClick(btn, Qt::RightButton);
+    QCOMPARE(startSpy.count(), 0);
+}
+
+void TestMineButton::testMiddlePressEmitsPressStart()
+{
+    MineButton btn(0, 0, nullptr);
+    QSignalSpy startSpy(&btn, &MineButton::pressStart);
+    sendMouseClick(btn, Qt::MiddleButton);
+    QCOMPARE(startSpy.count(), 1);
+}
+
+void TestMineButton::testMouseReleaseEmitsPressEnd()
+{
+    MineButton btn(0, 0, nullptr);
+    QSignalSpy endSpy(&btn, &MineButton::pressEnd);
+    sendMouseClick(btn, Qt::LeftButton);
+    QCOMPARE(endSpy.count(), 0);
+    sendMouseRelease(btn, Qt::LeftButton);
+    QCOMPARE(endSpy.count(), 1);
+}
+
+void TestMineButton::testDisabledCellEmitsNoPressSignals()
+{
+    // Frozen cells (post-win/loss) must not emit tension signals — otherwise
+    // a stray click on a dead board would flip the indicator away from 😎/😵.
+    MineButton btn(0, 0, nullptr);
+    btn.setCellEnabled(false);
+    QSignalSpy startSpy(&btn, &MineButton::pressStart);
+    sendMouseClick(btn, Qt::LeftButton);
+    QCOMPARE(startSpy.count(), 0);
 }
 
 void TestMineButton::cleanup()

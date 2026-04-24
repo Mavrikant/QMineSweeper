@@ -241,6 +241,15 @@ void MineButton::mousePressEvent(QMouseEvent *e)
 
     const bool leftAndRight = (e->buttons() & (Qt::LeftButton | Qt::RightButton)) == (Qt::LeftButton | Qt::RightButton);
 
+    // Tension-smiley trigger — fire before any reveal/chord logic so the 😮
+    // face paints while the button is still held, not only after release.
+    // Right-click-only presses are deliberately excluded: flag-cycling should
+    // not change the header indicator.
+    if (e->button() == Qt::LeftButton || e->button() == Qt::MiddleButton || leftAndRight)
+    {
+        emit pressStart();
+    }
+
     if (e->button() == Qt::MiddleButton || leftAndRight)
     {
         if (m_isClicked)
@@ -264,4 +273,13 @@ void MineButton::mousePressEvent(QMouseEvent *e)
     default:
         break;
     }
+}
+
+void MineButton::mouseReleaseEvent(QMouseEvent *e)
+{
+    Q_UNUSED(e);
+    // Always emit on release — MainWindow tracks tension with a single flag,
+    // so an unmatched pressEnd (e.g. after a right-click-only press that never
+    // emitted pressStart) is a harmless no-op.
+    emit pressEnd();
 }

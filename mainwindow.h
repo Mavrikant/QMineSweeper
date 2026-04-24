@@ -45,6 +45,8 @@ class MainWindow : public QMainWindow
     void resetTimerUi();
     void updateTimerLabel();
     void setSmileyState(GameState state);
+    void setSmileyTension(bool pressing);
+    void applySmiley();
     void showEndDialog(bool won, bool newRecord);
     void maybeAskTelemetryConsent();
     void restartApp();
@@ -66,6 +68,8 @@ class MainWindow : public QMainWindow
     double m_lastElapsedSeconds{0.0};
     bool m_isReplay{false};
     bool m_isCustom{false};
+    GameState m_smileyState{GameState::Ready};
+    bool m_smileyPressing{false};
     QString m_releaseId;
 };
 
