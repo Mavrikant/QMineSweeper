@@ -86,6 +86,10 @@ class TestMineField : public QObject
     void testUserClicksResetBySetFixedLayout();
     void testRefreshAllNumberStylesReflectsPaletteChange();
     void testRefreshAllNumberStylesSkipsUnopened();
+    void testSafePercentClearedZeroBeforeAnyClick();
+    void testSafePercentClearedReachesHundredOnWin();
+    void testSafePercentClearedMidGame();
+    void testSafePercentClearedRoundsHalfUp();
 
   private:
     static void openAllSafe(MineField &field);
@@ -1216,6 +1220,63 @@ void TestMineField::testRefreshAllNumberStylesSkipsUnopened()
         }
     }
     MineButton::setColorBlindPaletteEnabled(false);
+}
+
+void TestMineField::testSafePercentClearedZeroBeforeAnyClick()
+{
+    MineField field;
+    QCOMPARE(field.safePercentCleared(), 0);
+    field.setFixedLayout(5, 5, {{0, 0}});
+    QCOMPARE(field.safePercentCleared(), 0);
+}
+
+void TestMineField::testSafePercentClearedReachesHundredOnWin()
+{
+    // 3x3 with one mine in the corner — flooding from the opposite corner
+    // reveals all 8 safe cells, hitting 100%.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    QCOMPARE(field.state(), GameState::Won);
+    QCOMPARE(field.safePercentCleared(), 100);
+}
+
+void TestMineField::testSafePercentClearedMidGame()
+{
+    // 4x4 with mines everywhere except (0,0) and (0,1) — only two safe cells.
+    // (0,0) is adjacent to three mines so it has number 3 and does not flood.
+    // After opening (0,0), 1 of 2 safe cells is opened => 50%.
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> mines;
+    for (std::uint32_t r = 0; r < 4; ++r)
+    {
+        for (std::uint32_t c = 0; c < 4; ++c)
+        {
+            if (!(r == 0 && c == 0) && !(r == 0 && c == 1))
+            {
+                mines.emplace_back(r, c);
+            }
+        }
+    }
+    MineField field;
+    field.setFixedLayout(4, 4, mines);
+    sendMousePress(field.cellAt(0, 0), Qt::LeftButton);
+    QVERIFY(field.cellAt(0, 0)->isOpened());
+    QVERIFY(!field.cellAt(0, 1)->isOpened());
+    QCOMPARE(field.safePercentCleared(), 50);
+}
+
+void TestMineField::testSafePercentClearedRoundsHalfUp()
+{
+    // 3x3 with 6 mines in rows 1..2 — 3 safe cells along the top row. Each
+    // click opens exactly one of them (numbers 2, 3, 2; no zeros, no flood).
+    MineField field;
+    field.setFixedLayout(3, 3, {{1, 0}, {1, 1}, {1, 2}, {2, 0}, {2, 1}, {2, 2}});
+    sendMousePress(field.cellAt(0, 0), Qt::LeftButton);
+    // 1 of 3 = 33.33…%, round-half-up → 33.
+    QCOMPARE(field.safePercentCleared(), 33);
+    sendMousePress(field.cellAt(0, 2), Qt::LeftButton);
+    // 2 of 3 = 66.67%, round-half-up → 67.
+    QCOMPARE(field.safePercentCleared(), 67);
 }
 
 QTEST_MAIN(TestMineField)
