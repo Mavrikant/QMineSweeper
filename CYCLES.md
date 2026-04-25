@@ -1,5 +1,126 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 13 — v1.16.0 (autonomous)
+
+- **Chosen problem:** No win-streak tracking. The project had been
+  building out the speedrun-aware story (best-time-with-date in
+  v1.3.0, no-flag bracket in v1.13.0, 3BV/s in v1.14.0, efficiency
+  in v1.15.0) but lacked the most basic engagement loop —
+  consecutive-wins counting per difficulty. Last cycle's "Next
+  candidates" list re-stated the same four parked-multiple-times
+  items (save-and-resume, per-layout leaderboard, color-blind
+  palette, hint button); win streak slots in underneath all of
+  them as a small, additive Stats schema extension with zero risk
+  to game logic.
+- **Evidence:** No `streak`/`currentStreak`/`bestStreak` anywhere
+  in tree. `Stats::Record` already exposed `played`/`won`/`bestSeconds`
+  per difficulty in QSettings; adding a sibling pair was a one-file
+  schema bump. Win-streak engagement mechanics ship in essentially
+  every modern Minesweeper variant (Minesweeper Online, Microsoft
+  Solitaire Collection, GNOME Mines).
+- **Shipped:**
+  - Branch: `feat/win-streak` (squash-merged + deleted)
+  - PR: [#34](https://github.com/Mavrikant/QMineSweeper/pull/34)
+  - Tag: `v1.16.0`
+  - Release: [v1.16.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.16.0)
+- **Diff shape:** 18 files, +896/-414 LOC — productive slice
+  ~280 LOC (stats.h +30, stats.cpp +24, mainwindow.cpp +27,
+  mainwindow.h +1, tests +186 with 11 new cases + a few existing
+  test updates for the new return type, DECISIONS +54). The
+  remaining churn is per-locale `.ts` line-rewriting that lupdate
+  emits whenever a new source string is added, plus a 27-line
+  `apply_translations.py` delta. Well under the 400-LOC cycle cap.
+- **Translation cost:** 3 new format strings × 9 hand-translated
+  locales = 27 fresh hand-translations. All 10 locales now 91/91
+  finished, 0 unfinished.
+- **Assumptions made:**
+  - **Per-difficulty, not global.** A Beginner win after an Expert
+    loss must not extend a "global" streak. Per-difficulty matches
+    the rest of the schema.
+  - **Lifetime, not time-windowed.** Matches `played`/`won`/
+    `bestSeconds`'s semantics and avoids a clock-based invalidation
+    path.
+  - **Strict `>` for best-streak update.** Tying the previous best
+    does not re-stamp the date — `bestStreakDate` is pinned on the
+    moment the bar was *first* reached, then re-pinned only when
+    actually surpassed. Tested explicitly with the 1→2→3→loss→1→2
+    →3→4 sequence in `testBestStreakDateStampedOnHighWaterOnly`.
+  - **Replays / Custom excluded.** Same exclusion rule as
+    `played`/`won`/`bestSeconds` — neither a memorised-board win
+    nor a custom-grid loss can game the streak.
+  - **`New Game` mid-run does not count as a loss.** Same convention
+    as `played` — only an explicit Lost transition resets.
+  - **Streak ≥ 2 to show on the win dialog.** A single win already
+    feels celebratory; a "Streak: 1" flair would be noise.
+  - **`newBestStreak` swap, not stack.** When the win pushes the
+    bar past the prior best, the dialog shows
+    `🌟 New best streak: N!` *instead of* (not in addition to) the
+    plain `🔥 Streak: N`. Avoids two near-duplicate lines on the
+    same dialog.
+  - **`explicit operator bool()` on `WinOutcome`.** Keeps the prior
+    `recordWin(...) returns bool` semantics for `QVERIFY(...)` and
+    `if (...)` while forcing existing assignment-to-bool sites to
+    use `.newRecord` explicitly. Prevents silent truncation if a
+    future caller stores the outcome.
+  - **Telemetry additive.** `streak` (int) and `new_best_streak`
+    (bool string) join the existing `game.won` tag set. No new
+    event type.
+- **Skipped:**
+  - *Save-and-resume games across launches.* Still bigger
+    (board-state + marker-state + timer-offset serialization +
+    QSettings schema bump); parked across multiple cycles.
+  - *Per-layout best-time leaderboard.* Would need a hash of mine
+    positions + new persistence schema; bigger than this cycle.
+  - *Color-blind-friendly cell number palette.* Real accessibility
+    win, but defining a deuteranopia/protanopia-safe 8-colour
+    palette is design work.
+  - *Hint button (limited per-game, exposes 1 safe cell at a time
+    cost).* Interesting risk-reward UX feature, requires a small
+    deterministic solver.
+  - *Streak resetting on `New Game` mid-run.* Matches `played`'s
+    behaviour — only an explicit Lost transition counts.
+  - *Streak shown for current = 1 wins.* Noise; engagement payoff
+    starts at the second consecutive win.
+  - *Live streak indicator on the main window.* Would need a fourth
+    label slot in the toolbar; the Statistics dialog is the right
+    place to look it up between games.
+- **Risks logged:** none new. The Stats schema extension is
+  additive and the `WinOutcome.operator bool()` is `explicit`, so
+  no existing call site silently changes meaning. Legacy records
+  with no `streak_*` keys load as `0 / 0 / invalid` —
+  `testLegacyRecordWithoutStreakLoadsAsZero` pins this.
+- **UI smoke:** Deferred. The cron-launched task context lacks
+  display capture permissions. Logic is covered by 34 deterministic
+  unit tests in `tst_stats` (11 new + 23 existing); the dialog
+  format is a single `arg(int)` chain. Manual end-to-end verification
+  will happen on the next interactive session if any visual
+  regression appears.
+- **Post-release watch (T+~3min):** Release workflow
+  [run 24919628652](https://github.com/Mavrikant/QMineSweeper/actions/runs/24919628652)
+  green across all three platforms; five assets published (Linux
+  AppImage, Linux tar.gz, macOS universal DMG, Windows x64 ZIP,
+  plus `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.16.0` in the last hour returned **zero results**.
+  Expected — telemetry is opt-in and assets were just published, no
+  install has had a chance to fire a session yet. GitHub release
+  body rewritten from the auto-generated stub to user-facing prose
+  covering the streak mechanic, exclusions, the per-platform
+  downloads, and the macOS quarantine note. Watch closed.
+- **Next candidates:**
+  - Save-and-resume games across launches (still parked — would
+    need board-state + marker-state + timer-offset serialization).
+  - Per-layout best-time leaderboard (would need a hash of mine
+    positions + new persistence schema).
+  - Color-blind-friendly cell number palette (real accessibility
+    value, design-level work).
+  - Hint button (limited per-game, exposes 1 safe cell at a time
+    cost) — interesting risk-reward UX feature, requires a small
+    deterministic solver.
+  - Daily-streak / "games played today" mini-counter on the win
+    dialog — derived from QSettings + QDate, smaller than save-
+    and-resume.
+
 ## 2026-04-25 — Cycle 12 — v1.15.0 (autonomous)
 
 - **Chosen problem:** No click count or efficiency % on the win dialog.
