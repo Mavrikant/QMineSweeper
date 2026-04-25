@@ -1,5 +1,74 @@
 # Cycle decisions
 
+## 2026-04-25 — MM:SS timer format for long runs (v1.18.0)
+
+**Chosen:** Switch the live timer label from a fixed-width
+`%05.1f` (e.g. `0123.4`) to a duration-aware formatter. Under 60
+seconds the display reads `S.S` / `SS.S`; from 60 s up to one hour
+it reads `M:SS.S` / `MM:SS.S`; past one hour it reads `H:MM:SS.S`.
+The `MineField` widget itself is untouched — only the toolbar
+clock changes. Stored seconds (`bestSeconds`, `bestNoflagSeconds`,
+telemetry `duration_seconds`) and the win-dialog "you cleared the
+field in N seconds" string keep their decimal-seconds form, so
+nothing about the persistence schema or translation contract
+shifts. The formatter is a pure inline function in a new
+`time_format.h` header so unit tests link it without touching the
+core library.
+
+**Why this one (cycle 15):** The `%05.1f` format truncates after
+`999.9` — Expert games that run more than ~17 minutes either
+render as a wider-than-expected `1234.5` (drifts the toolbar) or
+get read by the player as a four-digit number rather than a
+duration. The fix has been parked twice in the Next-candidates
+list as "small polish, zero new translatable strings"; v1.17.0
+cleared the queue's bigger design item (color-blind palette) and
+this is the smallest shippable thing left. Strict additive change
+to `updateTimerLabel()`, no schema migration, no stats/telemetry
+re-emission, ~10 LOC of formatter logic and ~80 LOC of tests.
+
+**Rejected alternatives:**
+
+- **MM:SS without sub-second precision.** Friendlier to read but
+  drops the speedrun-relevant tenth-of-a-second granularity. The
+  whole speedrun trio (3BV, 3BV/s, efficiency) shipped in
+  v1.14–v1.15 already; surrendering tenths for the live counter
+  would un-do that direction.
+- **Hard-cap the timer at 999.9 like classic Windows
+  Minesweeper.** Hides truth from the player. With a working
+  pause and per-difficulty stats, "how long did you take" is a
+  legitimate signal — the format just needs to scale.
+- **Always render `MM:SS.S` (with leading `0:` for runs under 60
+  seconds).** Reads as awkward (`0:05.3`) for the typical
+  Beginner game which finishes in under 30 s. Conditional format
+  matches the user's mental model.
+- **Localised `1m 30.5s` style.** Adds 1–2 new tr() strings × 9
+  locales (≥ 9 hand translations). The colon-separated form is
+  universally readable as a clock and doesn't need translation.
+- **Also reformat the stats-dialog best-time column.** Tempted —
+  it'd be consistent. But the stats column already pairs with a
+  unit (`42.7 s`); changing it to `1:30.5` removes the unit and
+  changes the column-width budget. Not a 400-LOC-cap cycle's
+  worth of risk; defer to a future polish cycle once the live
+  format has aged in production.
+- **Also reformat the win dialog's seconds string.** Would touch
+  the existing translated string `You cleared the field in %1
+  seconds.` — every locale would either need a new conditional
+  variant or an unfinished entry. Strictly out of scope for a
+  zero-translation-churn cycle.
+
+**Assumptions:**
+
+- The live label is right-aligned (`AlignRight`) in a flexible
+  layout cell, so the variable-width result (`8.4` vs `1:23.4`)
+  doesn't disturb other widgets in the toolbar — the right edge
+  stays pinned.
+- `formatElapsedTime` clamps negatives and `NaN` to `"0.0"`. The
+  call site won't pass either today, but defensive output beats
+  surfacing a `nan` to the user if the elapsed math ever drifts.
+- The placeholder reset ("Ready" state) shifts from the literal
+  `000.0` to `0.0`. Acceptable visual delta — the reset state is
+  brief and immediately overwritten on first click.
+
 ## 2026-04-25 — Color-blind friendly number palette (v1.17.0)
 
 **Chosen:** Add an opt-in `Settings → Color-blind friendly numbers`
