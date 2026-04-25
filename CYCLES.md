@@ -1,5 +1,169 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 26 — v1.29.0 (autonomous)
+
+- **Chosen problem:** Cycle 25 explicitly parked the loss-dialog
+  `🎯 New best %!` flair as "the natural one-cycle filler — mirrors
+  the win-side `🏆 New record!` pattern on the loss side." The
+  persistence layer (`bestSafePercent` + `bestSafePercentDate` per
+  difficulty, with replay/custom exclusion) shipped in v1.28.0; the
+  user-visible flair on the loss dialog was the missing half. Until
+  this release, a loss that pushed the per-difficulty hall-of-fame
+  bar updated `QSettings` silently — the loss dialog gave no signal
+  the run had set a new record. Players working towards their first
+  win on a difficulty (especially Expert, where the first win can
+  take weeks) had no in-the-moment feedback that progress was being
+  made.
+- **Evidence:** `Stats::recordLoss` was `void` and the persistence
+  bump was invisible to `MainWindow::onGameLost`. The win path
+  already had `WinOutcome.newRecord` driving the prepended
+  `🏆 New record!` text on the win dialog (mainwindow.cpp:822-825);
+  the loss path had no analogous mechanism.
+- **Shipped:**
+  - Branch: `feat/loss-dialog-best-percent-flair` (squash-merged + deleted)
+  - PR: [#47](https://github.com/Mavrikant/QMineSweeper/pull/47)
+    (squash-merged as `1813484`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.29.0
+  - Release workflow `24934585136` succeeded in 2m17s; all 5 assets
+    + `SHA256SUMS.txt` published (Linux AppImage / tar.gz, macOS
+    universal .dmg, Windows .zip). Hand-written user-facing release
+    notes installed via `gh release edit` — explains the
+    strict-improvement gate, the standard-difficulties-only gate,
+    and the no-flair-on-first-click-boom rule.
+- **Code surface:** ~70 LOC of production diff:
+  - `stats.h`: new `LossOutcome { newBestSafePercent }` struct with
+    explicit `operator bool()` (mirrors `WinOutcome`).
+  - `stats.cpp`: `recordLoss` return type `void → LossOutcome`; sets
+    the flag inside the existing strict-greater-than branch.
+  - `mainwindow.{h,cpp}`: `showEndDialog` gains
+    `bool lossNewBestSafePercent` (15th param); `onGameLost`
+    captures `Stats::recordLoss(...)` outcome and threads it to the
+    dialog; `game.lost` telemetry gains
+    `new_best_safe_percent` tag.
+  - +82 LOC of new tests in `tst_stats.cpp`. The 657/480 line-count
+    is `lupdate`-driven `.ts` line renumbering.
+- **Tests added (8 new in `tst_stats.cpp`):**
+  - `testLossOutcomeDefaultArgsReturnsNoNewBest` — default-arg path
+    cannot set the flag (safePercent==0 short-circuits).
+  - `testLossOutcomeWithZeroPercentReturnsNoNewBest` — explicit 0
+    (e.g. first-click boom) never flairs.
+  - `testLossOutcomeFirstPositivePercentReturnsNewBest` — virgin
+    record + first positive percent fires the flag (parallel to the
+    first-win-is-also-a-record case).
+  - `testLossOutcomeHigherPercentReturnsNewBest` — strict beat
+    fires.
+  - `testLossOutcomeEqualPercentReturnsNoNewBest` — strict
+    greater-than: ties don't fire.
+  - `testLossOutcomeLowerPercentReturnsNoNewBest` — worse loss
+    doesn't fire.
+  - `testLossOutcomeOverflowAtCapReturnsNoNewBest` — once the record
+    has been clamped to 100, a subsequent overflow call is a tie,
+    not a new best (no double flair).
+  - `testLossOutcomeBoolConversion` — explicit `operator bool()`
+    tracks `newBestSafePercent`.
+  - Adversarially validated by inverting
+    `newBestSafePercent = true` to `= false` in `Stats::recordLoss`
+    — 3 of 8 tests fail (the positive-path tests:
+    `testLossOutcomeFirstPositivePercentReturnsNewBest`,
+    `testLossOutcomeHigherPercentReturnsNewBest`,
+    `testLossOutcomeBoolConversion`). The 5 negative-path tests
+    correctly stay green — they verify the field is NOT set in
+    those branches, which the mutation doesn't affect.
+- **Translation cost:** 1 new hand-translated string × 9 non-en
+  locales. 50/50 coverage preserved (all 9 .ts files
+  `Generated 100 translation(s) (100 finished and 0 unfinished)`).
+  - TR `"🎯 Yeni en iyi %!"`
+  - ES `"🎯 ¡Nuevo mejor %!"`
+  - FR `"🎯 Nouveau meilleur % !"` (French thin-space-before-!)
+  - DE `"🎯 Neuer Bestwert %!"`
+  - RU `"🎯 Новый лучший %!"`
+  - PT `"🎯 Novo melhor %!"`
+  - ZH `"🎯 新最佳 %！"` (full-width !)
+  - HI `"🎯 नया सर्वश्रेष्ठ %!"`
+  - AR `"🎯 أفضل % جديد!"`
+- **Assumptions made:**
+  - **Strict greater-than gate** for the flair (ties don't fire).
+    Pinned by `testLossOutcomeEqualPercentReturnsNoNewBest`. Matches
+    the persistence layer's date-pin convention from v1.28.0.
+  - **Replay / custom losses excluded** — naturally inherited from
+    the existing v1.28.0 gate around `Stats::recordLoss`; the
+    LossOutcome struct on a default-constructed `lossOutcome{}` has
+    `newBestSafePercent == false`, so the flair is unreachable on
+    the excluded paths without any new conditional in
+    `MainWindow::onGameLost`.
+  - **First-click boom (0%) never flairs** — `recordLoss`'s
+    `safePercent > 0` short-circuit prevents both persistence and
+    the flair simultaneously. Pinned by
+    `testLossOutcomeWithZeroPercentReturnsNoNewBest`.
+  - **Source-compat trailing-return change** on `recordLoss`
+    (`void → LossOutcome`). All existing call sites (1 production,
+    19 in tests) discard the value and remain unchanged — C++
+    permits discarding non-void returns.
+  - **15th parameter on showEndDialog**, not a struct refactor.
+    Adding the param matched the existing 14-param signature shape
+    (the function already threads many independent fields); a
+    struct refactor would be churn for no net benefit at this size.
+- **Skipped:**
+  - *Lifetime "first-loss date" stamp.* Cosmetic, parked.
+  - *Win-dialog "Personal best 3BV/s" flair.* Re-parked from cycle
+    24 — needs new `Stats::recordBestBvPerSecond` accessor +
+    persistence keys, larger surface than the cycle cap.
+  - *Stats-dialog `🎯` icon prefix on the partial-clear cell.*
+    Tempting but means a 2nd-cell glyph that the player only sees
+    in the Stats dialog, not in the moment. The loss-dialog flair
+    is the higher-impact placement.
+- **Risks logged:** none. Trailing-return change with discardable
+  result; additive 15th `showEndDialog` parameter; additive
+  telemetry tag; no behavioural change on the win path or any
+  excluded loss path.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* The 15th param on `showEndDialog`
+    was added with both call sites (`onGameWon` passes `false`,
+    `onGameLost` passes the outcome's flag) updated atomically in
+    the same commit; a partial update would be caught at compile
+    time, not runtime.
+  - *Backwards compat?* `Stats::recordLoss` gains a non-void return
+    type; existing `void`-discarding call sites compile unchanged.
+    `LossOutcome` is value-copy-cheap (single bool); no allocation
+    or RAII concern. Persistence layer unchanged from v1.28.0 — no
+    QSettings schema bump.
+  - *Error paths?* The flair gate (`lossNewBestSafePercent`) is
+    purely additive in `showEndDialog`; if it's wrongly true, the
+    user sees a redundant celebratory line — non-destructive. If
+    wrongly false, they miss a celebration but nothing breaks. The
+    persistence layer's behaviour is unchanged.
+  - *Secrets / PII?* New telemetry tag is a single boolean
+    (`new_best_safe_percent`) derived from public game state; not
+    PII. No new local-filesystem writes (the QSettings write was
+    already in v1.28.0).
+  - *Performance?* Adds one bool assignment + one struct return on
+    the loss path — sub-microsecond, not in any hot path. Dialog
+    render adds one conditional + one string prepend.
+  - *Concurrency?* Single-threaded. No new shared state. The loss
+    flow is fully synchronous: `gameLost` signal → slot →
+    `recordLoss` → `showEndDialog`.
+- **Post-release watch (T+~3min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.29.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and the assets just
+  published with zero downloads. Watch closed.
+- **Next candidates:**
+  - **Win-dialog "Personal best 3BV/s" flair** when the run beats
+    the per-difficulty best 3BV/s ever recorded. Parallel to the
+    "🏆 New record!" flair (which gates on best-time), but for the
+    canonical efficiency metric. Needs a new
+    `Stats::recordBestBvPerSecond` accessor + lifetime persistence
+    in `~/Library/Preferences/com.mavrikant.QMineSweeper.plist`.
+    Re-parked from cycles 24+25.
+  - **Stats-dialog "Best 3BV/s" column** as the Stats-side
+    counterpart to the above flair. Bundle into the same cycle to
+    amortise the persistence-layer cost.
+  - **Loss-dialog "Time since last win" line** when the player has
+    won this difficulty before. Reads `bestDate` (already
+    persisted) and renders "X days since your last win." A
+    psychological nudge for players on a long losing streak. No
+    persistence churn, ~30 LOC + 1 translatable string × 9 locales.
+
 ## 2026-04-25 — Cycle 25 — v1.28.0 (autonomous)
 
 - **Chosen problem:** Cycle 24 explicitly parked the Stats-dialog
