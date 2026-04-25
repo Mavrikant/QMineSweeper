@@ -344,6 +344,22 @@ int MineField::questionMarksPlaced() const noexcept
     return count;
 }
 
+int MineField::correctFlagsPlaced() const noexcept
+{
+    int count = 0;
+    for (const auto &row : m_buttons)
+    {
+        for (const auto *btn : row)
+        {
+            if (btn != nullptr && btn->isFlagged() && btn->isMined())
+            {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
 int MineField::safePercentCleared() const noexcept
 {
     const std::uint32_t total = m_difficulty.width * m_difficulty.height - m_difficulty.mineCount;

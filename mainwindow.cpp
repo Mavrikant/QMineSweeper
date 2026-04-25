@@ -548,7 +548,7 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                            {QStringLiteral("new_best_bv_per_second"), outcome.newBestBvPerSecond ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -576,6 +576,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     }
     const int clicks = ui->mineFieldWidget->userClicks();
     const int flags = ui->mineFieldWidget->flagsPlaced();
+    const int correctFlags = ui->mineFieldWidget->correctFlagsPlaced();
     const int bv = ui->mineFieldWidget->boardValue();
     const int qmarks = ui->mineFieldWidget->questionMarksPlaced();
     const int partialBv = ui->mineFieldWidget->partialBoardValue();
@@ -592,9 +593,10 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("partial_bv"), QString::number(partialBv)},
                                                             {QStringLiteral("partial_bv_per_second"), QString::asprintf("%.2f", partialBvRate)},
                                                             {QStringLiteral("qmarks"), QString::number(qmarks)},
+                                                            {QStringLiteral("correct_flags"), QString::number(correctFlags)},
                                                             {QStringLiteral("new_best_safe_percent"), lossOutcome.newBestSafePercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -805,7 +807,7 @@ void MainWindow::updateTimerLabel()
 }
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
-                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond)
+                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -898,6 +900,16 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (flagsPlaced > 0)
         {
             text += QStringLiteral("\n") + tr("Flags placed: %1").arg(flagsPlaced);
+            // Companion line giving flag-accuracy at the moment of explosion:
+            // how many of the placed flags were on actual mines. Always rendered
+            // alongside "Flags placed" (same gate) so the player who chose to
+            // flag at all gets the matching accuracy readout. Form mirrors the
+            // "Partial 3BV: X / Y" pair-line: numerator is correct flags,
+            // denominator is total flags. correctFlags ≤ flagsPlaced is invariant
+            // — the field can never count a flag that isn't placed. A perfect
+            // flagger reads "Correct flags: 8 / 8" and a chaotic guess reads
+            // "Correct flags: 0 / 8".
+            text += QStringLiteral("\n") + tr("Correct flags: %1 / %2").arg(lossCorrectFlags).arg(flagsPlaced);
         }
         // Question-mark count — completes the right-click action recap alongside
         // Flags. Mirrors the flagsPlaced gate exactly: gated > 0 so a common no-`?`
