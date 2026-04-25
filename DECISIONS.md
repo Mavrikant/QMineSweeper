@@ -1,5 +1,74 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: "Correct flags: %1 / %2" line (v1.32.0)
+
+**Chosen:** Add a flag-accuracy readout to the loss dialog. Right after
+the existing `Flags placed: %1` line, a new `Correct flags: %1 / %2`
+line shows how many of the user's placed flags landed on actual mines
+at the moment of explosion. Form mirrors the existing
+`Partial 3BV: X / Y · 3BV/s: Z` pair-line. Gated on the same
+`flagsPlaced > 0` predicate as the companion line so a no-flag boom
+stays clean. Backed by a new `MineField::correctFlagsPlaced()` walking
+live cells for `isFlagged() && isMined()`.
+
+**Why this and not something else:**
+- Continues the v1.21.0–v1.27.0 thread of small loss-dialog detail
+  additions. The v1.24.0 cycle introduced `Flags placed: %1` but
+  stopped short of accuracy — the missing companion is a natural fit.
+- High signal-to-effort: ~30 LOC of source, +1 translatable string ×
+  9 locales, +7 test cases. Pure addition (no existing key changes,
+  no schema changes, no new QSettings keys).
+- Useful gameplay feedback. Did your flagging discipline hold up, or
+  were you guessing? The total-flags line alone can't tell you.
+- Matches user instinct: the `flagsPlaced` doc comment explicitly
+  notes "the loss path does not auto-flag, so reading this on a loss
+  gives the user's actual flag count at the moment of explosion" —
+  pairing that with correctness is the obvious next step.
+
+**Implementation invariants:**
+- `correctFlagsPlaced() ≤ flagsPlaced()` — the field can never count
+  a flag that isn't placed. Encoded as test cases (all-on-mines,
+  none-on-mines, mixed).
+- A `?` on a mined cell does NOT count as a correct flag — the
+  marker is `Question`, not `Flag`. Regression-guarded by
+  `testCorrectFlagsPlacedQuestionDoesNotCount` so any future change
+  that conflates marker states gets caught.
+- The walk runs only at end-of-game (called once from
+  `MainWindow::onGameLost`), so the O(rows × cols) ≤ 480 cost is
+  acceptable. Same pattern as `questionMarksPlaced()`.
+- `revealAllMines()` does not touch `m_marker`, so the count survives
+  the loss reveal — guarded by `testCorrectFlagsPlacedPreservedOnLoss`.
+
+**Why a separate line, not `Flags placed: 8 (correct: 6)`:**
+- Combining would change the existing translation key for
+  `Flags placed: %1`, forcing re-translation across 9 locales.
+- Two clean lines (`Flags placed: 8` + `Correct flags: 6 / 8`) read
+  more naturally than a parenthetical and match the
+  `Partial 3BV: X / Y · 3BV/s: Z` precedent for paired stats.
+
+**Why not "Flag accuracy: 75 %":**
+- Loses absolute counts. With 1–2 placed flags, a percentage reads
+  awkwardly (50 % from 1/2 vs 50 % from 4/8 are very different).
+- The `correct / total` form matches `Partial 3BV: %1 / %2` and
+  avoids introducing a fourth percent sign on the loss dialog
+  (already has `You cleared %1% of the board.`).
+
+**Telemetry:** `game.lost` event gains a `correct_flags` tag
+alongside the existing `flags`/`qmarks`. Useful for future analysis
+of flag-accuracy distributions across difficulties.
+
+**Tests added (7):**
+- `testCorrectFlagsPlacedZeroBeforeAnyFlag` — empty initial state.
+- `testCorrectFlagsPlacedCountsOnlyFlagsOnMines` — mixed (1/2).
+- `testCorrectFlagsPlacedAllOnMines` — boundary (2/2).
+- `testCorrectFlagsPlacedNoneOnMines` — boundary (0/2).
+- `testCorrectFlagsPlacedQuestionDoesNotCount` — regression guard:
+  marker cycle through Question must not inflate the counter.
+- `testCorrectFlagsPlacedPreservedOnLoss` — revealAllMines must not
+  disturb flag state.
+- `testCorrectFlagsPlacedResetByNewGame` — newGame clears prior
+  cells.
+
 ## 2026-04-25 — Stats dialog: Best 3BV/s column (v1.31.0)
 
 **Chosen:** Add a 7th column "Best 3BV/s" to the Statistics dialog

@@ -1,5 +1,182 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 29 — v1.32.0 (autonomous)
+
+- **Chosen problem:** The loss dialog already shows total flags
+  placed (v1.24.0) but doesn't tell the user how many of them were
+  on actual mines. Did the player flag with discipline, or were
+  they guessing? The total-flags line alone can't say. A
+  `Correct flags: X / Y` companion line — same `flagsPlaced > 0`
+  gate, same `correct / total` shape as `Partial 3BV: X / Y` —
+  closes the obvious accuracy gap on the recent v1.21–v1.27
+  loss-dialog detail thread.
+- **Evidence:** v1.24.0 introduced `Flags placed: %1`. The
+  `MineField::flagsPlaced()` doc comment explicitly notes that on a
+  loss it gives "the user's actual flag count at the moment of
+  explosion" — pairing that with correctness is the natural next
+  step. No existing accuracy metric on the dialog. The walk over
+  ≤ 480 cells is the same pattern `questionMarksPlaced()` already
+  uses.
+- **Shipped:**
+  - Branch: `feat/v1.32.0-correct-flags-line` (squash-merged + deleted)
+  - PR: [#50](https://github.com/Mavrikant/QMineSweeper/pull/50)
+    (squash-merged as `70b786b`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.32.0
+  - Release workflow `24937956641` succeeded; all 4 platform assets
+    + `SHA256SUMS.txt` published (Linux AppImage 35.9 MB / tar.gz
+    35.6 MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB). Hand-written
+    user-facing release notes installed via `gh release edit` —
+    explains the line's form, the no-flag-boom gate, and the macOS
+    quarantine clear.
+- **Code surface:** ~30 LOC of production diff:
+  - `minefield.h`: 11 LOC of doc-comment + 1 LOC method declaration
+    for `correctFlagsPlaced()`.
+  - `minefield.cpp`: 14 LOC implementation walking live cells for
+    `isFlagged() && isMined()`. Mirrors `questionMarksPlaced()`
+    exactly.
+  - `mainwindow.h`: 1 LOC signature change to thread
+    `lossCorrectFlags` through `showEndDialog`.
+  - `mainwindow.cpp`: 4 LOC — fetch `correctFlags` in
+    `onGameLost`, emit on telemetry as `correct_flags`, pass to
+    `showEndDialog`, render the new line in the loss branch with
+    `tr("Correct flags: %1 / %2")`.
+  - `tests/tst_minefield.cpp`: 7 new test methods + 7 declarations
+    (~80 LOC).
+  - `apply_translations.py`: 9 LOC (1 new key × 9 locales).
+  - `CMakeLists.txt`: 1 LOC (version bump).
+  - Total real code+test diff: ~120 LOC; well under the 400-LOC
+    cycle cap. (689/505 line-count is `lupdate`-driven `.ts` line
+    renumbering across 9 locales.)
+- **Tests added (7 new in `tst_minefield.cpp`):**
+  - `testCorrectFlagsPlacedZeroBeforeAnyFlag` — empty initial
+    state on a 3×3 board with two mines.
+  - `testCorrectFlagsPlacedCountsOnlyFlagsOnMines` — mixed (1 of
+    2): one flag on a mine, one flag on a safe cell. Catches a
+    naive `m_flagCount`-mirror implementation.
+  - `testCorrectFlagsPlacedAllOnMines` — boundary (2/2). The
+    `correct ≤ total` invariant must allow equality.
+  - `testCorrectFlagsPlacedNoneOnMines` — boundary (0/2). Player
+    flagged only safe cells.
+  - `testCorrectFlagsPlacedQuestionDoesNotCount` — regression
+    guard: a `?` on a mined cell still has `m_isMined == true`,
+    but `isFlagged()` is false. Catches any future change that
+    conflates marker states.
+  - `testCorrectFlagsPlacedPreservedOnLoss` — `revealAllMines()`
+    must not touch flag state, mirroring the existing
+    `testFlagsPlacedPreservedOnLoss` and
+    `testQuestionMarksPlacedPreservedOnLoss`.
+  - `testCorrectFlagsPlacedResetByNewGame` — `newGame()` clears
+    prior cells; the next round starts at 0.
+- **Translation cost:** 1 new hand-translated string × 9 non-en
+  locales. 103/103 finished per locale, 0 unfinished — 50/50
+  coverage preserved.
+  - TR `"Doğru bayrak: %1 / %2"`
+  - ES `"Banderas correctas: %1 / %2"`
+  - FR `"Drapeaux corrects : %1 / %2"`
+  - DE `"Korrekte Flaggen: %1 / %2"`
+  - RU `"Верных флагов: %1 / %2"`
+  - PT `"Bandeiras corretas: %1 / %2"`
+  - ZH `"正确旗子：%1 / %2"`
+  - HI `"सही झंडे: %1 / %2"`
+  - AR `"الأعلام الصحيحة: %1 / %2"`
+- **Assumptions made:**
+  - **Separate line, not parenthetical** (`Flags placed: 8
+    (correct: 6)`) — keeps the existing `Flags placed: %1`
+    translation key stable across all 9 locales, avoids forcing
+    re-translation. Two clean lines also read more naturally than
+    a parenthetical and match the `Partial 3BV: X / Y` precedent.
+  - **`correct / total` form, not percentage** — preserves
+    absolute counts. With 1–2 flags placed, "50 %" reads
+    awkwardly (1/2 vs 4/8 are different stories). Also avoids
+    introducing a fourth percent sign on a dialog that already has
+    `You cleared %1% of the board.`.
+  - **Same `flagsPlaced > 0` gate as the Flags placed line** — a
+    no-flag boom doesn't render either line. Always rendered
+    when the companion is rendered: there's no scenario where
+    Flags placed shows but Correct flags does not.
+  - **Walk runs only at end-of-game** — same O(rows × cols) ≤ 480
+    pattern as `questionMarksPlaced()`. No counter, no transition
+    signal subscription. Flags can be placed before mines are
+    seeded (mine placement is deferred to the first click), so a
+    counter would have to re-tally on `placeMines` anyway.
+  - **Telemetry tag added** — `game.lost` event carries
+    `correct_flags` alongside `flags`/`qmarks`. Useful for future
+    analysis of flag-accuracy distributions across difficulties.
+    Same anonymous-tag profile as the existing per-event tags;
+    no new PII.
+- **Skipped:**
+  - *Win-dialog "Correct flags" line.* The win path's
+    `flagAllMines()` auto-flags every mine after the state flips
+    to Won, so flags placed and correct flags would always be
+    equal to mineCount. Useless on the win side; explicitly
+    excluded by the `flagsPlaced > 0` placement on the loss-side
+    `if` block (the win dialog does not even reach this code path
+    because `won == true`).
+  - *Stats dialog "Best flag accuracy" column.* Lifetime
+    persistence would need a new `Record::bestFlagAccuracyPercent`
+    + date pair. Defer to a future cycle — same shape as the
+    v1.27 → v1.28 partial-3BV → hall-of-fame thread.
+  - *Loss-dialog "Time since last win" line.* Re-parked from
+    cycle 28's next-candidates. Needs a `last_win_date` field
+    (separate from `bestDate`). ~30 LOC. Defer.
+  - *Win-dialog "Average time" line.* Re-parked from cycle 28.
+    Needs persistence of total seconds. ~40 LOC. Defer.
+- **Risks logged:** none. Pure additive change. No schema
+  migration. No new persistence. New telemetry tag is a string
+  count — same anonymous-tag profile as the existing tags.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* The loss dialog gets one extra
+    line when the player placed any flags. The `tr()` lookup
+    falls back to source on any locale where the key is missing
+    — verified `0` unfinished outside `en` so this won't trigger.
+    A `tr()` source-string mismatch (typo) would print the source
+    string instead of the translation; pinned by all 9 hand
+    translations using the exact key.
+  - *Backwards compat?* No API change to `Stats::Record`; no
+    schema migration; no new QSettings keys. The
+    `MineField::correctFlagsPlaced()` method is new but
+    appended; no existing methods or signatures changed.
+    `MainWindow::showEndDialog` got one extra trailing parameter
+    — only two call sites, both updated atomically. A partial
+    update would be caught at compile time.
+  - *Error paths?* `correctFlagsPlaced()` is total: it walks the
+    live cells and returns a non-negative int. Cannot throw,
+    cannot return a sentinel. Empty board (no cells)
+    safely returns 0.
+  - *Secrets / PII?* New telemetry tag is a count (integer).
+    No new persistence, no network calls beyond the existing
+    Sentry pipeline. Strictly read-only on the field.
+  - *Performance?* End-of-game-only walk over ≤ 480 cells
+    (Expert). Sub-microsecond. Same pattern as
+    `questionMarksPlaced()` which already runs once per loss.
+  - *Concurrency?* Single-threaded. No new shared state.
+  - *Q-mark regression?* Explicitly tested:
+    `testCorrectFlagsPlacedQuestionDoesNotCount` confirms a `?`
+    on a mined cell does not inflate the counter, because
+    `isFlagged()` is false for `Question` markers.
+- **Post-release watch (T+~3min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues
+  in release `qminesweeper@1.32.0` in the last hour returned
+  **zero results**. Expected — telemetry is opt-in and the assets
+  just published with zero downloads. Watch closed.
+- **Next candidates:**
+  - **Stats-dialog "Best flag accuracy" column** — lifetime
+    hall-of-fame for the v1.32 metric, same v1.27 → v1.28 pattern
+    of per-loss readout → lifetime persistence. Needs
+    `Record::bestFlagAccuracyPercent` + date pair on a non-replay,
+    non-custom loss with `flagsPlaced > 0`. ~50 LOC.
+  - **Loss-dialog "Time since last win" line** when the player has
+    won this difficulty before. Re-parked from cycle 28. Needs
+    a new `last_win_date` field. ~30 LOC + 1 translatable string
+    × 9 locales.
+  - **Win-dialog "Average time" line** showing the player's
+    average winning time after >= 3 wins. Re-parked from cycle 28.
+    Needs persistence of total seconds. ~40 LOC.
+  - **Stats-dialog row totals** below the 3 difficulty rows —
+    grand-total played / won / win % across all difficulties. Pure
+    presentation aggregation; no new persistence. Re-parked from
+    cycle 28.
+
 ## 2026-04-25 — Cycle 28 — v1.31.0 (autonomous)
 
 - **Chosen problem:** The v1.30 cycle log explicitly tagged a Stats-
