@@ -1,5 +1,195 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 27 — v1.30.0 (autonomous)
+
+- **Chosen problem:** The "Win-dialog ⚡ New best 3BV/s flair" was
+  the next-candidate item explicitly re-parked across cycles 24, 25,
+  and 26. Three deferrals is enough — the persistence-layer cost is
+  fixed (two new keys, two new fields) and small enough to fit a
+  single cycle. 3BV/s is the canonical Minesweeper efficiency metric
+  (already surfaced on every win dialog since v1.14.0 as the "3BV: %1
+  · 3BV/s: %2" line); a new personal best at 3BV/s is the speedrun
+  community's primary progress signal — much more meaningful than a
+  faster clock time on a lower-3BV (i.e. easier) board.
+- **Evidence:** `Stats::recordWin` returned a `WinOutcome` with
+  `newRecord` (best clock) / `currentStreak` / `newBestStreak`, but
+  no per-difficulty 3BV/s lifetime tracking. The win dialog had three
+  flair slots filled (`🏆`, `🌟`/`🔥`, `🏃`) but no flair on the
+  efficiency axis even though the inline "3BV: X · 3BV/s: Y" line
+  has been there since v1.14.0.
+- **Shipped:**
+  - Branch: `feat/win-best-bv-per-second-flair` (squash-merged + deleted)
+  - PR: [#48](https://github.com/Mavrikant/QMineSweeper/pull/48)
+    (squash-merged as `fc2ddc7`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.30.0
+  - Release workflow `24935744804` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage 35.9 MB / tar.gz
+    35.6 MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB). Hand-written
+    user-facing release notes installed via `gh release edit` —
+    explains the strict-greater-than gate, the standard-difficulties-
+    only gate, the replay/custom exclusion, the independence from
+    the existing 🏆 best-time flair, and the L→R render order on a
+    multi-flair win.
+- **Code surface:** ~100 LOC of production diff:
+  - `stats.h`: 32 LOC (two new `Record` fields, new `WinOutcome`
+    field, new `recordWin` trailing default-arg parameter, comment
+    block update for the per-difficulty QSettings tree).
+  - `stats.cpp`: 25 LOC (load/save/reset paths for two new keys,
+    `recordWin` body gains a strict-greater-than gate that updates
+    `bestBvPerSecond` + date and sets the new `WinOutcome` flag).
+  - `mainwindow.{h,cpp}`: 35 LOC (`onGameWon` hoists `bv` + `bvRate`
+    so they can be threaded into `recordWin`; `showEndDialog` gains
+    a 16th positional parameter `winNewBestBvPerSecond`; new flair
+    prepended last so it ends up leftmost; new `game.won` telemetry
+    tag `new_best_bv_per_second`).
+  - `apply_translations.py`: 9 LOC (1 new key × 9 locales).
+  - +225 LOC of new tests in `tst_stats.cpp`. Real production+test
+    diff well under the 400-LOC cycle cap (the 939/510 line-count is
+    `lupdate`-driven `.ts` line renumbering across 9 locales).
+- **Tests added (15 new in `tst_stats.cpp`):**
+  - `testBestBvPerSecondDefaultsZero` — virgin record sanity
+    baseline.
+  - `testRecordWinDefaultArgsKeepsBestBvPerSecondZero` — source-compat
+    default-arg path: 17 pre-1.30 test sites still work and never
+    touch the new field.
+  - `testRecordWinWithBvRateSetsOnFirstCall` — first record sets
+    both value and date.
+  - `testRecordWinWithHigherBvRateBeats` — strict beat fires.
+  - `testRecordWinWithLowerBvRateKeepsOriginal` — worse rate doesn't.
+  - `testRecordWinWithEqualBvRateKeepsOriginalDate` — strict
+    greater-than: ties keep the original date (mirrors best-streak
+    convention).
+  - `testRecordWinWithZeroBvRateNoOp` — sub-tick win sentinel
+    short-circuits the update path.
+  - `testRecordWinWithNegativeBvRateNoOp` — defence in depth against
+    a future arithmetic-bug call site passing negative.
+  - `testRecordLossDoesNotTouchBestBvPerSecond` — load-bearing
+    invariant: a loss must not zero/overwrite the field.
+  - `testBestBvPerSecondIsPerDifficulty` — Beginner record doesn't
+    leak into Intermediate/Expert.
+  - `testResetWipesBestBvPerSecond` /
+    `testResetAllWipesBestBvPerSecond` — both new keys cleared on
+    reset paths.
+  - `testLegacyRecordWithoutBestBvPerSecondLoadsAsZero` — pre-1.30
+    QSettings tree (no new keys) loads as 0.0 / invalid date.
+  - `testFasterClockMayNotBeatBvRateAndViceVersa` — independence
+    pin for the two records (a 3-run scenario walking through both
+    independence directions).
+  - `testWinOutcomeBvRateIndependentOfNewRecord` — full
+    `WinOutcome` field-matrix pin.
+  - **Adversarially verified** by mutating
+    `newBestBvPerSecond = true` to `= false` in `Stats::recordWin`
+    — 9 of 15 new tests fail with the wrong value. The 6 negative-
+    path tests correctly stay green — they verify the field is NOT
+    set in those branches, which the mutation doesn't affect.
+- **Translation cost:** 1 new hand-translated string × 9 non-en
+  locales. 50/50 coverage preserved (all 9 .ts files
+  `Generated 101 translation(s) (101 finished and 0 unfinished)`).
+  - TR `"⚡ Yeni en iyi 3BV/sn!"`
+  - ES `"⚡ ¡Nuevo mejor 3BV/s!"`
+  - FR `"⚡ Nouveau meilleur 3BV/s !"` (French thin-space-before-!)
+  - DE `"⚡ Neuer Bestwert 3BV/s!"`
+  - RU `"⚡ Новый лучший 3BV/с!"` (Cyrillic с for "сек.")
+  - PT `"⚡ Novo melhor 3BV/s!"`
+  - ZH `"⚡ 新最佳 3BV/秒！"` (full-width !)
+  - HI `"⚡ नया सर्वश्रेष्ठ 3BV/से!"` (Devanagari से for "सेकंड")
+  - AR `"⚡ أفضل 3BV/ث جديد!"` (Arabic ث for "ثانية")
+- **Assumptions made:**
+  - **Strict greater-than gate** for the flair (ties don't fire).
+    Pinned by `testRecordWinWithEqualBvRateKeepsOriginalDate`.
+    Mirrors the persistence layer's date-pin convention from
+    cycles 22 and 25.
+  - **Replay / custom losses excluded** — naturally inherited from
+    the existing v1.13.0 `!excludedFromStats` gate around
+    `MainWindow::onGameWon`'s `Stats::recordWin` call. No new gate
+    needed.
+  - **Sub-tick win (bvRate==0) never flairs** — `recordWin`'s
+    `bvPerSecond > 0.0` short-circuit prevents both persistence and
+    the flair simultaneously. Pinned by
+    `testRecordWinWithZeroBvRateNoOp`.
+  - **Independent of best-time** — best-clock and best-3BV/s are
+    independent records. Pinned by
+    `testFasterClockMayNotBeatBvRateAndViceVersa` (3-run scenario:
+    both axes set on run 1; clock-only on run 2; 3BV/s-only on
+    run 3).
+  - **Source-compat trailing-default change** on `recordWin`
+    (`bvPerSecond = 0.0` trailing default). All existing call sites
+    (1 production, 17 in tests) pass no value and remain unchanged.
+  - **16th parameter on `showEndDialog`**, not a struct refactor.
+    Adding the param matched the 14→15 pattern from v1.28.0 →
+    v1.29.0; a struct refactor would be churn for no net benefit
+    at this size.
+  - **L→R render order** ⚡ → 🌟/🔥 → 🏆 → 🏆 → 🏃. The new flair
+    prepends LAST in code so it ends up LEFTMOST visually — gives
+    the new feature top billing on its release.
+- **Skipped:**
+  - *Stats-dialog "Best 3BV/s" column.* The Stats-side counterpart to
+    this flair. Bundle into a near-future cycle to amortise the
+    column-header translation cost (10 locales × 1 string).
+    Re-parked as the natural one-cycle filler — same shape as the
+    cycle 24 → 25 thread (per-run partial 3BV → lifetime hall-of-
+    fame for the same metric).
+  - *Loss-dialog "Time since last win" line.* Needs a new
+    `last_win_date` field (separate from `bestDate`, which is the
+    date of the best-time win, not the most recent). Defer to a
+    future cycle.
+  - *About-dialog mention of the new feature.* Kept the about body
+    byte-identical to avoid touching 10 hand translations.
+- **Risks logged:** none. Trailing-default-parameter change with
+  source-compat for all 18 existing call sites; additive
+  `WinOutcome` field; additive 16th `showEndDialog` parameter;
+  additive QSettings keys with safe absent-key defaults; additive
+  telemetry tag; no behavioural change on the loss path or any
+  excluded win path.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* The 16th param on `showEndDialog`
+    was added with both call sites (`onGameWon` passes
+    `outcome.newBestBvPerSecond`, `onGameLost` passes `false`)
+    updated atomically in the same commit; a partial update would
+    be caught at compile time, not runtime.
+  - *Backwards compat?* `Stats::recordWin` gains a trailing default
+    parameter (source-compat); `WinOutcome` gains a trailing field
+    (additive); existing readers of `newRecord` / `currentStreak` /
+    `newBestStreak` are unaffected. New QSettings keys load as
+    0.0/invalid for pre-1.30 records — pinned by
+    `testLegacyRecordWithoutBestBvPerSecondLoadsAsZero`.
+  - *Error paths?* The flair gate (`winNewBestBvPerSecond`) is
+    purely additive in `showEndDialog`; if it's wrongly true, the
+    user sees a redundant celebratory line — non-destructive. If
+    wrongly false, they miss a celebration but nothing breaks. The
+    persistence layer's `bvPerSecond <= 0.0` guard short-circuits
+    sub-tick / negative cases.
+  - *Secrets / PII?* New telemetry tag is a single boolean
+    (`new_best_bv_per_second`) derived from public game state; not
+    PII. No new local-filesystem writes beyond the additive
+    QSettings keys.
+  - *Performance?* Adds one double-comparison + one struct-field
+    assignment on the win path — sub-microsecond, not in any hot
+    path. Dialog render adds one conditional + one string prepend.
+  - *Concurrency?* Single-threaded. No new shared state. The win
+    flow is fully synchronous: `gameWon` signal → slot →
+    `recordWin` → `showEndDialog`.
+- **Post-release watch (T+~3min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.30.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and the assets just
+  published with zero downloads. Watch closed.
+- **Next candidates:**
+  - **Stats-dialog "Best 3BV/s" column** as the lifetime hall-of-
+    fame counterpart to today's flair. Reads the just-shipped
+    `bestBvPerSecond` + `bestBvPerSecondDate` fields, renders as a
+    new 7th column on the Stats table. ~50 LOC + 1 translatable
+    column header × 9 locales. Highest-value next-cycle filler.
+  - **Loss-dialog "Time since last win" line** when the player has
+    won this difficulty before. Would need a new `last_win_date`
+    field (separate from `bestDate`). ~30 LOC of production +
+    persistence diff + 1 translatable string × 9 locales. A
+    psychological nudge for players on a long losing streak.
+  - **Win-dialog "Average time" line** showing the player's average
+    winning time on this difficulty after >= 3 wins. Needs
+    persistence of total seconds + count divisor (or just total
+    seconds, since `won` is already tracked). ~40 LOC.
+
 ## 2026-04-25 — Cycle 26 — v1.29.0 (autonomous)
 
 - **Chosen problem:** Cycle 25 explicitly parked the loss-dialog
