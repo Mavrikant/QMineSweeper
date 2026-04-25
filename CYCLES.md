@@ -1,5 +1,110 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 20 — v1.23.0 (autonomous)
+
+- **Chosen problem:** The v1.22.0 loss dialog reads
+  `You stepped on a mine.` + `You survived for %1.` +
+  `You cleared %1% of the board.` — duration and progress, but no
+  effort. A user who reaches 60% in 25 clicks vs. 60% in 80 clicks
+  gets the same line and has no way to compare their own efficiency
+  across runs.
+- **Evidence:** `MainWindow::onGameLost` (the post-v1.22.0 path)
+  passes `0` for `userClicks` to `showEndDialog`. `MineField` already
+  maintains `m_userClicks` for the win-dialog `Clicks: %1 ·
+  Efficiency: %2%` line; the loss path simply discards it.
+- **Shipped:**
+  - Branch: `feat/loss-dialog-clicks` (squash-merged + deleted)
+  - PR: [#41](https://github.com/Mavrikant/QMineSweeper/pull/41)
+    (squash-merged as `6989c36`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.23.0
+  - Release workflow `24928080651` green; all 5 assets +
+    `SHA256SUMS.txt` published. Hand-written user-facing release notes
+    installed via `gh release edit`.
+- **Code surface:** +606 / −422 over 15 files. The big number is nine
+  `.ts` translation file rewrites (line numbers shifted by lupdate);
+  production code is +13 lines in `mainwindow.cpp` (capture clicks,
+  thread to `showEndDialog`, append the gated line, add to telemetry
+  tags) + 1 new translatable string × 9 hand-translated locales + 19
+  lines for the new `tst_minefield` test.
+- **Tests added:**
+  - `testUserClicksLeftClickOnMineCountsAndExplodes` — direct
+    left-click on a mine increments `userClicks` before the explosion
+    freezes the board (the most common loss path; the new dialog line
+    depends on this invariant). Existing
+    `testUserClicksChordWrongFlagCountsAndExplodes` already covers the
+    chord-into-mine variant.
+  - All 6 ctest suites green pre-push and on all three platform CI
+    runs.
+- **Translation cost:** 1 new string × 9 locales (TR, ZH, HI, ES, AR,
+  FR, RU, PT, DE). Each locale's translation matches the prefix of
+  the existing `Clicks: %1 · Efficiency: %2%` translation, so
+  translators get a coherent unit and the loss-dialog `Clicks: 47`
+  reads identical to the win-dialog `Clicks: 47 · …` for the same run.
+- **Assumptions made:**
+  - **Click count, not 3BV/s.** Cycle 19's next-candidate list
+    proposed mirroring the win-dialog 3BV/s line. Doing that
+    literally would compute `boardValue / m_lastElapsedSeconds` —
+    but `boardValue` caches the **whole** board's 3BV at mine
+    placement, while a loss only completed a fraction of it.
+    Reporting that ratio would imply the user cleared the entire
+    board's 3BV at that rate, which is false. Click count is exact,
+    requires no new computation, and is the half of the win-dialog
+    metric pair that survives unmodified to a loss.
+  - **Separate `tr("Clicks: %1")` key, not a split of the existing
+    `Clicks: %1 · Efficiency: %2%`.** Splitting would invalidate nine
+    existing translations and give translators a less coherent unit.
+    The marginal cost of one new key was lower.
+  - **`userClicks > 0` gate.** Mirrors the win-dialog gate. Only
+    pathological `setFixedLayout` test paths can hit a zero-click
+    loss; gating keeps `Clicks: 0` off the user-visible path.
+- **Skipped:**
+  - *Partial 3BV computation (the 3BV of the revealed area).* Would
+    let us also surface efficiency on a loss but requires walking the
+    revealed openings + numbered cells with the same connectivity
+    rules as `compute3BV()` limited to opened cells. Real
+    implementation cost beyond a one-line dialog patch; deferred.
+  - *Loss-specific efficiency metric `safe_revealed / clicks · 100`.*
+    Plausible but a new metric the user has to learn vs. the win-side
+    definition. One cycle, one line — kept it crisp.
+  - *Prose form `tr("You used %1 clicks.")`.* Considered for prose
+    consistency with the prior loss-dialog lines. Rejected because
+    `1 click` singular handling needs `%n` plural forms across nine
+    locales and the terse `Clicks: %1` format already has translator
+    history from the win dialog.
+- **Risks logged:** none. Additive change — `MineField` API surface
+  unchanged, no QSettings/save-format change, no behavioural change on
+  the win path.
+- **Codacy CI:** Codacy Static Code Analysis returned
+  `action_required` with no summary — likely a false positive on the
+  large `.ts` rewrite by `lupdate`. The four required gates (Build×3
+  + Format) all green; coverage didn't drop (one new test added).
+  Same Codacy posture as past PRs that merged with mixed Codacy
+  results.
+- **Post-release watch (T+5min):** Sentry reports 0 unresolved issues
+  in release `qminesweeper@1.23.0` (expected — all 5 assets have
+  download_count=null/0, no users yet within the watch window). Asset
+  sizes match v1.22.0 exactly: Linux AppImage 35.9 MB / tar.gz 35.6
+  MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB, SHA256SUMS.txt 394 B.
+- **Next candidates:**
+  - *Loss dialog 5th line: partial 3BV.* Compute the 3BV of the
+    revealed area and surface `Partial: X / Y · 3BV/s: Z` so a
+    speedrunner can see their per-second pace at the moment of
+    explosion. Needs a new `MineField::partialBoardValue()` accessor
+    and a region-walk that mirrors `compute3BV()` but is limited to
+    revealed cells. ~50-line production cost; non-trivial.
+  - *Stats dialog: lifetime "Best %" (partial-clear hall-of-fame).*
+    For never-won difficulties (especially Expert for new players),
+    show the best safe-percent ever reached on a loss in place of the
+    `—` in the "Best time" column. Adds one QSettings field
+    (`best_safe_percent` + date), one `recordLoss(name, percent)`
+    call-site change, one stats-dialog cell fallback. ~80-line
+    production cost.
+  - *Replay-same-layout completion.* The local feat branch from v1.x
+    is stale but the underlying primitive (`MineField::newGameReplay`,
+    `canReplay`) shipped in v1.x. Reproducible boards for
+    sharing/comparing runs is a frequently-requested Minesweeper
+    feature; revisiting the branch is the obvious larger investment.
+
 ## 2026-04-25 — Cycle 19 — v1.22.0 (autonomous)
 
 - **Chosen problem:** The v1.21.0 loss dialog now reads
