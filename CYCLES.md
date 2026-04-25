@@ -1,5 +1,139 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 22 — v1.25.0 (autonomous)
+
+- **Chosen problem:** The v1.24.0 loss dialog reads
+  `You stepped on a mine.` + `You survived for %1.` +
+  `You cleared %1% of the board.` + `Clicks: %1` + `Flags placed: %1` —
+  five lines, all about the player's actions. The dialog says nothing
+  about the *board itself*. A run on a small Beginner field with
+  3BV=12 and a run on an unusually open Expert layout with 3BV=180
+  are visually indistinguishable from the recap.
+- **Evidence:** `MainWindow::onGameWon` already calls
+  `ui->mineFieldWidget->boardValue()` and renders `3BV: %1 · 3BV/s: %2`
+  on wins. `MainWindow::onGameLost` ignores the same accessor. The
+  data is already cached; the loss path simply discards it.
+- **Shipped:**
+  - Branch: `feat/loss-dialog-3bv` (squash-merged + deleted)
+  - PR: [#43](https://github.com/Mavrikant/QMineSweeper/pull/43)
+    (squash-merged as `155acac`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.25.0
+  - Release workflow `24930187398` green; all 5 assets +
+    `SHA256SUMS.txt` published. Asset sizes parallel v1.24.0 to within
+    a few KB: Linux AppImage 35.9 MB / tar.gz 35.6 MB, macOS .dmg 23.2
+    MB, Windows .zip 44.1 MB, SHA256SUMS.txt 394 B. Hand-written
+    user-facing release notes installed via `gh release edit`.
+- **Code surface:** ~10 lines of production diff in `mainwindow.{h,cpp}`
+  (read `boardValue()` on loss, thread to `showEndDialog`, append
+  gated line, telemetry tag) + 1 new translatable string × 9
+  hand-translated locales + 14 lines for the new
+  `testBoardValuePreservedOnLoss` test. The big diff number is `.ts`
+  line renumbering by `lupdate`. Production diff well under 30 LOC.
+- **Tests added:**
+  - `testBoardValuePreservedOnLoss` — load-bearing regression for
+    the `> 0` gate. Places two fixed mines on a 3×3, captures
+    `boardValue()` pre-loss, triggers a left-click on the unflagged
+    mine, asserts both `boardValue() == initialBV` and
+    `initialBV >= 1`. Verified adversarially by replacing
+    `return m_boardValue` with `return 0`, rebuilding, confirming
+    the test fails on the `initialBV >= 1` assert, then restoring.
+  - All 6 ctest suites green pre-push and on all three platform CI
+    runs.
+- **Translation cost:** 1 new string × 9 hand-translated locales
+  (TR, ES, FR, DE, RU, PT, ZH, HI, AR). 0 unfinished per non-en
+  locale preserved. Each locale read out:
+  - TR `Tahta 3BV: %1`
+  - ES `3BV del tablero: %1`
+  - FR `3BV du plateau : %1`
+  - DE `Spielfeld-3BV: %1`
+  - RU `3BV поля: %1`
+  - PT `3BV do tabuleiro: %1`
+  - ZH `棋盘 3BV：%1`
+  - HI `बोर्ड 3BV: %1`
+  - AR `3BV اللوحة: %1`
+- **Assumptions made:**
+  - **Static `Board 3BV: %1`, no `3BV/s` rate suffix.** A
+    partial-clear rate would compute `boardValue / m_lastElapsedSeconds`
+    — but `boardValue` is the **whole** board's 3BV, while a loss only
+    completed a fraction. Reporting that ratio would imply the user
+    cleared the entire board's 3BV at that pace, which is false.
+    Static value is exact; rate is misleading. Direct parallel of the
+    cycle-20 reasoning that justified `Clicks: %1` (without
+    Efficiency) on the loss dialog.
+  - **Fresh `tr("Board 3BV: %1")` key, not splitting the existing
+    win-dialog `tr("3BV: %1 · 3BV/s: %2")`.** Splitting would
+    invalidate nine existing hand translations and gain only
+    cosmetic dedup. The `Board` prefix also distinguishes the value
+    from the rate-paired form for any player who reads both
+    dialogs across runs.
+  - **New positional `lossBoardValue` parameter on `showEndDialog`,
+    not reusing the existing `boardValue` parameter.** Reusing
+    would couple the loss-side gate to the win-side intent — a
+    future win-side change to suppress the rate line on certain
+    runs (e.g. replays) would unintentionally flip the loss-side
+    line off. Parallel positional parameters keep the win and loss
+    paths independently controllable.
+  - **`lossBoardValue > 0` gate.** Mirrors the existing
+    `boardValue > 0` win-side gate. Real play can't reach a loss
+    with `m_boardValue == 0` (mine placement, which calls
+    `compute3BV()`, runs synchronously on first click — well before
+    any explosion is reachable). The gate matters only for
+    `setFixedLayout`-with-zero-mines test paths.
+- **Skipped:**
+  - *Partial 3BV (3BV of the revealed area only).* Most informative
+    loss line conceivable, but requires a new region-walking
+    accessor mirroring `compute3BV()` limited to opened cells.
+    Cycle-20 already costed this at ~50 LOC of production code.
+    Over budget for one cycle and orthogonal to surfacing the
+    static board value. Park.
+  - *Adding the line on the win dialog too.* Win dialog already says
+    `3BV: %1 · 3BV/s: %2`. Reflowing for symmetry would
+    re-translate every locale for zero player benefit.
+  - *"🏅 Hard board!" flair when `boardValue` lies in some high
+    percentile of the difficulty's expected BV.* Needs per-difficulty
+    BV distribution data (multi-cycle collection); user-visible
+    confidence claim Sentry can't audit. Skip.
+- **Risks logged:** none. Additive — no QSettings/save-format change,
+  no behavioural change on the win or paused paths, no public API
+  surface removed. The new `bv` telemetry tag is anonymous integer,
+  parallel to the existing `clicks` and `flags` tags from v1.23/v1.24.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* Only failure mode is a future
+    refactor that defers BV computation past the loss path or
+    zeroes `m_boardValue` on loss. The new test pins both.
+  - *Backwards compat?* Additive method, positional parameter added
+    to private `showEndDialog`. Both call sites updated. No
+    public-API consumers.
+  - *Error paths?* No new error paths.
+  - *Secrets/PII?* `bv` count added to telemetry — same shape as
+    existing `clicks`/`flags` tags. Anonymous integer.
+  - *Performance?* O(1) read of a cached int; nothing in any hot
+    path.
+  - *Concurrency?* Single-threaded; no new shared state.
+- **Post-release watch (T+~5min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.25.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and the assets just
+  published with zero downloads. The signal worth watching for is
+  *any* new group tagged with the 1.25.0 release; none observed.
+  Watch closed.
+- **Next candidates:**
+  - **Question-marks count on the loss dialog** — for users who use
+    `?` as a thinking aid; mirrors flags-placed. One translatable
+    string, no new state. The cell-marker tri-state already tracks
+    Question; a `MineField::questionMarksPlaced()` getter exposing
+    a new counter would be the cycle's only API addition.
+  - **Partial 3BV on the loss dialog** — `Partial 3BV: X / Y · 3BV/s:
+    Z` so a speedrunner can see their per-second pace at the moment
+    of explosion. Multi-cycle (~50 LOC region-walk) but the most
+    informative loss line we have. Park.
+  - **Stats dialog: lifetime "Best %" (partial-clear hall-of-fame).**
+    For never-won difficulties (Expert for new players), surface the
+    best safe-percent ever reached on a loss in place of the `—` in
+    the "Best time" column. Adds one QSettings field, one
+    `recordLoss` call-site change, one stats-dialog cell fallback.
+    ~80-line production cost.
+
 ## 2026-04-25 — Cycle 21 — v1.24.0 (autonomous)
 
 - **Chosen problem:** The v1.23.0 loss dialog surfaces three player-state
