@@ -1,5 +1,82 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 19 — v1.22.0 (autonomous)
+
+- **Chosen problem:** The v1.21.0 loss dialog now reads
+  `You stepped on a mine.` + `You survived for 1:23.` — duration but
+  no progress. A player who exploded after revealing 87% of the safe
+  cells gets the same one-liner as a player who misclicked at 12%.
+  The "almost won" feeling has no in-app surface.
+- **Evidence:** `MainWindow::showEndDialog()` (loss branch, the post-
+  v1.21.0 path) only shows duration. `MineField` already maintains
+  `m_openedSafeCount` for win-detection but never exposes it. Pure
+  inspection of the existing code — no telemetry needed for a
+  user-facing "did I almost make it?" gap.
+- **Shipped:**
+  - Branch: `feat/loss-dialog-percent-cleared` (merged + deleted)
+  - PR: https://github.com/Mavrikant/QMineSweeper/pull/40
+    (squash-merged as `608f954`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.22.0
+  - Release workflow `24926952738` green; all 5 assets +
+    `SHA256SUMS.txt` published (~2 min total). Hand-written
+    user-facing release notes installed via `gh release edit`.
+- **Code surface:** +329 / −191 over 16 files. Production code:
+  `MineField::safePercentCleared()` (10 lines in `.cpp`, 7-line
+  doxygen-style comment in `.h`) and a single `tr()` line appended
+  in `MainWindow::showEndDialog()`. The rest is 4 unit tests + 9
+  hand-translated locale strings + the `apply_translations.py`
+  entries.
+- **Tests added:** `testSafePercentClearedZeroBeforeAnyClick`,
+  `testSafePercentClearedReachesHundredOnWin`,
+  `testSafePercentClearedMidGame` (50% mid-game),
+  `testSafePercentClearedRoundsHalfUp` (1/3→33, 2/3→67 boundary).
+  All 6 ctest suites green pre-push and on all three platform CI runs.
+- **Translation cost:** 1 new string × 9 locales (TR, ES, FR, DE,
+  RU, PT, ZH, HI, AR). The previous cycle's
+  `apply_translations.py` was missing HI and AR entries when the
+  feature work landed in the working tree — caught by manual
+  inspection of `apply_translations.py`'s coverage and added
+  before commit. All 10 `.ts` files now show
+  `<translation>...</translation>` (no `unfinished`) for the new key.
+- **Assumptions made:**
+  - **Round-half-up via integer arithmetic** —
+    `(opened * 100 + total/2) / total`. Stops a 99.5% near-win from
+    rendering as "99%". `Round-half-to-even` (banker's rounding) is
+    statistically nicer but not what users expect from a UI metric.
+  - **Loss-only line** — a win is implicitly 100%, surfacing the
+    line on a win is noise; the existing "You won!" path stays
+    untouched.
+  - **Hindi and Arabic translations are correct.** Hand-modeled on
+    the existing "You cleared the field" idiom in each locale; no
+    machine translation.
+- **Skipped:**
+  - *Cell-count form ("87 of 99 cells")* — noisier, less satisfying,
+    same information. Percent is the right precision for an end-of-
+    game pat-on-the-back.
+  - *Reuse the win-dialog `cleared in %1` line* — different semantics
+    (time vs. progress), different verb tense ("cleared" vs.
+    "have cleared X% of"). Kept separate strings for translation
+    fidelity.
+- **Risks logged:** none. Additive `MineField` API, no QSettings or
+  save-format change, no behavioural change on the win path.
+- **Post-release watch (T+10min):** Sentry shows 0 unresolved issues
+  in release `qminesweeper@1.22.0` — expected zero (all 5 assets
+  have download_count=0; no users yet). Asset sizes look sane:
+  Linux AppImage 35.9 MB, tar.gz 35.6 MB, macOS .dmg 23.2 MB,
+  Windows .zip 44.1 MB, SHA256SUMS.txt 394 B. No regression
+  signal within the window this cycle could realistically cover.
+- **Next candidates:**
+  - Loss dialog: 4th line surfacing the run's 3BV efficiency at the
+    moment of explosion (mirrors the win dialog's 3BV/s line) — same
+    "didn't quite make it but here's what you accomplished" theme.
+  - Stats dialog: lifetime "Best %" for a partial-clear hall-of-fame
+    when no win exists yet on a difficulty (would let new players
+    on Expert see *some* personal record before their first win).
+  - Replay-same-layout: branch already exists locally; reproducible
+    boards for sharing/comparing runs is a frequently-requested
+    Minesweeper feature and the local feat branch is the obvious
+    next investment.
+
 ## 2026-04-25 — Cycle 18 — v1.21.0 (autonomous)
 
 - **Chosen problem:** The end-of-game **Boom** dialog still read just

@@ -1,5 +1,54 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: percent-cleared line (v1.22.0)
+
+**Chosen:** Add a third line to the loss dialog only,
+`tr("You cleared %1% of the board.").arg(safePercentCleared())`,
+exposing a new `MineField::safePercentCleared()` integer accessor that
+reports the percentage of safe cells revealed at the moment of
+explosion. Round-half-up via integer arithmetic.
+
+**Rejected alternatives:**
+- *Cell-count form ("87 of 99 cells")* — same information, more text,
+  noisier. Percent is the canonical "almost-won" metric.
+- *Show on the win dialog too.* A win is provably 100%, so the line
+  carries zero new information; would just dilute the existing one-
+  line "You won!" celebration.
+- *Floating-point percentage ("87.4%")* — sub-percent precision is
+  meaningless for a game stat and adds locale-specific decimal
+  separator handling for nine translations.
+- *Round-half-to-even (banker's)* — statistically tidier but not what
+  a player expects from a single-digit UI metric. A 99.5% near-win
+  rendering as "99%" would feel cruel.
+
+**Why ship this now:**
+- Builds directly on v1.21.0's `You survived for %1.` line — the loss
+  dialog is now in active iteration and the marginal cost of one more
+  line is low.
+- Concrete user value — converts a near-miss from an abstract
+  `boom` into a quantified `you were 87% there`.
+- Zero new bookkeeping. `m_openedSafeCount` is already maintained for
+  the win-detection path; we just expose it in the right form.
+- Backwards compatible — additive `MineField` API, no save-state
+  change, no win-path change.
+
+**Why round-half-up via integer arithmetic:**
+`(opened * 100 + total/2) / total`. Avoids float, avoids locale
+decimal-separator issues, avoids the 99.5%-renders-as-99% cruelty.
+Tested at the 1/3 (33%) and 2/3 (67%) boundary.
+
+**Translation surface:** 1 new string × 9 hand-translated locales.
+Hindi and Arabic entries were missing from the in-progress
+`apply_translations.py` when the feature work landed in the tree — added
+before commit. All 10 `.ts` files now have a complete
+`<translation>...</translation>` for the new key.
+
+**Assumptions:**
+- Single-digit precision is the right granularity for a one-line UI
+  stat. Players will not tell the difference between 87% and 87.4%.
+- Loss-only placement matches the spirit of the line ("you almost
+  made it"). Wins don't need a "you cleared 100%" confirmation.
+
 ## 2026-04-25 — Win-dialog adopts MM:SS clock format (v1.20.0)
 
 **Chosen:** Replace the win-dialog's
