@@ -275,7 +275,7 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="78"/>
-        <location filename="../mainwindow.cpp" line="952"/>
+        <location filename="../mainwindow.cpp" line="967"/>
         <source>New Game</source>
         <translation>لعبة جديدة</translation>
     </message>
@@ -324,102 +324,107 @@
         <translation>🎯 أفضل % جديد!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="953"/>
+        <location filename="../mainwindow.cpp" line="962"/>
+        <source>🚩 New best flag accuracy!</source>
+        <translation>🚩 أفضل دقة أعلام جديدة!</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="968"/>
         <source>Close</source>
         <translation>إغلاق</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="985"/>
+        <location filename="../mainwindow.cpp" line="1000"/>
         <source>Statistics</source>
         <translation>الإحصائيات</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Difficulty</source>
         <translation>الصعوبة</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Played</source>
         <translation>اللعبات</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Won</source>
         <translation>الانتصارات</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Best time</source>
         <translation>أفضل وقت</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Best (no flag)</source>
         <translation>الأفضل (بدون أعلام)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Streak</source>
         <translation>سلسلة الفوز</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Best 3BV/s</source>
         <translation>أفضل 3BV/ث</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1005"/>
         <source>Best flag accuracy</source>
         <translation>أفضل دقة للأعلام</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1003"/>
+        <location filename="../mainwindow.cpp" line="1018"/>
         <source>Beginner</source>
         <translation>مبتدئ</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1004"/>
+        <location filename="../mainwindow.cpp" line="1019"/>
         <source>Intermediate</source>
         <translation>متوسط</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1005"/>
+        <location filename="../mainwindow.cpp" line="1020"/>
         <source>Expert</source>
         <translation>خبير</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1053"/>
+        <location filename="../mainwindow.cpp" line="1068"/>
         <source>— (best %1%, %2)</source>
         <translation>— (الأفضل %1%، %2)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1075"/>
+        <location filename="../mainwindow.cpp" line="1090"/>
         <source>Reset all</source>
         <translation>تصفير الكل</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1081"/>
+        <location filename="../mainwindow.cpp" line="1096"/>
         <source>Reset statistics?</source>
         <translation>تصفير الإحصائيات؟</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1081"/>
+        <location filename="../mainwindow.cpp" line="1096"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>حذف جميع سجلات المباريات / الانتصارات / أفضل الأوقات نهائياً؟</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1101"/>
+        <location filename="../mainwindow.cpp" line="1116"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;بُني باستخدام Qt %1 في %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1102"/>
+        <location filename="../mainwindow.cpp" line="1117"/>
         <source>About QMineSweeper</source>
         <translation>حول QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1095"/>
+        <location filename="../mainwindow.cpp" line="1110"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;لعبة كانسة الألغام مبنية على Qt6.&lt;/p&gt;&lt;p&gt;انقر يسارياً للكشف، يميناً لوضع علم، وبالزر الأوسط على رقم مشبع لفتح الجيران.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>
