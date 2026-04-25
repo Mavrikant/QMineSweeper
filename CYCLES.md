@@ -1,5 +1,163 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 28 — v1.31.0 (autonomous)
+
+- **Chosen problem:** The v1.30 cycle log explicitly tagged a Stats-
+  dialog "Best 3BV/s" column as "the highest-value next-cycle filler
+  … reads the just-shipped `bestBvPerSecond` + `bestBvPerSecondDate`
+  fields, renders as a new 7th column on the Stats table." v1.30
+  surfaced the lifetime best 3BV/s only as a one-shot
+  `⚡ New best 3BV/s!` flair on the win dialog the moment the user
+  set a new personal best — once the dialog closed, the value
+  disappeared. The lifetime hall-of-fame counterpart was the
+  obvious mirror feature.
+- **Evidence:** Stats table had 6 columns (Difficulty / Played / Won
+  / Best time / Best (no flag) / Streak); the persistence layer
+  shipped in v1.30 (`Record::bestBvPerSecond` + `bestBvPerSecondDate`)
+  was wired into `recordWin` and surfaced on the win dialog, but
+  never read by `MainWindow::showStatsDialog`. Pure presentation
+  gap.
+- **Shipped:**
+  - Branch: `feat/stats-best-bv-per-second-column` (squash-merged + deleted)
+  - PR: [#49](https://github.com/Mavrikant/QMineSweeper/pull/49)
+    (squash-merged as `07e239c`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.31.0
+  - Release workflow `24936839129` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage 35.9 MB / tar.gz
+    35.6 MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB). Hand-written
+    user-facing release notes installed via `gh release edit` —
+    explains the format, the 3BV/s metric's meaning, the v1.30 flair
+    relationship, the replay/custom exclusion, and platform-specific
+    install notes (macOS quarantine clear).
+- **Code surface:** ~10 LOC of production diff:
+  - `mainwindow.cpp`: 3 LOC (column count 6→7, header label list
+    gains `tr("Best 3BV/s")`, new `setItem(i, 6, …)` call) + 1 LOC
+    new include for the helper.
+  - `bv_per_second_format.h`: NEW. ~20 LOC pure inline helper
+    `formatBvPerSecondCell(double, const QDate&)`. Analogous to
+    `time_format.h`. Returns `"—"` for `bvPerSecond <= 0`,
+    `"X.YZ"` for positive without date, `"X.YZ  (LL.LL.YYYY)"`
+    with locale-formatted short date inlined.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 locales).
+  - `tests/CMakeLists.txt`: 1 LOC (register new test).
+  - `tests/tst_bv_per_second_format.cpp`: NEW. ~110 LOC, 11 cases.
+  - `CMakeLists.txt`: 1 LOC (version bump).
+  - Total real code+test diff: ~150 LOC; well under the 400-LOC
+    cycle cap. (1081/793 line-count is `lupdate`-driven `.ts` line
+    renumbering across 9 locales.)
+- **Tests added (11 new in `tst_bv_per_second_format.cpp`):**
+  - `testZeroRendersAsEmDash` — sentinel for no-record-yet.
+  - `testNegativeRendersAsEmDash` — defence in depth against a
+    future arithmetic-bug call site passing negative.
+  - `testNanRendersAsEmDash` — IEEE-754 NaN comparisons are false,
+    so the `!(x > 0.0)` guard catches NaN cleanly.
+  - `testPositiveInfinityRendersAsEmDash` — pins current
+    behaviour (printf renders `"inf"`, non-empty string asserted).
+    Documented but not masked — callers should never pass +inf.
+  - `testPositiveWithoutDateRendersTwoDecimals` — three values
+    (`1.234→"1.23"`, `0.5→"0.50"`, `12.0→"12.00"`).
+  - `testPositiveWithDateAppendsLocaleShortDate` — locale-pinned
+    via `QLocale::setDefault` in `initTestCase` so the date format
+    doesn't depend on the host running the suite.
+  - `testTrailingZeroPreserved` — `%.2f` always emits 2 decimals
+    (`2.10→"2.10"`, `2.00→"2.00"`); important so the column has a
+    monospaced visual width across rows.
+  - `testRoundsHalfAwayFromZero` — `1.236→"1.24"`, `1.234→"1.23"`.
+  - `testVerySmallPositiveStillRenders` — sub-1 3BV/s on a tiny
+    Beginner board (`0.005→"0.01"`).
+  - `testInvalidDateFallsBackToValueOnly` — empty-ISO-string-derived
+    invalid date drops parenthesised suffix (the persistence-layer
+    no-record-yet load path).
+  - **Adversarially verified** by mutating the em-dash sentinel
+    `"—"` → `"XX"` (3 tests fail) and `%.2f` → `%.1f` (6 tests
+    fail). The tests catch the bugs they're supposed to.
+- **Translation cost:** 1 new hand-translated string × 9 non-en
+  locales. 102/102 finished per locale, 0 unfinished — 50/50
+  coverage preserved.
+  - TR `"En iyi 3BV/sn"`
+  - ES `"Mejor 3BV/s"`
+  - FR `"Record 3BV/s"` (matches `Record (sans drapeau)`)
+  - DE `"Bestwert 3BV/s"` (matches v1.30 flair `Neuer Bestwert 3BV/s!`;
+    `Bestzeit` would be specifically best-*time* and mislead on a
+    rate)
+  - RU `"Лучшее 3BV/с"` (Cyrillic с for "сек.")
+  - PT `"Recorde 3BV/s"`
+  - ZH `"最佳 3BV/秒"`
+  - HI `"सर्वश्रेष्ठ 3BV/से"` (Devanagari से for "सेकंड")
+  - AR `"أفضل 3BV/ث"` (Arabic ث for "ثانية")
+- **Assumptions made:**
+  - **Two-decimal `%.2f`** matches the live win-dialog
+    `"3BV: %1 · 3BV/s: %2"` line and the v1.30
+    `⚡ New best 3BV/s!` flair, so the persisted record reads
+    identically to the celebration. Pinned by
+    `testTrailingZeroPreserved` and `testRoundsHalfAwayFromZero`.
+  - **Free helper, not a private lambda** — past stats-dialog
+    cycles (v1.28, v1.29, v1.30) tested only the persistence layer
+    because the dialog lives behind `QDialog::exec()`. Extracting
+    `formatBvPerSecondCell` into `bv_per_second_format.h` lets us
+    unit-test it directly without standing up `tst_mainwindow`.
+  - **Em-dash sentinel** for no-record-yet — same glyph the
+    Best-time / Best-(no flag) cells already use; visual
+    consistency across the table.
+  - **Locale-formatted short date** in parentheses, two-space
+    separator — mirrors Best-time / Best-(no flag) / Streak cells.
+    No new column header per stat, no extra translatable string
+    for the date format.
+  - **No schema migration** — pure presentation read of v1.30
+    fields. Pre-1.30 records (no `bestBvPerSecond` field saved)
+    load as 0.0 / invalid date and render as em-dash. Pinned by
+    v1.30's `testLegacyRecordWithoutBestBvPerSecondLoadsAsZero`.
+  - **Replay/custom exclusion** is inherited automatically —
+    `recordWin` is only called from `MainWindow::onGameWon`'s
+    `!excludedFromStats` branch. Memorised-board runs never touch
+    the field, so the new cell can never display a non-honest
+    record.
+- **Skipped:**
+  - *Loss-dialog "Time since last win" line.* Needs a new
+    `last_win_date` field (separate from `bestDate`, which is the
+    date of the best-time win, not the most recent). Defer to a
+    future cycle.
+  - *Win-dialog "Average time" line.* Needs persistence of total
+    seconds (or just total seconds, since `won` is already
+    tracked). ~40 LOC. Defer.
+  - *About-dialog mention of the new column.* Kept the about body
+    byte-identical to avoid touching 10 hand translations.
+- **Risks logged:** none. Pure presentation read of an existing
+  field. No schema change. No new persistence. No new telemetry.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* Column count went 6 → 7; header
+    labels list went 6 → 7 entries. Both updated atomically — a
+    partial update would be caught at compile time, not runtime.
+  - *Backwards compat?* No API change to `Stats::Record`; no
+    schema migration; pre-1.30 records render as em-dash.
+  - *Error paths?* `formatBvPerSecondCell` is total: every
+    double / QDate combination produces a non-empty string. NaN
+    and negative are masked to em-dash; +inf is documented as
+    `"inf"` (callers should never pass it but if they do, the
+    user sees `"inf"`, not a crash).
+  - *Secrets / PII?* No new telemetry, no new persistence, no
+    network calls. Strictly read-only.
+  - *Performance?* Three new `QString` ops per Stats-dialog open
+    × 3 difficulty rows. Sub-microsecond, dialog-open path only.
+  - *Concurrency?* Single-threaded. No new shared state.
+- **Post-release watch (T+~3min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues
+  in release `qminesweeper@1.31.0` in the last hour returned
+  **zero results**. Expected — telemetry is opt-in and the assets
+  just published with zero downloads. Watch closed.
+- **Next candidates:**
+  - **Loss-dialog "Time since last win" line** when the player has
+    won this difficulty before. Would need a new `last_win_date`
+    field (separate from `bestDate`). ~30 LOC of production +
+    persistence diff + 1 translatable string × 9 locales. A
+    psychological nudge for players on a long losing streak.
+  - **Win-dialog "Average time" line** showing the player's average
+    winning time on this difficulty after >= 3 wins. Needs
+    persistence of total seconds + count divisor. ~40 LOC.
+  - **Stats-dialog row totals** below the 3 difficulty rows —
+    grand-total played / won / win% across all difficulties. Pure
+    presentation aggregation; no new persistence.
+
 ## 2026-04-25 — Cycle 27 — v1.30.0 (autonomous)
 
 - **Chosen problem:** The "Win-dialog ⚡ New best 3BV/s flair" was
