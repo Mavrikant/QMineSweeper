@@ -1,5 +1,87 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: flags-placed line (v1.24.0)
+
+**Chosen:** Append a fifth line to the loss dialog,
+`tr("Flags placed: %1").arg(flagsPlaced)`, gated by `flagsPlaced > 0`.
+Surfaces the user's flag count at the moment of explosion. Adds a
+`MineField::flagsPlaced()` getter exposing the existing `m_flagCount`
+counter. `MainWindow::onGameLost` reads it, threads it through
+`showEndDialog` (new int parameter), and includes it in the `game.lost`
+telemetry tags.
+
+**Why ship this now:**
+- The last three cycles each added one parallel line to the loss
+  dialog — duration (v1.21), percent-cleared (v1.22), clicks (v1.23).
+  Flags-placed completes the picture of *user actions* before death:
+  alongside Clicks (left-click gestures), the player now sees their
+  flag count (right-click gestures). The pair maps to both inputs the
+  player has at their disposal.
+- Cycle-shaped: ~6-line production diff, 1 new getter, 1 telemetry tag,
+  1 new translatable string × 9 hand-translated locales. Same shape as
+  the last four cycles.
+- Backwards compatible — additive `showEndDialog` parameter; no
+  QSettings or save-format change; no behavioural change on the win
+  path or any non-end-of-game flow.
+
+**Why on the loss dialog only, not the win dialog:**
+The win path's `flagAllMines()` celebratory pass auto-flags every
+remaining mine after the state flips to Won. A `flagsPlaced` reading at
+that point reflects auto-placed flags, not user intent — surfacing it
+would mislead. The loss path's `revealAllMines()` does NOT auto-flag,
+so on loss the count is exactly what the user placed before exploding.
+Documented in the new `flagsPlaced()` doc comment and pinned by the
+`testFlagsPlacedPreservedOnLoss` regression test.
+
+**Why `flagsPlaced > 0` gating:**
+Mirrors the v1.23 `userClicks > 0` and the win-path `boardValue > 0`
+guards. The common loss path of "first click is a mine" produces zero
+flags placed; rendering `Flags placed: 0` is noise. The first explicit
+flag a user places lights up the line.
+
+**Why a fresh `MineField::flagsPlaced()` getter (not reading
+`remainingMines()` and inverting):**
+`remainingMines() = mineCount - flagCount` — it's a derived view, and
+inverting it from the dialog code would couple presentation to a
+formula that lives in MineField. A direct getter for the underlying
+counter is one line and more honest. No behaviour change to
+`remainingMines()`.
+
+**Rejected alternatives:**
+- *"Flags: %1 (%2 correct)" — also report mines correctly flagged.*
+  Requires walking the grid at loss time to count flags-on-mines vs.
+  flags-on-safe-cells. Doable but doubles the loss-path work and adds
+  another translatable string for a metric that the visible board
+  already shows (wrong flags get rendered with the red-X overlay by
+  `revealAsWrongFlag()`). Park.
+- *"Flags placed: X / Y" with Y = total mines.* Spoils the mine count
+  at the end of the run; some players use the LCD as their primary
+  reference and may not have memorised the difficulty's mine count.
+  Kept it as a single number to mirror the existing `Clicks: %1`
+  shape. Park.
+- *Adding the line on the win dialog too.* The auto-flag inflation
+  (see above) makes the count uninteresting on a win — every mine is
+  flagged by definition. Skip.
+- *Showing flag-rate (flags/sec) like 3BV/s.* Not a recognised
+  Minesweeper community metric, and lossy on short runs. Skip.
+
+**Translation cost:** 1 new string × 9 non-English locales,
+hand-written; 50/50 finished/unfinished coverage preserved. New
+string: "Flags placed: %1".
+
+**Diff shape:**
+- `minefield.h` — `flagsPlaced()` declaration with doc.
+- `minefield.cpp` — one-line getter.
+- `mainwindow.h` — extra `int flagsPlaced` parameter on
+  `showEndDialog`.
+- `mainwindow.cpp` — read `flagsPlaced()`, thread to dialog, render
+  line on loss path, telemetry tag.
+- `tests/tst_minefield.cpp` — five new regression tests
+  (`testFlagsPlaced{ZeroBeforeAnyFlag,IncrementsOnFlag,
+  DecrementsOnUnflag,PreservedOnLoss,ResetByNewGame}`).
+- `translations/apply_translations.py` + nine `.ts` files via
+  `lupdate` + `python3 apply_translations.py`.
+
 ## 2026-04-25 — Loss dialog: clicks line (v1.23.0)
 
 **Chosen:** Append a fourth line to the loss dialog,
