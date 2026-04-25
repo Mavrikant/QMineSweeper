@@ -117,6 +117,20 @@ class TestStats : public QObject
     void testLegacyRecordWithoutBestFlagAccuracyLoadsAsZero();
     void testLossOutcomeFlagAccuracyIndependentOfSafePercent();
     void testLossOutcomeBoolStillTracksOnlySafePercent();
+
+    // total_seconds_won accumulator + WinOutcome.winsAfter / averageSecondsAfter
+    void testTotalSecondsWonDefaultsZero();
+    void testRecordWinAccumulatesTotalSeconds();
+    void testMultipleWinsAccumulateTotalSeconds();
+    void testRecordLossDoesNotTouchTotalSecondsWon();
+    void testRecordWinZeroSecondsDoesNotAccumulate();
+    void testWinOutcomeWinsAfterIsPostIncrement();
+    void testWinOutcomeAverageSecondsAfterEqualsMean();
+    void testWinOutcomeAverageZeroOnSubTickFirstWin();
+    void testTotalSecondsWonIsPerDifficulty();
+    void testResetWipesTotalSecondsWon();
+    void testResetAllWipesTotalSecondsWon();
+    void testLegacyRecordWithoutTotalSecondsWonLoadsAsZero();
 };
 
 void TestStats::initTestCase()
@@ -1189,6 +1203,138 @@ void TestStats::testLossOutcomeBoolStillTracksOnlySafePercent()
     QVERIFY(!out.newBestSafePercent);
     QVERIFY(out.newBestFlagAccuracyPercent);
     QVERIFY(!static_cast<bool>(out));
+}
+
+// total_seconds_won: lifetime sum of winning durations. Drives the
+// win-dialog "Average: %1" line via WinOutcome::averageSecondsAfter
+// (gated at the call site on winsAfter >= 3).
+
+void TestStats::testTotalSecondsWonDefaultsZero()
+{
+    // Empty record: no plist entry at all → load returns 0.0.
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.totalSecondsWon, 0.0);
+}
+
+void TestStats::testRecordWinAccumulatesTotalSeconds()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 15.5);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).totalSecondsWon, 15.5);
+}
+
+void TestStats::testMultipleWinsAccumulateTotalSeconds()
+{
+    // Three wins at 10/20/30 seconds → accumulator 60.0; mean 20.0 — the
+    // canonical "ao3" speedrun average.
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 3u);
+    QCOMPARE(r.totalSecondsWon, 60.0);
+}
+
+void TestStats::testRecordLossDoesNotTouchTotalSecondsWon()
+{
+    // Pin: a loss only mutates played / streak / partial-best fields. The
+    // win-time accumulator is owned by the win path exclusively.
+    Stats::recordWin(QStringLiteral("Beginner"), 25.0);
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).totalSecondsWon, 25.0);
+}
+
+void TestStats::testRecordWinZeroSecondsDoesNotAccumulate()
+{
+    // Sub-tick win sentinel (only reachable from setFixedLayout-driven
+    // tests in production): seconds == 0.0 must not poison the divisor.
+    // Mirrors the bestSeconds gate in the same recordWin path.
+    Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 1u); // win still counts toward the played/won totals
+    QCOMPARE(r.totalSecondsWon, 0.0);
+}
+
+void TestStats::testWinOutcomeWinsAfterIsPostIncrement()
+{
+    // winsAfter mirrors r.won after the increment — the caller uses it as
+    // a threshold gate (>= 3) without re-loading the record.
+    QCOMPARE(Stats::recordWin(QStringLiteral("Beginner"), 10.0).winsAfter, 1u);
+    QCOMPARE(Stats::recordWin(QStringLiteral("Beginner"), 12.0).winsAfter, 2u);
+    QCOMPARE(Stats::recordWin(QStringLiteral("Beginner"), 14.0).winsAfter, 3u);
+}
+
+void TestStats::testWinOutcomeAverageSecondsAfterEqualsMean()
+{
+    // After three wins at 10/20/30, the third recordWin call must return
+    // 20.0 as averageSecondsAfter — the value the win dialog renders.
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    QCOMPARE(out.winsAfter, 3u);
+    QCOMPARE(out.averageSecondsAfter, 20.0);
+}
+
+void TestStats::testWinOutcomeAverageZeroOnSubTickFirstWin()
+{
+    // First win is sub-tick (seconds == 0.0): winsAfter == 1 but the
+    // accumulator stays at 0.0 → averageSecondsAfter must be 0.0, not
+    // a 0/1 division (which would also be 0.0 but for the wrong reason).
+    // The 0.0 sentinel doubles as the "do not show Average line"
+    // signal at the call site — neutralising the n=1 case below the
+    // threshold even when the threshold check is bypassed.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    QCOMPARE(out.winsAfter, 1u);
+    QCOMPARE(out.averageSecondsAfter, 0.0);
+}
+
+void TestStats::testTotalSecondsWonIsPerDifficulty()
+{
+    // Independence pin: an Expert win must not touch Beginner's
+    // accumulator and vice versa. Same shape as the bestSeconds /
+    // bestBvPerSecond / bestFlagAccuracy independence tests.
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Expert"), 200.0);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).totalSecondsWon, 30.0);
+    QCOMPARE(Stats::load(QStringLiteral("Intermediate")).totalSecondsWon, 0.0);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).totalSecondsWon, 200.0);
+}
+
+void TestStats::testResetWipesTotalSecondsWon()
+{
+    Stats::recordWin(QStringLiteral("Expert"), 250.0);
+    Stats::reset(QStringLiteral("Expert"));
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).totalSecondsWon, 0.0);
+}
+
+void TestStats::testResetAllWipesTotalSecondsWon()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Expert"), 200.0);
+    Stats::resetAll();
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).totalSecondsWon, 0.0);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).totalSecondsWon, 0.0);
+}
+
+void TestStats::testLegacyRecordWithoutTotalSecondsWonLoadsAsZero()
+{
+    // Pre-1.36 record: no `total_seconds_won` key present — must load as
+    // 0.0 so an upgrading user's first 1.36+ win seeds the accumulator
+    // cleanly, rather than carrying a `bestSeconds × won` overestimate
+    // that would make the first displayed averages optimistically wrong.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 4u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 12.5);
+    settings.setValue(QStringLiteral("stats/Beginner/best_date"), QStringLiteral("2026-01-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 5u);
+    QCOMPARE(r.won, 4u);
+    QCOMPARE(r.bestSeconds, 12.5);
+    QCOMPARE(r.totalSecondsWon, 0.0);
 }
 
 QTEST_MAIN(TestStats)

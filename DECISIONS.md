@@ -1,5 +1,96 @@
 # Cycle decisions
 
+## 2026-04-26 — Win dialog: "Average: %1" line after ≥3 wins (v1.36.0)
+
+**Chosen:** Add an `Average: %1` line to the win dialog that shows the
+player's mean winning time on the current difficulty once they have
+won that difficulty at least 3 times. Persist `total_seconds_won`
+on `Stats::Record` (sum of every counted winning duration), accumulate
+inside `Stats::recordWin`, and surface the post-update wins-count and
+mean via two new `Stats::WinOutcome` fields so `MainWindow` can render
+the line without re-loading.
+
+**Why this one:**
+- v1.35.0 cycle log explicitly listed "Win-dialog Average time after
+  ≥3 wins" as a next candidate; alternation pattern of recent cycles
+  (v1.32 loss-dialog → v1.33 stats → v1.34 loss-dialog → v1.35 stats)
+  asks for a win/loss-dialog beat next.
+- New player-visible information that isn't already shown anywhere
+  else in the app: best time tracks the *peak* run, average tracks
+  the *typical* run — the lever a player wants to move with practice.
+  Mirrors how speedrun trackers split "PB" from "average of last N".
+- Schema diff is well-trodden in this codebase (six prior cycles have
+  added a persisted field on `Stats::Record`); ~50 LOC of production
+  diff plus tests, one new translatable string × 9 locales.
+
+**Rejected alternatives from the v1.35.0 candidate list:**
+- *Loss-dialog "Time since last win" line.* Also requires a new
+  `Stats::Record` field (`last_win_date`) and a translatable string;
+  comparable cost. Picked the win-side because the win dialog is a
+  leaner surface than the v1.32–v1.35-built-up loss dialog (six
+  lines and four flairs already), so adding a new line there
+  delivers more incremental signal. Park "Time since last win"
+  for the next cycle.
+- *Stats-dialog "Best across all" footer cell.* Pure presentation
+  but the cell value mixes a difficulty name and a time; the
+  v1.35.0 cycle log estimated 3 new translatable strings. Park.
+- *Win % column broken out from Won.* Pure presentation, ~30 LOC,
+  1 new translatable string. Smallest possible diff but adds zero
+  new *information* — the Won column already renders `5 (50%)`
+  inline. Park.
+
+**Implementation choices:**
+
+1. **Threshold ≥ 3 wins.** A 1-win average equals best time exactly
+   (trivially); a 2-win average is a single data point of variation
+   and feels gimmicky. ≥ 3 keeps the line meaningful — the same
+   threshold standard speedrun trackers use ("ao3" / average of 3).
+   The threshold is checked at the call site (`MainWindow`), not in
+   `Stats`, so the persistence layer stays uncoupled from display
+   policy.
+
+2. **`total_seconds_won` only accumulates on `seconds > 0` wins.**
+   Mirrors the existing `bestSeconds` gate. A test-only sub-tick win
+   (`seconds == 0.0`) doesn't poison the divisor. The accumulator's
+   sentinel is the same as `bestSeconds`: 0.0 == "no recorded
+   winning duration".
+
+3. **`WinOutcome` carries `winsAfter` + `averageSecondsAfter`, not
+   the raw accumulator.** The caller doesn't need to know the
+   accumulator exists — it only wants the average. `winsAfter`
+   doubles as the threshold gate. Keeps `MainWindow` from having
+   to re-`load()` the record after `recordWin`.
+
+4. **Replays and custom games are excluded.** `Stats::recordWin` is
+   already gated on `!m_isReplay && !m_isCustom` in
+   `MainWindow::onGameWon`; nothing new needed. Memorising a board
+   to game the average would otherwise be a trivial cheat.
+
+5. **Backwards-compatible load.** A pre-1.36 plist with no
+   `total_seconds_won` key reads as 0.0. The first 1.36+ win on
+   each difficulty seeds the accumulator with that win's duration —
+   the Average line will read identical to the win's clock until
+   the third win. Considered (and rejected) seeding from
+   `bestSeconds × won` on first load: best is the *fastest* run,
+   not the average, so the first displayed average would be
+   optimistically wrong. The clean-slate approach makes the first
+   three displayed averages drift slightly until the accumulator
+   catches up — acceptable.
+
+6. **Reset semantics.** `Stats::reset(name)` removes the
+   `total_seconds_won` key alongside `played` / `won`. `resetAll()`
+   already wipes the whole `stats/` group.
+
+**Assumptions:**
+- ≥ 3 wins is the right threshold (decision 1).
+- Showing the Average line *every* win past the threshold is fine.
+  Considered hiding it on a new-best-time run so the 🏆 line isn't
+  crowded; rejected because the average is always *higher* than
+  best (best = minimum), so seeing the gap is itself informative.
+- Format reuses `formatElapsedTime` so the average reads with the
+  same M:SS.S / H:MM:SS.S grammar as every other time string —
+  zero new format helpers, zero new translatable formats.
+
 ## 2026-04-26 — Statistics dialog: Total row aggregating Played / Won (v1.35.0)
 
 **Chosen:** Add a 4th, bold-styled `Total` row at the bottom of the

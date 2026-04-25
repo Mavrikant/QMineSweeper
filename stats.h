@@ -11,7 +11,8 @@
 // best_noflag_seconds,best_noflag_date,streak_current,streak_best,
 // streak_best_date,best_safe_percent,best_safe_percent_date,
 // best_bv_per_second,best_bv_per_second_date,
-// best_flag_accuracy_percent,best_flag_accuracy_date} tree.
+// best_flag_accuracy_percent,best_flag_accuracy_date,
+// total_seconds_won} tree.
 // Best-time is stored as seconds (double); 0 means "no win recorded yet".
 // Best-date is the calendar date (ISO 8601) on which the current best-time
 // run was completed; invalid/empty when no win has been recorded. The
@@ -57,6 +58,13 @@ struct Record
     QDate bestBvPerSecondDate{};              // invalid when no 3BV/s record yet
     std::uint32_t bestFlagAccuracyPercent{0}; // [0, 100]; 0 == no flag-accuracy record yet
     QDate bestFlagAccuracyDate{};             // invalid when no flag-accuracy record yet
+    // Lifetime sum of every counted winning duration in seconds — divisor for
+    // the win-dialog "Average: %1" line. Only winning runs with seconds > 0
+    // accumulate (mirrors the bestSeconds gate); replays and custom games are
+    // excluded by `MainWindow::onGameWon` not calling `recordWin` for those.
+    // 0.0 == no counted winning duration yet (first-load sentinel for legacy
+    // pre-1.36 plists with no `total_seconds_won` key).
+    double totalSecondsWon{0.0};
 };
 
 // Outcome of a recordWin call. `newRecord` matches the prior boolean return:
@@ -73,6 +81,18 @@ struct WinOutcome
     // when the field transitions 0.0 → some positive value). Drives the
     // win-dialog `⚡ New best 3BV/s!` flair.
     bool newBestBvPerSecond{false};
+
+    // Total wins on this difficulty after this call (post-increment). The
+    // win-dialog gates the "Average: %1" line on `winsAfter >= 3` — fewer
+    // than three wins reduces to "average is the best time" (n=1) or "single
+    // data point of variation" (n=2), neither informative.
+    std::uint32_t winsAfter{0};
+    // Mean of every counted winning duration on this difficulty after this
+    // call: `totalSecondsWon / won`. 0.0 when `winsAfter == 0` or when no
+    // counted winning duration exists yet (a sub-tick `seconds == 0.0` win
+    // never accumulates, matching the bestSeconds sentinel). Pre-computed by
+    // `Stats::recordWin` so callers don't re-load the record.
+    double averageSecondsAfter{0.0};
 
     // Lets `QVERIFY(recordWin(...))` and `if (recordWin(...))` keep their
     // pre-WinOutcome bool semantics (true == new best-time set). Explicit so
