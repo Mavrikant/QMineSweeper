@@ -84,6 +84,8 @@ class TestMineField : public QObject
     void testUserClicksResetByNewGame();
     void testUserClicksResetByReplay();
     void testUserClicksResetBySetFixedLayout();
+    void testRefreshAllNumberStylesReflectsPaletteChange();
+    void testRefreshAllNumberStylesSkipsUnopened();
 
   private:
     static void openAllSafe(MineField &field);
@@ -1164,6 +1166,56 @@ void TestMineField::testUserClicksResetBySetFixedLayout()
     QCOMPARE(field.userClicks(), 1);
     field.setFixedLayout(4, 4, {{0, 0}});
     QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testRefreshAllNumberStylesReflectsPaletteChange()
+{
+    // Open a numbered cell under the classic palette, flip on the
+    // colour-blind palette and run the bulk refresh. The opened cell's
+    // stylesheet should pick up the new number colour.
+    MineButton::setColorBlindPaletteEnabled(false);
+    MineField field;
+    // 3×3, single mine in the corner — the opposite corner is guaranteed
+    // to be a non-zero numbered cell after first-click safety.
+    field.setFixedLayout(3, 3, {{0, 0}});
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    // (2,2) is adjacent to no mines → number 0. Click (1,0) which is a
+    // number=1 cell; that one will have a color rule.
+    auto *numbered = field.cellAt(1, 0);
+    QVERIFY(numbered->isOpened());
+    QCOMPARE(numbered->Number(), 1u);
+    const QString classicStyle = numbered->styleSheet();
+    QVERIFY(classicStyle.contains(QStringLiteral("color: rgb(")));
+
+    MineButton::setColorBlindPaletteEnabled(true);
+    field.refreshAllNumberStyles();
+    const QString cbStyle = numbered->styleSheet();
+    QVERIFY(cbStyle.contains(QStringLiteral("color: rgb(")));
+    QVERIFY(classicStyle != cbStyle);
+
+    MineButton::setColorBlindPaletteEnabled(false);
+}
+
+void TestMineField::testRefreshAllNumberStylesSkipsUnopened()
+{
+    // Unopened cells on the grid must not get a number-colour style after
+    // the bulk refresh — that would leak the opened-cell visual onto
+    // still-covered tiles.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    // Don't click anything; every cell is unopened.
+    MineButton::setColorBlindPaletteEnabled(true);
+    field.refreshAllNumberStyles();
+    for (std::uint32_t r = 0; r < 3; ++r)
+    {
+        for (std::uint32_t c = 0; c < 3; ++c)
+        {
+            auto *cell = field.cellAt(r, c);
+            QVERIFY(cell != nullptr);
+            QVERIFY(!cell->styleSheet().contains(QStringLiteral("color: rgb(")));
+        }
+    }
+    MineButton::setColorBlindPaletteEnabled(false);
 }
 
 QTEST_MAIN(TestMineField)

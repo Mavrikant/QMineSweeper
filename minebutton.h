@@ -52,6 +52,24 @@ class MineButton : public QPushButton
     static void setQuestionMarksEnabled(bool enabled) noexcept;
     [[nodiscard]] static bool questionMarksEnabled() noexcept;
 
+    // App-wide: when true, opened numbered cells render with the Okabe-Ito-
+    // derived palette instead of the classic Minesweeper 1–8 colours. The
+    // classic palette collapses 2/3 (green/red) and 5 (dark red) for players
+    // with red-green colour vision deficiency; the alternate palette keeps
+    // every digit distinguishable under deuteranopia and protanopia. Same
+    // static-state pattern as question-marks — MineButton has no back-pointer,
+    // so the toggle is app-global. Call `refreshNumberStyle()` on opened
+    // cells to re-render with the new palette mid-game.
+    static void setColorBlindPaletteEnabled(bool enabled) noexcept;
+    [[nodiscard]] static bool colorBlindPaletteEnabled() noexcept;
+
+    // Re-apply the opened-cell stylesheet (background + number colour) so a
+    // toggle of the colour-blind palette is reflected immediately on cells
+    // that were opened before the change. No-op on unopened or mined cells —
+    // mined cells render their explosion/reveal styles that don't depend on
+    // the number palette.
+    void refreshNumberStyle();
+
   signals:
     void cellPressed(std::uint32_t row, std::uint32_t col);
     void cellOpened(std::uint32_t row, std::uint32_t col);

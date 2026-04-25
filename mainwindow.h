@@ -41,6 +41,7 @@ class MainWindow : public QMainWindow
     void toggleTelemetry(bool enabled);
     void onLanguageChosen(const QString &code);
     void toggleQuestionMarks(bool enabled);
+    void toggleColorBlindPalette(bool enabled);
 
   private:
     void buildMenus();
@@ -66,6 +67,7 @@ class MainWindow : public QMainWindow
     QActionGroup *m_languageGroup{nullptr};
     QAction *m_telemetryAction{nullptr};
     QAction *m_questionMarksAction{nullptr};
+    QAction *m_colorBlindPaletteAction{nullptr};
     QAction *m_replayAction{nullptr};
     QAction *m_customDifficultyAction{nullptr};
     QAction *m_pauseAction{nullptr};

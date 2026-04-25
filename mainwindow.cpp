@@ -61,6 +61,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(std::make_uniq
     {
         QSettings s;
         MineButton::setQuestionMarksEnabled(s.value(QStringLiteral("settings/question_marks"), true).toBool());
+        // Default false — the classic palette is what players expect on a
+        // first launch; the colour-blind-friendly palette is opt-in.
+        MineButton::setColorBlindPaletteEnabled(s.value(QStringLiteral("settings/colorblind_palette"), false).toBool());
     }
 
     m_displayTimer = new QTimer(this);
@@ -244,6 +247,12 @@ void MainWindow::buildMenus()
     m_questionMarksAction->setChecked(MineButton::questionMarksEnabled());
     connect(m_questionMarksAction, &QAction::toggled, this, &MainWindow::toggleQuestionMarks);
     settingsMenu->addAction(m_questionMarksAction);
+
+    m_colorBlindPaletteAction = new QAction(tr("&Color-blind friendly numbers"), this);
+    m_colorBlindPaletteAction->setCheckable(true);
+    m_colorBlindPaletteAction->setChecked(MineButton::colorBlindPaletteEnabled());
+    connect(m_colorBlindPaletteAction, &QAction::toggled, this, &MainWindow::toggleColorBlindPalette);
+    settingsMenu->addAction(m_colorBlindPaletteAction);
 
     if (Telemetry::isCompiledIn())
     {
@@ -568,6 +577,18 @@ void MainWindow::toggleQuestionMarks(bool enabled)
         ui->mineFieldWidget->clearAllQuestionMarks();
     }
     Telemetry::addBreadcrumb(QStringLiteral("ui"), enabled ? QStringLiteral("question marks: on") : QStringLiteral("question marks: off"));
+}
+
+void MainWindow::toggleColorBlindPalette(bool enabled)
+{
+    MineButton::setColorBlindPaletteEnabled(enabled);
+    QSettings settings;
+    settings.setValue(QStringLiteral("settings/colorblind_palette"), enabled);
+    // Repaint already-opened numbered cells so the toggle is visible mid-game,
+    // not only on the next-opened cell. Mined cells and the unopened tiles
+    // stay untouched — their stylesheets aren't a function of the palette.
+    ui->mineFieldWidget->refreshAllNumberStyles();
+    Telemetry::addBreadcrumb(QStringLiteral("ui"), enabled ? QStringLiteral("colorblind palette: on") : QStringLiteral("colorblind palette: off"));
 }
 
 void MainWindow::onLanguageChosen(const QString &code)
