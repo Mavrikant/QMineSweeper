@@ -23,8 +23,16 @@
   missing prepend on a parallel field. Pure presentation gap.
 - **Shipped:**
   - Branch: `feat/v1.34.0-loss-dialog-flag-accuracy-flair`
-  - PR: [pending]
-  - Release: [pending]
+    (squash-merged + deleted)
+  - PR: [#52](https://github.com/Mavrikant/QMineSweeper/pull/52)
+    (squash-merged as `9ad6520`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.34.0
+  - Release workflow `24940341570` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage + tar.gz, macOS
+    universal .dmg, Windows .zip). Hand-written user-facing release
+    notes installed via `gh release edit` — explains the gate (flagsPlaced
+    > 0, strict-greater-than, replay/custom exclusion), the
+    co-fire layout with v1.29 🎯, and the macOS quarantine clear.
 - **Code surface:** ~10 LOC of production diff plus translation churn.
   - `mainwindow.h`: 1 LOC new positional bool param at end of
     `showEndDialog` signature.
@@ -121,7 +129,12 @@
     presentation aggregation, but adds a second header axis to the
     table layout.
 - **Risks logged:** none new.
-- **Post-release watch:** [pending]
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.34.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads at
+  watch time and telemetry is opt-in. No new crash group attributable
+  to the 1.34.0 cut. Watch closed.
 - **Next candidates:**
   - **Loss-dialog "Time since last win" line** when the player has
     won this difficulty before. Would need a new `last_win_date`
