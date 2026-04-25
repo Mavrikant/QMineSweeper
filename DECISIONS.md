@@ -1,5 +1,100 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: clicks line (v1.23.0)
+
+**Chosen:** Append a fourth line to the loss dialog,
+`tr("Clicks: %1").arg(userClicks)`, gated by `userClicks > 0`.
+Surfaces the run's useful-click count at the moment of explosion, mirroring
+the second half of the win dialog's `Clicks: %1 · Efficiency: %2%` line
+(minus the efficiency suffix — see below). `MainWindow::onGameLost` now
+captures `userClicks` from `MineField`, threads it through `showEndDialog`,
+and includes it in the `game.lost` telemetry tags for parity with `game.won`.
+
+**Why ship this now:**
+- v1.22.0 added `You cleared %1% of the board.` to the loss dialog —
+  surfacing **progress**. This cycle adds **effort**: clicks. A user who
+  reached 60% in 25 clicks vs. 60% in 80 clicks now has the data to
+  recognise the difference and adjust play.
+- The next-candidates list in cycle 19 explicitly named this pattern
+  (`4th line surfacing the run's 3BV efficiency at the moment of
+  explosion, mirrors the win dialog's 3BV/s line`). The implementation
+  diverges from that wording on purpose — see "Why clicks, not 3BV/s"
+  below.
+- Cycle-shaped: ~5-line production diff, 1 telemetry tag, 1 new
+  translatable string × 9 hand-translated locales. Same shape as the
+  last four cycles.
+- Backwards compatible — additive `showEndDialog` parameter wiring only;
+  no QSettings or save-format change; no behavioural change on the win
+  path.
+
+**Why clicks, not 3BV/s:**
+The win-dialog 3BV/s line computes `boardValue / m_lastElapsedSeconds` —
+i.e. *total* board complexity divided by *total* run time. On a loss,
+`boardValue` still reads the **whole board's** 3BV (computed once at
+mine-placement and cached), but the user only **completed a fraction**
+of it. Reporting `boardValue / loss_seconds` would imply the user
+cleared the entire 3BV at that rate, which is false. Computing partial
+3BV (the 3BV of the currently-revealed area) requires new code that
+walks the revealed openings and numbered cells; out of scope for a
+one-line dialog patch. Click count is exact, requires no new
+computation, and is the half of the win-dialog metric pair that survives
+unmodified to a loss. Users can divide the percent-cleared line by the
+clicks line themselves to gauge their own efficiency relative to past
+runs.
+
+**Why a separate `tr("Clicks: %1")` key vs. reusing the win-dialog one:**
+The win-dialog line is `tr("Clicks: %1 · Efficiency: %2%")` — a single
+translatable unit so locales control the separator and order. Splitting
+that into two atoms for partial reuse on the loss path would invalidate
+nine existing translations and give translators a less coherent unit to
+work with. A dedicated `tr("Clicks: %1")` is one short string; cheaper
+than the alternative.
+
+**Why `userClicks > 0` gating:**
+Mirrors the win-dialog `if (userClicks > 0)` guard. The only paths that
+trigger a loss with zero useful clicks are pathological test setups
+(`setFixedLayout` + an explosion fired before any reveal); on those
+paths a `Clicks: 0` line is noise.
+
+**Rejected alternatives:**
+
+- **Mirror the entire win-dialog block on loss** (3BV, 3BV/s, Clicks,
+  Efficiency). Misleading — see "Why clicks, not 3BV/s" above. Reporting
+  efficiency = 3BV / clicks · 100 on a partial board is also wrong (3BV
+  here is the *whole* board, not the part the user reached).
+- **Define a loss-specific "partial efficiency" metric.** E.g.
+  `safe_revealed / clicks · 100`. Plausible but a new metric the user
+  has to learn vs. the win-side definition. One cycle, one line — keep
+  it crisp.
+- **Compute partial 3BV (3BV of the revealed region) and surface
+  `Partial 3BV: X / Y · 3BV/s: Z`.** Requires walking the revealed
+  openings and numbered cells with the same connectivity rules as
+  `compute3BV()` but limited to opened cells. Real implementation cost
+  beyond a one-line dialog patch; deferred.
+- **Prose form `tr("You used %1 clicks.")`** to match the existing
+  prose lines on the loss dialog (`You stepped on…`, `You survived…`,
+  `You cleared…`). Considered. Rejected because (a) singular/plural
+  handling at `1 click` is awkward for nine languages without `%n`
+  plural forms, and (b) the terse `Clicks: %1` format is already
+  established in the win dialog and matches translators' existing key.
+- **Skip the gate, always show.** A loss with `Clicks: 0` is a test
+  artefact (chord-on-fixed-layout explosion before any reveal). Showing
+  it on the user-visible path adds zero info; cheap to gate.
+
+**Assumptions:**
+- Users want to know how many gestures they made. Click count is a
+  metric speedrunners and casual players both understand.
+- Telemetry parity matters — the `game.lost` event already records
+  `duration_seconds` and `replay`; adding `clicks` makes the lost-event
+  schema match the won-event schema for the click metric.
+- The `tr("Clicks: %1")` source string is short enough that all nine
+  locales can render it in one printable token + the number, without
+  layout-busting expansion in any RTL or Asian locale.
+
+**Translation surface:** 1 new string × 9 hand-translated locales (TR,
+ZH, HI, ES, AR, FR, RU, PT, DE). All ten `.ts` files complete
+(`<translation>` populated, no `unfinished`) before commit.
+
 ## 2026-04-25 — Loss dialog: percent-cleared line (v1.22.0)
 
 **Chosen:** Add a third line to the loss dialog only,

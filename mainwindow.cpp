@@ -557,12 +557,14 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     {
         Stats::recordLoss(diffName);
     }
+    const int clicks = ui->mineFieldWidget->userClicks();
     Telemetry::recordEvent(QStringLiteral("game.lost"), {
                                                             {QStringLiteral("difficulty"), diffName},
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                             {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
+                                                            {QStringLiteral("clicks"), QString::number(clicks)},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, 0, 0, 0, false);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, 0, false);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -821,6 +823,15 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         QString text = tr("You stepped on a mine.");
         text += QStringLiteral("\n") + tr("You survived for %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
         text += QStringLiteral("\n") + tr("You cleared %1% of the board.").arg(ui->mineFieldWidget->safePercentCleared());
+        // Click count mirrors the win-dialog's "Clicks: %1 · Efficiency: %2%"
+        // line minus the efficiency suffix — efficiency = 3BV / clicks · 100
+        // assumes a complete board, which a loss isn't. Gated by `userClicks
+        // > 0` so the pathological setFixedLayout-with-zero-reveals path
+        // (only reachable in tests) doesn't render a noisy "Clicks: 0".
+        if (userClicks > 0)
+        {
+            text += QStringLiteral("\n") + tr("Clicks: %1").arg(userClicks);
+        }
         box.setText(text);
         box.setIcon(QMessageBox::Warning);
     }

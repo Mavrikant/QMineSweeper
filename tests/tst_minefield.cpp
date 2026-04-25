@@ -80,6 +80,7 @@ class TestMineField : public QObject
     void testUserClicksChordCountsOnceWhenOpens();
     void testUserClicksChordOnFullySatisfiedDoesNothing();
     void testUserClicksChordWrongFlagCountsAndExplodes();
+    void testUserClicksLeftClickOnMineCountsAndExplodes();
     void testUserClicksKeyboardDChordCountsOnce();
     void testUserClicksResetByNewGame();
     void testUserClicksResetByReplay();
@@ -1128,6 +1129,24 @@ void TestMineField::testUserClicksChordWrongFlagCountsAndExplodes()
     QCOMPARE(field.state(), GameState::Lost);
     // The chord opened the actual mine (a fresh open), so the gesture counts.
     QCOMPARE(field.userClicks(), 1);
+}
+
+void TestMineField::testUserClicksLeftClickOnMineCountsAndExplodes()
+{
+    // Direct left-click onto a mine — the most common loss path. The click
+    // must count toward userClicks before the explosion freezes the board,
+    // so the loss-dialog "Clicks: %1" line surfaces a non-zero value.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    // Open a numbered cell first so the explosion happens on the *second*
+    // gesture. Picking a number-bearing neighbour of the mine means no flood,
+    // so the field stays Playing instead of winning on a single click.
+    sendMousePress(field.cellAt(0, 1), Qt::LeftButton);
+    QCOMPARE(field.state(), GameState::Playing);
+    QCOMPARE(field.userClicks(), 1);
+    sendMousePress(field.cellAt(0, 0), Qt::LeftButton);
+    QCOMPARE(field.state(), GameState::Lost);
+    QCOMPARE(field.userClicks(), 2);
 }
 
 void TestMineField::testUserClicksKeyboardDChordCountsOnce()
