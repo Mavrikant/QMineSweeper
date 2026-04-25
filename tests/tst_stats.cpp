@@ -99,6 +99,24 @@ class TestStats : public QObject
     void testLegacyRecordWithoutBestBvPerSecondLoadsAsZero();
     void testFasterClockMayNotBeatBvRateAndViceVersa();
     void testWinOutcomeBvRateIndependentOfNewRecord();
+
+    // best flag accuracy + LossOutcome.newBestFlagAccuracyPercent
+    void testBestFlagAccuracyDefaultsZero();
+    void testRecordLossDefaultArgsKeepsBestFlagAccuracyZero();
+    void testRecordLossWithFlagAccuracySetsOnFirstCall();
+    void testRecordLossWithHigherFlagAccuracyBeats();
+    void testRecordLossWithLowerFlagAccuracyKeepsOriginal();
+    void testRecordLossWithEqualFlagAccuracyKeepsOriginalDate();
+    void testRecordLossWithZeroFlagAccuracyDoesNotMutate();
+    void testRecordLossWithFullFlagAccuracyBoundary();
+    void testRecordLossWithOverflowFlagAccuracyClampedTo100();
+    void testRecordWinDoesNotTouchBestFlagAccuracy();
+    void testBestFlagAccuracyIsPerDifficulty();
+    void testResetWipesBestFlagAccuracy();
+    void testResetAllWipesBestFlagAccuracy();
+    void testLegacyRecordWithoutBestFlagAccuracyLoadsAsZero();
+    void testLossOutcomeFlagAccuracyIndependentOfSafePercent();
+    void testLossOutcomeBoolStillTracksOnlySafePercent();
 };
 
 void TestStats::initTestCase()
@@ -553,7 +571,7 @@ void TestStats::testRecordLossDefaultArgsKeepBestSafePercentZero()
 void TestStats::testRecordLossWithPercentSetsOnFirstCall()
 {
     const QDate d{2026, 4, 25};
-    Stats::recordLoss(QStringLiteral("Beginner"), 47, d);
+    Stats::recordLoss(QStringLiteral("Beginner"), 47, 0, d);
     const auto r = Stats::load(QStringLiteral("Beginner"));
     QCOMPARE(r.played, 1u);
     QCOMPARE(r.bestSafePercent, 47u);
@@ -564,8 +582,8 @@ void TestStats::testRecordLossWithHigherPercentBeats()
 {
     const QDate d1{2026, 1, 1};
     const QDate d2{2026, 4, 25};
-    Stats::recordLoss(QStringLiteral("Expert"), 30, d1);
-    Stats::recordLoss(QStringLiteral("Expert"), 70, d2);
+    Stats::recordLoss(QStringLiteral("Expert"), 30, 0, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 70, 0, d2);
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestSafePercent, 70u);
     QCOMPARE(r.bestSafePercentDate, d2);
@@ -575,8 +593,8 @@ void TestStats::testRecordLossWithLowerPercentKeepsOriginal()
 {
     const QDate d1{2026, 1, 1};
     const QDate d2{2026, 4, 25};
-    Stats::recordLoss(QStringLiteral("Expert"), 70, d1);
-    Stats::recordLoss(QStringLiteral("Expert"), 50, d2);
+    Stats::recordLoss(QStringLiteral("Expert"), 70, 0, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 50, 0, d2);
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestSafePercent, 70u);
     QCOMPARE(r.bestSafePercentDate, d1);
@@ -588,8 +606,8 @@ void TestStats::testRecordLossWithEqualPercentKeepsOriginalDate()
     // best-streak date convention in testBestStreakDateStampedOnHighWaterOnly.
     const QDate d1{2026, 1, 1};
     const QDate d2{2026, 4, 25};
-    Stats::recordLoss(QStringLiteral("Expert"), 60, d1);
-    Stats::recordLoss(QStringLiteral("Expert"), 60, d2);
+    Stats::recordLoss(QStringLiteral("Expert"), 60, 0, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 60, 0, d2);
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestSafePercent, 60u);
     QCOMPARE(r.bestSafePercentDate, d1);
@@ -598,8 +616,8 @@ void TestStats::testRecordLossWithEqualPercentKeepsOriginalDate()
 void TestStats::testRecordLossWithZeroPercentDoesNotMutate()
 {
     // First seed a non-zero best, then a zero-percent loss must leave it.
-    Stats::recordLoss(QStringLiteral("Expert"), 40, QDate{2026, 1, 1});
-    Stats::recordLoss(QStringLiteral("Expert"), 0, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 40, 0, QDate{2026, 1, 1});
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 0, QDate{2026, 4, 25});
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.played, 2u);
     QCOMPARE(r.bestSafePercent, 40u);
@@ -612,7 +630,7 @@ void TestStats::testRecordLossWithFullClearPercentBoundary()
     // cell but stepped on a mine on a chord click after the last open. Not
     // reachable in production (last-cell open triggers win first) but the
     // recording layer must accept it without clamping.
-    Stats::recordLoss(QStringLiteral("Expert"), 100, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 100, 0, QDate{2026, 4, 25});
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestSafePercent, 100u);
 }
@@ -621,7 +639,7 @@ void TestStats::testRecordLossWithOverflowPercentClampedTo100()
 {
     // Defence-in-depth: a future caller that passes an overflowed value
     // (e.g. 200 from an arithmetic bug) must still produce a sane record.
-    Stats::recordLoss(QStringLiteral("Expert"), 200, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 200, 0, QDate{2026, 4, 25});
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestSafePercent, 100u);
 }
@@ -632,7 +650,7 @@ void TestStats::testRecordWinDoesNotTouchBestSafePercent()
     // overwrite the partial-clear field. Persistence semantics: the
     // partial-clear stays in QSettings; the dialog hides it once a win
     // exists.
-    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 1, 1});
+    Stats::recordLoss(QStringLiteral("Expert"), 60, 0, QDate{2026, 1, 1});
     QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 250.0, QDate{2026, 4, 25}));
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestSafePercent, 60u);
@@ -642,8 +660,8 @@ void TestStats::testRecordWinDoesNotTouchBestSafePercent()
 
 void TestStats::testBestSafePercentIsPerDifficulty()
 {
-    Stats::recordLoss(QStringLiteral("Beginner"), 80, QDate{2026, 4, 25});
-    Stats::recordLoss(QStringLiteral("Expert"), 40, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Beginner"), 80, 0, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 40, 0, QDate{2026, 4, 25});
     QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSafePercent, 80u);
     QCOMPARE(Stats::load(QStringLiteral("Intermediate")).bestSafePercent, 0u);
     QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 40u);
@@ -651,7 +669,7 @@ void TestStats::testBestSafePercentIsPerDifficulty()
 
 void TestStats::testResetWipesBestSafePercent()
 {
-    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 60, 0, QDate{2026, 4, 25});
     Stats::reset(QStringLiteral("Expert"));
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestSafePercent, 0u);
@@ -660,8 +678,8 @@ void TestStats::testResetWipesBestSafePercent()
 
 void TestStats::testResetAllWipesBestSafePercent()
 {
-    Stats::recordLoss(QStringLiteral("Beginner"), 80, QDate{2026, 4, 25});
-    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Beginner"), 80, 0, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 60, 0, QDate{2026, 4, 25});
     Stats::resetAll();
     QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSafePercent, 0u);
     QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 0u);
@@ -698,7 +716,7 @@ void TestStats::testLossOutcomeWithZeroPercentReturnsNoNewBest()
 {
     // Explicit 0 percent (e.g. first-click boom) must never set the flair —
     // mirrors the recordLoss zero-sentinel: no record persisted, no flair.
-    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 0, QDate{2026, 4, 25});
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, QDate{2026, 4, 25});
     QVERIFY(!out.newBestSafePercent);
 }
 
@@ -707,7 +725,7 @@ void TestStats::testLossOutcomeFirstPositivePercentReturnsNewBest()
     // The very first loss with safePercent > 0 transitions the field
     // 0 → some positive value, which IS a new high-water mark — the flair
     // must fire (parallel to the first-win == newRecord case).
-    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 47, QDate{2026, 4, 25});
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 47, 0, QDate{2026, 4, 25});
     QVERIFY(out.newBestSafePercent);
     QVERIFY(static_cast<bool>(out));
 }
@@ -715,8 +733,8 @@ void TestStats::testLossOutcomeFirstPositivePercentReturnsNewBest()
 void TestStats::testLossOutcomeHigherPercentReturnsNewBest()
 {
     // A subsequent loss that strictly beats the prior best fires the flair.
-    Stats::recordLoss(QStringLiteral("Expert"), 30, QDate{2026, 1, 1});
-    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 70, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 30, 0, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 70, 0, QDate{2026, 4, 25});
     QVERIFY(out.newBestSafePercent);
 }
 
@@ -724,16 +742,16 @@ void TestStats::testLossOutcomeEqualPercentReturnsNoNewBest()
 {
     // Strict greater-than semantics: a tie with the prior best does NOT fire
     // the flair (matches the persistence layer's date-pin behaviour).
-    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 1, 1});
-    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 60, 0, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 60, 0, QDate{2026, 4, 25});
     QVERIFY(!out.newBestSafePercent);
 }
 
 void TestStats::testLossOutcomeLowerPercentReturnsNoNewBest()
 {
     // A worse loss leaves the prior record intact — no flair.
-    Stats::recordLoss(QStringLiteral("Expert"), 70, QDate{2026, 1, 1});
-    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 50, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 70, 0, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 50, 0, QDate{2026, 4, 25});
     QVERIFY(!out.newBestSafePercent);
 }
 
@@ -742,8 +760,8 @@ void TestStats::testLossOutcomeOverflowAtCapReturnsNoNewBest()
     // Defence-in-depth: an overflowed value clamps to 100 in the persisted
     // record. Once a record has been clamped to 100, a subsequent overflow
     // call is a tie, NOT a new best — so the flair must not fire twice.
-    Stats::recordLoss(QStringLiteral("Expert"), 200, QDate{2026, 1, 1});
-    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 250, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 200, 0, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 250, 0, QDate{2026, 4, 25});
     QVERIFY(!out.newBestSafePercent);
 }
 
@@ -751,9 +769,9 @@ void TestStats::testLossOutcomeBoolConversion()
 {
     // The explicit operator bool exists so future call sites can do
     // `if (Stats::recordLoss(...))`. Confirm it tracks newBestSafePercent.
-    const auto first = Stats::recordLoss(QStringLiteral("Beginner"), 30, QDate{2026, 4, 25});
+    const auto first = Stats::recordLoss(QStringLiteral("Beginner"), 30, 0, QDate{2026, 4, 25});
     QVERIFY(static_cast<bool>(first));
-    const auto tie = Stats::recordLoss(QStringLiteral("Beginner"), 30, QDate{2026, 4, 25});
+    const auto tie = Stats::recordLoss(QStringLiteral("Beginner"), 30, 0, QDate{2026, 4, 25});
     QVERIFY(!static_cast<bool>(tie));
 }
 
@@ -857,7 +875,7 @@ void TestStats::testRecordLossDoesNotTouchBestBvPerSecond()
     // Seed a 3BV/s best, then lose. recordLoss must not zero or overwrite the
     // 3BV/s field — losses are accounted on a different axis.
     QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 1, 1}, 1.55).newBestBvPerSecond);
-    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 60, 0, QDate{2026, 4, 25});
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(r.bestBvPerSecond, 1.55);
     QCOMPARE(r.bestBvPerSecondDate, (QDate{2026, 1, 1}));
@@ -963,6 +981,214 @@ void TestStats::testWinOutcomeBvRateIndependentOfNewRecord()
     QVERIFY(slower.newBestStreak); // streak crosses 2 > 1
     QVERIFY(!slower.newBestBvPerSecond);
     QCOMPARE(slower.currentStreak, 2u);
+}
+
+void TestStats::testBestFlagAccuracyDefaultsZero()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 0u);
+    QVERIFY(!r.bestFlagAccuracyDate.isValid());
+}
+
+void TestStats::testRecordLossDefaultArgsKeepsBestFlagAccuracyZero()
+{
+    // Default-arg recordLoss (no flag-accuracy supplied) must not touch the
+    // flag-accuracy best — preserves source-compat for callers that don't
+    // care about the new field. Mirrors the bestSafePercent default-args
+    // contract from v1.28.
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 1u);
+    QCOMPARE(r.bestFlagAccuracyPercent, 0u);
+    QVERIFY(!r.bestFlagAccuracyDate.isValid());
+}
+
+void TestStats::testRecordLossWithFlagAccuracySetsOnFirstCall()
+{
+    const QDate d{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 75, d);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 1u);
+    QCOMPARE(r.bestFlagAccuracyPercent, 75u);
+    QCOMPARE(r.bestFlagAccuracyDate, d);
+}
+
+void TestStats::testRecordLossWithHigherFlagAccuracyBeats()
+{
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 40, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 80, d2);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 80u);
+    QCOMPARE(r.bestFlagAccuracyDate, d2);
+}
+
+void TestStats::testRecordLossWithLowerFlagAccuracyKeepsOriginal()
+{
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 80, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 60, d2);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 80u);
+    QCOMPARE(r.bestFlagAccuracyDate, d1);
+}
+
+void TestStats::testRecordLossWithEqualFlagAccuracyKeepsOriginalDate()
+{
+    // Strict greater-than semantics: ties don't bump the date — mirrors the
+    // best-streak / best-percent / best-3BV/s date-pin convention.
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 70, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 70, d2);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 70u);
+    QCOMPARE(r.bestFlagAccuracyDate, d1);
+}
+
+void TestStats::testRecordLossWithZeroFlagAccuracyDoesNotMutate()
+{
+    // First seed a non-zero best, then a zero-accuracy loss must leave it
+    // (e.g. a no-flag boom or a wrong-only-flag loss). Mirrors the
+    // bestSafePercent zero-sentinel.
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 60, QDate{2026, 1, 1});
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 0, QDate{2026, 4, 25});
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.played, 2u);
+    QCOMPARE(r.bestFlagAccuracyPercent, 60u);
+    QCOMPARE(r.bestFlagAccuracyDate, (QDate{2026, 1, 1}));
+}
+
+void TestStats::testRecordLossWithFullFlagAccuracyBoundary()
+{
+    // 100% is a defensible boundary: a player who flagged only mines (every
+    // flag correct) before stepping on an unflagged mine. The recording
+    // layer accepts 100 without clamping.
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 100, QDate{2026, 4, 25});
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 100u);
+}
+
+void TestStats::testRecordLossWithOverflowFlagAccuracyClampedTo100()
+{
+    // Defence-in-depth: a future caller passing an overflowed value (e.g.
+    // 200 from an arithmetic bug) must still produce a sane record. Mirrors
+    // the bestSafePercent clamp test.
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 200, QDate{2026, 4, 25});
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 100u);
+}
+
+void TestStats::testRecordWinDoesNotTouchBestFlagAccuracy()
+{
+    // Seed a flag-accuracy best, then win — recordWin must not zero or
+    // overwrite the field. The post-win flagAllMines auto-flags every mine
+    // so any flag-accuracy reading on a win is trivially 100% and would
+    // pollute the meaningful per-loss leaderboard.
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 75, QDate{2026, 1, 1});
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 250.0, QDate{2026, 4, 25}));
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 75u);
+    QCOMPARE(r.bestFlagAccuracyDate, (QDate{2026, 1, 1}));
+    QCOMPARE(r.won, 1u);
+}
+
+void TestStats::testBestFlagAccuracyIsPerDifficulty()
+{
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 90, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 50, QDate{2026, 4, 25});
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestFlagAccuracyPercent, 90u);
+    QCOMPARE(Stats::load(QStringLiteral("Intermediate")).bestFlagAccuracyPercent, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestFlagAccuracyPercent, 50u);
+}
+
+void TestStats::testResetWipesBestFlagAccuracy()
+{
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 80, QDate{2026, 4, 25});
+    Stats::reset(QStringLiteral("Expert"));
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestFlagAccuracyPercent, 0u);
+    QVERIFY(!r.bestFlagAccuracyDate.isValid());
+}
+
+void TestStats::testResetAllWipesBestFlagAccuracy()
+{
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 90, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 70, QDate{2026, 4, 25});
+    Stats::resetAll();
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestFlagAccuracyPercent, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestFlagAccuracyPercent, 0u);
+}
+
+void TestStats::testLegacyRecordWithoutBestFlagAccuracyLoadsAsZero()
+{
+    // Pre-1.33 record: no best_flag_accuracy_* keys present — must load as
+    // 0 / invalid date so an upgrading user's first 1.33.0 loss seeds the
+    // record cleanly.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 42.0);
+    settings.setValue(QStringLiteral("stats/Beginner/best_date"), QStringLiteral("2026-01-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 5u);
+    QCOMPARE(r.bestSeconds, 42.0);
+    QCOMPARE(r.bestFlagAccuracyPercent, 0u);
+    QVERIFY(!r.bestFlagAccuracyDate.isValid());
+}
+
+void TestStats::testLossOutcomeFlagAccuracyIndependentOfSafePercent()
+{
+    // Independence pin: safePercent and flagAccuracyPercent are not coupled.
+    // A loss with a higher safePercent and lower flag-accuracy must update
+    // only the safePercent record, and vice versa.
+    const QDate d1{2026, 4, 23};
+    const QDate d2{2026, 4, 24};
+    const QDate d3{2026, 4, 25};
+
+    // First loss: 30% cleared, 60% flag-accuracy. Both axes set.
+    {
+        const auto o = Stats::recordLoss(QStringLiteral("Beginner"), 30, 60, d1);
+        QVERIFY(o.newBestSafePercent);
+        QVERIFY(o.newBestFlagAccuracyPercent);
+    }
+    // Second loss: 70% cleared (new safePercent record) but 40% accuracy
+    // (worse). safePercent updates; flag-accuracy does not.
+    {
+        const auto o = Stats::recordLoss(QStringLiteral("Beginner"), 70, 40, d2);
+        QVERIFY(o.newBestSafePercent);
+        QVERIFY(!o.newBestFlagAccuracyPercent);
+    }
+    // Third loss: 50% cleared (worse than 70) but 80% accuracy (new
+    // record). Flag-accuracy updates; safePercent does not.
+    {
+        const auto o = Stats::recordLoss(QStringLiteral("Beginner"), 50, 80, d3);
+        QVERIFY(!o.newBestSafePercent);
+        QVERIFY(o.newBestFlagAccuracyPercent);
+    }
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestSafePercent, 70u);
+    QCOMPARE(r.bestSafePercentDate, d2);
+    QCOMPARE(r.bestFlagAccuracyPercent, 80u);
+    QCOMPARE(r.bestFlagAccuracyDate, d3);
+}
+
+void TestStats::testLossOutcomeBoolStillTracksOnlySafePercent()
+{
+    // The explicit `operator bool` was added in v1.29 to gate the `🎯 New
+    // best %!` flair. The 1.33.0 addition of `newBestFlagAccuracyPercent`
+    // must NOT change that contract — bool conversion remains tied to
+    // newBestSafePercent only, so the existing flair-gate keeps its
+    // pre-1.33 semantics. A loss that sets a new flag-accuracy record but
+    // not a new safe-percent record returns false.
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 0, 70, QDate{2026, 4, 25});
+    QVERIFY(!out.newBestSafePercent);
+    QVERIFY(out.newBestFlagAccuracyPercent);
+    QVERIFY(!static_cast<bool>(out));
 }
 
 QTEST_MAIN(TestStats)

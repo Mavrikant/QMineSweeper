@@ -31,6 +31,9 @@ Record load(const QString &difficultyName)
     r.bestBvPerSecond = settings.value(key(difficultyName, QStringLiteral("best_bv_per_second")), 0.0).toDouble();
     const QString bvDateStr = settings.value(key(difficultyName, QStringLiteral("best_bv_per_second_date")), QString{}).toString();
     r.bestBvPerSecondDate = bvDateStr.isEmpty() ? QDate{} : QDate::fromString(bvDateStr, Qt::ISODate);
+    r.bestFlagAccuracyPercent = settings.value(key(difficultyName, QStringLiteral("best_flag_accuracy_percent")), 0u).toUInt();
+    const QString flagAccDateStr = settings.value(key(difficultyName, QStringLiteral("best_flag_accuracy_date")), QString{}).toString();
+    r.bestFlagAccuracyDate = flagAccDateStr.isEmpty() ? QDate{} : QDate::fromString(flagAccDateStr, Qt::ISODate);
     return r;
 }
 
@@ -85,6 +88,15 @@ void save(const QString &difficultyName, const Record &r)
     {
         settings.remove(key(difficultyName, QStringLiteral("best_bv_per_second_date")));
     }
+    settings.setValue(key(difficultyName, QStringLiteral("best_flag_accuracy_percent")), r.bestFlagAccuracyPercent);
+    if (r.bestFlagAccuracyDate.isValid())
+    {
+        settings.setValue(key(difficultyName, QStringLiteral("best_flag_accuracy_date")), r.bestFlagAccuracyDate.toString(Qt::ISODate));
+    }
+    else
+    {
+        settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_date")));
+    }
 }
 
 void reset(const QString &difficultyName)
@@ -103,6 +115,8 @@ void reset(const QString &difficultyName)
     settings.remove(key(difficultyName, QStringLiteral("best_safe_percent_date")));
     settings.remove(key(difficultyName, QStringLiteral("best_bv_per_second")));
     settings.remove(key(difficultyName, QStringLiteral("best_bv_per_second_date")));
+    settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_percent")));
+    settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_date")));
 }
 
 void resetAll()
@@ -113,7 +127,7 @@ void resetAll()
     settings.endGroup();
 }
 
-LossOutcome recordLoss(const QString &difficultyName, int safePercent, const QDate &onDate)
+LossOutcome recordLoss(const QString &difficultyName, int safePercent, int flagAccuracyPercent, const QDate &onDate)
 {
     Record r = load(difficultyName);
     ++r.played;
@@ -129,8 +143,19 @@ LossOutcome recordLoss(const QString &difficultyName, int safePercent, const QDa
             newBestSafePercent = true;
         }
     }
+    bool newBestFlagAccuracyPercent = false;
+    if (flagAccuracyPercent > 0)
+    {
+        const std::uint32_t clampedAcc = static_cast<std::uint32_t>(flagAccuracyPercent > 100 ? 100 : flagAccuracyPercent);
+        if (clampedAcc > r.bestFlagAccuracyPercent)
+        {
+            r.bestFlagAccuracyPercent = clampedAcc;
+            r.bestFlagAccuracyDate = onDate;
+            newBestFlagAccuracyPercent = true;
+        }
+    }
     save(difficultyName, r);
-    return LossOutcome{newBestSafePercent};
+    return LossOutcome{newBestSafePercent, newBestFlagAccuracyPercent};
 }
 
 WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate, double bvPerSecond)

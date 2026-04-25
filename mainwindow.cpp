@@ -2,6 +2,7 @@
 
 #include "./ui_mainwindow.h"
 #include "bv_per_second_format.h"
+#include "flag_accuracy_format.h"
 #include "language.h"
 #include "stats.h"
 #include "telemetry.h"
@@ -561,6 +562,19 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     setWindowTitle(tr("QMineSweeper — Boom"));
     const QString diffName = difficultyName(m_currentDifficulty);
     const int safePercent = ui->mineFieldWidget->safePercentCleared();
+    const int clicks = ui->mineFieldWidget->userClicks();
+    const int flags = ui->mineFieldWidget->flagsPlaced();
+    const int correctFlags = ui->mineFieldWidget->correctFlagsPlaced();
+    const int bv = ui->mineFieldWidget->boardValue();
+    const int qmarks = ui->mineFieldWidget->questionMarksPlaced();
+    const int partialBv = ui->mineFieldWidget->partialBoardValue();
+    // Rounded percentage of the user's placed flags that landed on actual
+    // mines at the moment of explosion. 0 when no flags were placed (the
+    // metric is undefined), which doubles as Stats::recordLoss's "skip the
+    // best-flag-accuracy update" sentinel — a no-flag boom never sets the
+    // record, mirroring the v1.32 loss-dialog gate that hides the
+    // `Correct flags: %1 / %2` line when `flagsPlaced == 0`.
+    const int flagAccuracyPercent = (flags > 0) ? static_cast<int>(std::lround(100.0 * correctFlags / flags)) : 0;
     Stats::LossOutcome lossOutcome{};
     if (!m_isReplay && !m_isCustom)
     {
@@ -571,15 +585,11 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
         // board would let the user inflate the lifetime record. The
         // returned LossOutcome carries `newBestSafePercent` so the loss
         // dialog can flair on a fresh hall-of-fame entry, parallel to the
-        // win-side `🏆 New record!` flair.
-        lossOutcome = Stats::recordLoss(diffName, safePercent);
+        // win-side `🏆 New record!` flair. flagAccuracyPercent threads the
+        // rounded accuracy into the new lifetime hall-of-fame field; same
+        // gate (>0) and same strict-greater-than semantics as safePercent.
+        lossOutcome = Stats::recordLoss(diffName, safePercent, flagAccuracyPercent);
     }
-    const int clicks = ui->mineFieldWidget->userClicks();
-    const int flags = ui->mineFieldWidget->flagsPlaced();
-    const int correctFlags = ui->mineFieldWidget->correctFlagsPlaced();
-    const int bv = ui->mineFieldWidget->boardValue();
-    const int qmarks = ui->mineFieldWidget->questionMarksPlaced();
-    const int partialBv = ui->mineFieldWidget->partialBoardValue();
     // Same sub-tick guard as the win path — a fast loss with zero elapsed time
     // would otherwise divide by zero. 0.05s mirrors the win-side threshold.
     const double partialBvRate = (m_lastElapsedSeconds > 0.05) ? (partialBv / m_lastElapsedSeconds) : 0.0;
@@ -594,7 +604,9 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("partial_bv_per_second"), QString::asprintf("%.2f", partialBvRate)},
                                                             {QStringLiteral("qmarks"), QString::number(qmarks)},
                                                             {QStringLiteral("correct_flags"), QString::number(correctFlags)},
+                                                            {QStringLiteral("flag_accuracy_percent"), QString::number(flagAccuracyPercent)},
                                                             {QStringLiteral("new_best_safe_percent"), lossOutcome.newBestSafePercent ? QStringLiteral("true") : QStringLiteral("false")},
+                                                            {QStringLiteral("new_best_flag_accuracy"), lossOutcome.newBestFlagAccuracyPercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
     showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags);
 }
@@ -974,8 +986,8 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(3, 7, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s")});
+    auto *table = new QTableWidget(3, 8, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best flag accuracy")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -1053,6 +1065,7 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 4, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
         table->setItem(i, 5, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
         table->setItem(i, 6, new QTableWidgetItem(formatBvPerSecondCell(rec.bestBvPerSecond, rec.bestBvPerSecondDate)));
+        table->setItem(i, 7, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
     }
     table->resizeColumnsToContents();
 
