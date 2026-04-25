@@ -1,5 +1,64 @@
 # Cycle decisions
 
+## 2026-04-26 — Statistics dialog: Total row aggregating Played / Won (v1.35.0)
+
+**Chosen:** Add a 4th, bold-styled `Total` row at the bottom of the
+Statistics table that sums `Played` and `Won` across the three
+difficulties; show aggregate win % the same way per-difficulty rows do;
+collapse all per-best columns to em-dash. Pure presentation, no
+QSettings schema change.
+
+**Why this one:**
+- v1.34.0 cycle log explicitly tagged this as the lead "Stats-dialog
+  row totals" candidate ("pure presentation aggregation; no new
+  persistence"). Smallest viable scope of the three named candidates,
+  and the only one with zero schema risk.
+- Concrete user value: surfaces the lifetime session footprint
+  without making the user mentally add three numbers.
+- Exhausts a known UX gap with a ~30-LOC diff and 1 new translatable
+  string × 9 locales — well under the cycle budget.
+
+**Rejected alternatives:**
+- *"Best across all difficulties" cell* in the Best time column. The
+  smallest-board (Beginner) best would always win, which is
+  misleading and redundant with the Beginner row already showing it.
+  Em-dash is the honest call.
+- *Background colour for the Total row.* Risks dark-mode contrast
+  issues; bold uses the same palette token and reads well in any
+  theme.
+- *Total row at the top.* Spreadsheet convention puts sum rows after
+  the data, and the existing Beginner / Intermediate / Expert
+  ordering is left-anchored to the smallest difficulty.
+- *Loss-dialog "Time since last win" line.* Higher-effort candidate
+  from the v1.34.0 list; requires new `last_win_date` QSettings
+  field. Park.
+- *Win-dialog "Average time" line.* Same — requires
+  `total_seconds` divisor in persistence. Park.
+
+**Assumptions:**
+- `std::uint64_t` accumulators preempt the (physically unreachable
+  but theoretically possible) `uint32` overflow when summing three
+  Played counts.
+- Integer-percent rounding for the aggregate win % matches
+  per-difficulty row formatting.
+- A bold font on each `QTableWidgetItem` (via `setFont(boldFont)`)
+  is sufficient visual differentiation; no need for a separator row
+  or a layout-band footer.
+- Reset confirmation copy needs no update — already says "all
+  records".
+- The new `Total` translatable key is short enough that all 9
+  hand translations fit in the existing Difficulty column width
+  set by the longer `Intermediate` / `Başlangıç` etc. strings.
+
+**Translation cost:** 1 new key × 9 non-English locales (TR `Toplam`,
+ES `Total`, FR `Total`, DE `Gesamt`, RU `Итого`, PT `Total`,
+ZH `总计`, HI `कुल`, AR `المجموع`). 50/50 coverage preserved.
+
+**Skipped:**
+- *Per-best column aggregation.* See Rejected alternatives.
+- *Win % broken into its own column.* Cleaner but adds a 9th column;
+  defer to a future cycle.
+
 ## 2026-04-25 — Loss dialog: 🚩 New best flag accuracy! flair (v1.34.0)
 
 **Chosen:** Mirror v1.31.0 → v1.34.0 the same way v1.30 was followed

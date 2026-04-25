@@ -1,5 +1,146 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 32 — v1.35.0 (autonomous)
+
+- **Chosen problem:** The Statistics dialog showed three per-difficulty
+  rows (Beginner / Intermediate / Expert) with Played and Won counts —
+  but the user had to mentally add three numbers to see their lifetime
+  footprint. The v1.34.0 cycle log explicitly tagged "Stats-dialog row
+  totals" as a next candidate ("pure presentation aggregation; no new
+  persistence"). Smallest viable scope of the three named candidates,
+  and the only one with zero schema risk.
+- **Evidence:** `MainWindow::showStatsDialog` (mainwindow.cpp:997)
+  iterated `for (int i = 0; i < 3; ++i)` over a fixed `QTableWidget(3, 8, …)`.
+  No aggregate row anywhere in the dialog. `Stats::Record::played` and
+  `won` already exposed via the existing `Stats::load` API — the data
+  was already on hand.
+- **Shipped:**
+  - Branch: `feat/v1.35.0-stats-totals-row` (squash-merged + deleted)
+  - PR: [#53](https://github.com/Mavrikant/QMineSweeper/pull/53)
+    (squash-merged as `3eb9e54`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.35.0
+  - Release workflow `24941346666` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage 35.9 MB / tar.gz
+    35.6 MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB). Hand-written
+    user-facing release notes installed via `gh release edit`
+    explaining the Total row's aggregation rules and the macOS
+    quarantine clear.
+- **Code surface:** ~30 LOC of production diff plus translation churn.
+  - `mainwindow.cpp`: row count `3 → 4`; two `std::uint64_t`
+    accumulators (`totalPlayed`, `totalWon`) summed inside the existing
+    per-difficulty loop; aggregate `winRate` computed with the same
+    integer-percent format and zero-played guard as per-difficulty rows;
+    a `makeTotalItem` lambda that bolds the font on each cell; 8 new
+    `setItem` calls for row 3 (label "Total", aggregate played, aggregate
+    won + win %, then 5 em-dash placeholders for per-best columns); 1
+    new `<QFont>` include.
+  - `CMakeLists.txt`: version bump 1.34.0 → 1.35.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English locales).
+  - `.ts` files: lupdate adds the new key (105 → 106) across all 10
+    locales; apply_translations fills 9 of them with hand translations,
+    leaving English at the source string.
+  - Total real code+docs diff well under the 400-LOC cycle cap.
+- **Tests added:** none new. The Total row is pure presentation that
+  reads from existing tested `Stats::Record` fields — the Stats
+  persistence layer is exhaustively pinned by tst_stats (multiple
+  cycles' worth of tests). The integer-summation arithmetic is
+  trivially correct; the bold-font styling is a `QFont::setBold` call
+  on a `QTableWidgetItem` (not unit-testable without a MainWindow
+  harness). Consistent with prior pure-presentation cycles
+  (v1.18 streak display, v1.19 dialog flair) which also shipped without
+  display-layer tests.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (`106 finished, 0 unfinished` per
+  locale).
+  - TR `"Toplam"` · ES `"Total"` · FR `"Total"` · DE `"Gesamt"`
+  - RU `"Итого"` · PT `"Total"` · ZH `"总计"` · HI `"कुल"` · AR `"المجموع"`
+- **Local verification:**
+  - `cmake -B build -DCMAKE_BUILD_TYPE=Debug -G Ninja` clean.
+  - `cmake --build build --target update_translations` reports
+    "1 new and 105 already existing" across all 10 locales — confirms
+    exactly one new tr() string and zero accidental drift.
+  - `python3 translations/apply_translations.py` reports
+    "103 translations applied" per non-English locale.
+  - Per-locale grep confirms `<source>Total</source>` →
+    `<translation>…</translation>` (not `unfinished`) in all 9 non-en
+    files; `en` stays unfinished as designed.
+  - `cmake --build build` clean. All 8 test binaries link.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 8/8 pass.
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean.
+- **Adversarial self-review:**
+  - **What breaks this in production?** A user with Played counts at
+    the `uint32` boundary on all three difficulties summing to >2^32
+    would overflow a naive `int` accumulator. Pre-empted by promoting
+    to `std::uint64_t` — overflow now requires `played > 6×10^18`, not
+    physically reachable.
+  - **Is the public API backwards-compatible?** Yes — `showStatsDialog`
+    is a private member of `MainWindow`, no other call sites. No
+    `Stats::Record` schema or `QSettings` key changes. A user with a
+    pre-1.35 plist sees the Total row populated correctly on first open.
+  - **Error paths handled?** No new error path. The aggregate `winRate`
+    correctly suppresses the `(X%)` parenthetical when `totalPlayed == 0`,
+    matching per-difficulty row behaviour.
+  - **Secrets / PII?** None. No new telemetry tags.
+  - **Performance?** Three already-loaded records summed (3 additions);
+    a single bold font construction; 8 `setItem` calls. Subsumed by the
+    existing dialog setup cost.
+  - **Concurrency?** None — single-threaded UI, no shared state.
+  - **Visual regression?** A 4th row pushes the dialog ~22 px taller
+    on standard DPI; no horizontal change. `resizeColumnsToContents()`
+    handles the "Total" header text; "Toplam" / "Итого" / "المجموع" all
+    fit within the existing Difficulty column width set by "Intermediate".
+- **Assumptions made:**
+  - **Total row at the bottom**, not the top — matches spreadsheet
+    convention (sum row after data rows). Documented in the PR.
+  - **Bold font, not background colour**, for visual differentiation.
+    Background colour clashes with system dark-mode themes and risks
+    contrast accessibility issues; bold uses the same palette token.
+  - **Em-dash on per-best columns.** A "best across difficulties" cell
+    would just be the Beginner column (smallest board → fastest times,
+    tallest streaks, etc.), which is misleading and redundant. The
+    em-dash matches the convention used for never-played / no-record
+    cells elsewhere in the dialog.
+  - **Reset all confirmation copy unchanged.** Already says "all
+    records" and a Total row that aggregates them is self-evidently
+    affected.
+  - **Same integer-percent rounding** as per-difficulty rows for the
+    aggregate win % — keeps the cell narrow and visually consistent.
+- **Skipped:**
+  - **Loss-dialog "Time since last win" line** — re-parked from
+    cycles 28–31. Needs a new `last_win_date` QSettings field; ~30
+    LOC + 1 translatable string × 9 locales. Higher schema-change
+    risk than this cycle's pure-presentation diff.
+  - **Win-dialog "Average time" line** after ≥3 wins — re-parked
+    from cycles 28–31. Needs persistence of `total_seconds` divisor.
+  - **"Best across all" cell instead of em-dash.** Considered but
+    rejected — see Assumptions.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.35.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads at
+  watch time and telemetry is opt-in. No new crash group attributable
+  to the 1.35.0 cut. Watch closed.
+- **Next candidates:**
+  - **Loss-dialog "Time since last win" line** when the player has
+    won this difficulty before. Requires a new `last_win_date` field
+    in `Stats::Record` (separate from `bestDate`). ~30 LOC of
+    production + persistence diff + 1 translatable string × 9 locales.
+    Psychological nudge for players on a long losing streak.
+  - **Win-dialog "Average time" line** showing the player's average
+    winning time on this difficulty after ≥3 wins. Needs persistence
+    of total seconds divisor (or `played_won_total_seconds`
+    accumulator on `Stats::Record`). ~40 LOC.
+  - **Stats-dialog "Best across all" footer cell** for the Best time
+    column — show e.g. "Beginner: 12.3 s" in the Total row's Best
+    time cell. Pure presentation, but adds 3 new translatable
+    strings (one per difficulty in the cell value) so deferred
+    in favour of the em-dash for v1.35.0.
+  - **Win % column** broken out from the Won cell. Currently
+    rendered inline as `Won (X%)`. A dedicated column keeps the
+    Won number left-aligned and readable. Adds 1 translatable
+    string ("Win %"). Pure presentation.
+
 ## 2026-04-25 — Cycle 31 — v1.34.0 (autonomous)
 
 - **Chosen problem:** v1.33.0 wired
