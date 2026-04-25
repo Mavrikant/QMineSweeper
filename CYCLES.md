@@ -1,5 +1,137 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 12 — v1.15.0 (autonomous)
+
+- **Chosen problem:** No click count or efficiency % on the win dialog.
+  The project has shipped the speedrun trio's first two members —
+  3BV alone in v1.14.0 and 3BV/s as the per-second rate — but the
+  third canonical metric, `Efficiency = 3BV / clicks · 100`, was
+  parked last cycle pending a click counter. With the 3BV/s rhythm
+  established and the userClick gesture-vs-cascade distinction
+  cleanly expressible via a new MineButton signal, the click counter
+  is no longer a "for marginal payoff" parking call — it ships now
+  and lands the speedrun-completeness story.
+- **Evidence:** No `userClicks` / `clickCount` / `m_clicks` anywhere
+  in tree. `MainWindow::onGameWon` already had `boardValue()` from
+  v1.14.0 — only the divisor was missing. Speedrun communities (MS
+  Online, MS Arbiter, Active Minesweeper) report uncapped efficiency
+  alongside time/3BV/3BV/s as the four-number summary.
+- **Shipped:**
+  - Branch: `feat/click-count-efficiency` (squash-merged + deleted)
+  - PR: [#33](https://github.com/Mavrikant/QMineSweeper/pull/33)
+  - Tag: `v1.15.0`
+  - Release: [v1.15.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.15.0)
+- **Diff shape:** 20 files, +1072/-670 LOC — productive slice
+  ~250 LOC (MineField counter + reset 5, MineButton signal 2,
+  mainwindow dialog 8 + telemetry 4, header churn 22, tests
+  +209 with 15 new cases + 1 deflake). The remaining churn is
+  per-locale `.ts` line-rewriting that lupdate emits whenever a new
+  source string is added, plus a 9-line `apply_translations.py`
+  delta. Well under the 400-LOC cycle cap.
+- **Translation cost:** 1 new format string × 9 hand-translated
+  locales. Trailing `%` kept as a literal across all locales for
+  consistency and to dodge Qt's `%%`-vs-`%n` parser ambiguity. Arabic
+  uses U+066A (٪) for the percent character, matching native
+  typography. All 10 locales now 88/88 finished, 0 unfinished.
+- **Assumptions made:**
+  - **Useful click = gesture that opened ≥1 cell.** Defines the
+    denominator. Right-click flag toggles, no-op left-clicks
+    (already-opened or flagged cells), and unsatisfied chords
+    (`flagsAround != cell->Number()`) are excluded. A satisfied
+    chord whose unflagged neighbours are all already opened is also
+    a no-op — `revealedAny == false` and the counter stays put.
+  - **Chord that hits a wrong-flag mine still counts.** It opened
+    a cell (the mine). The run ends in a loss but the gesture was a
+    useful click; the test
+    `testUserClicksChordWrongFlagCountsAndExplodes` pins this. Only
+    matters in telemetry — the loss dialog never shows efficiency.
+  - **Flood-fill cascade is one click, not N.** The whole point of
+    the metric. Implemented by emitting `MineButton::userClick` only
+    from `mousePressEvent`, never from `Open()` itself; flood-driven
+    `Open()` calls in `onCheckNeighbours` and chord-neighbour loops
+    don't go through the gesture entry, so they never trigger the
+    increment.
+  - **Keyboard parity inline.** `MineField::handleCellKey` increments
+    `m_userClicks` directly for Space/Enter on unopened non-flagged
+    cells (mirrors the mouse path's pre-Open guard). Space/Enter/D
+    on opened cells route through `onChordRequested`, which is the
+    chord counting site — no double-count.
+  - **Uncapped efficiency.** Chord-heavy play legitimately yields
+    >100 %; capping discards information. The dialog displays the
+    raw rounded value (`std::lround(100.0 * bv / clicks)`).
+  - **No live ticker, no Stats column.** Same trade as 3BV/s in
+    cycle 11 — display-only on the win dialog preserves the metric
+    without inflating the per-difficulty bracket schema or
+    distracting the player during a run.
+  - **Suppressed on `clicks == 0`.** Defensive for fixed-layout test
+    setups that reach `onGameWon` with no user gesture; mirrors the
+    `bv == 0` guard.
+  - **Telemetry additive.** `clicks` (int) and `efficiency` (int %)
+    join the existing `bv` / `bv_per_second` / `noflag` /
+    `new_record` / `replay` tags on the `game.won` event. No new
+    event type.
+- **Drive-by:** `testAnyFlagPlacedResetByReplay` was flaking about
+  50 % of runs (3/5 fails on `git stash` + 5 reruns of main). The
+  test relied on a random Beginner first-click producing a layout
+  where `(0, 0)` is unopened, but a flood from `(4, 4)` could reach
+  `(0, 0)` and turn the test's `cycleMarker` into a no-op. Switched
+  to a deterministic `setFixedLayout(5, 5, {{0, 0}})` and a `(2, 2)`
+  flag cell. Verified across 8 consecutive runs post-fix. Pinned
+  along with the new feature in #33 to keep CI green for the
+  release.
+- **Skipped:**
+  - *Save-and-resume games across launches.* Still bigger
+    (board-state + marker-state + timer-offset serialization +
+    QSettings schema bump); parked across multiple cycles.
+  - *Per-layout best-time leaderboard.* Would need a hash of the
+    mine positions + new persistence schema; bigger than this cycle.
+  - *Color-blind-friendly cell number palette.* Real accessibility
+    win, but defining a deuteranopia/protanopia-safe 8-colour
+    palette is more design work than a one-cycle increment can
+    absorb cleanly.
+  - *Click count + efficiency in Stats.* Captured under "Assumptions
+    made" — the schema cost was the dominant reason.
+  - *Efficiency on the loss dialog.* A losing board never reaches
+    full clear, so the metric is meaningless before the run ended;
+    consistent with 3BV/s also being skipped on losses.
+- **Risks logged:** none new. The new signal-based counting path is
+  paranoidly tested (15 cases including flood-counts-once,
+  flagged-no-op, opened-no-op, right-click-no-op, satisfied-chord-no-op,
+  wrong-flag-chord-counts, plus reset-by-newGame / replay /
+  setFixedLayout). The Open()-vs-gesture cut is the load-bearing
+  invariant and tested by `testUserClicksFloodCountsOnce` —
+  guarantees the counter doesn't drift if anyone refactors the flood
+  path later.
+- **UI smoke:** Deferred. The cron-launched task context lacks
+  display capture permissions (`screencapture -l`/`-R` both errored
+  with "could not create image from window/rect"). Logic is covered
+  by 15 deterministic unit tests; the dialog format is a single
+  `arg(int).arg(int)` chain. Manual end-to-end verification will
+  happen on the next interactive session if any visual regression
+  appears.
+- **Post-release watch (T+~3min):** Release workflow
+  [run 24918547649](https://github.com/Mavrikant/QMineSweeper/actions/runs/24918547649)
+  green across all three platforms in ~2m07s; five assets published
+  (Linux AppImage, Linux tar.gz, macOS universal DMG, Windows x64
+  ZIP, plus `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.15.0` in the last hour returned **zero results**.
+  Expected — telemetry is opt-in and assets were just published, no
+  install has had a chance to fire a session yet. GitHub release
+  body rewritten from the auto-generated stub to user-facing prose
+  covering the metric definition, the dialog format, the per-platform
+  downloads, and the macOS quarantine note. Watch closed.
+- **Next candidates:**
+  - Save-and-resume games across launches (still parked — would
+    need board-state + marker-state + timer-offset serialization).
+  - Per-layout best-time leaderboard (would need a hash of mine
+    positions + new persistence schema).
+  - Color-blind-friendly cell number palette (real accessibility
+    value, design-level work).
+  - Hint button (limited per-game, exposes 1 safe cell at a time
+    cost) — interesting risk-reward UX feature, requires a small
+    deterministic solver.
+
 ## 2026-04-25 — Cycle 11 — v1.14.0 (autonomous)
 
 - **Chosen problem:** No efficiency metric on the win dialog. The
