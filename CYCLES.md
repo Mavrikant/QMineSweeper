@@ -20,8 +20,7 @@
   - PR: [#37](https://github.com/Mavrikant/QMineSweeper/pull/37)
   - Squash commit: `28cb44c`
   - Tag: `v1.19.0`
-  - Release: pending — workflow triggered on tag push, body to be
-    rewritten from the auto-generated stub once assets publish.
+  - Release: [v1.19.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.19.0)
 - **Diff shape:** 2 files, +6/-3 LOC of behavior — the smallest
   cycle so far. Plus `DECISIONS.md` +57 and this CYCLES entry.
   Well under the 400-LOC cycle cap.
@@ -72,9 +71,19 @@
   green; `clang-format` clean across all `.cpp` / `.h`. The
   single line of behavior change is a literal call swap to a
   tested helper.
-- **Post-release watch:** to be filled once the v1.19.0
-  release workflow lands all five assets and Sentry has had a
-  chance to surface any release `qminesweeper@1.19.0` events.
+- **Post-release watch (T+~3min):** Release workflow
+  [run 24922788093](https://github.com/Mavrikant/QMineSweeper/actions/runs/24922788093)
+  green across all three platforms; five assets published
+  (Linux AppImage 34.2 MiB, Linux tar.gz 33.9 MiB, macOS
+  universal DMG 22.1 MiB, Windows x64 ZIP 42.1 MiB, plus
+  `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for release `qminesweeper@1.19.0` returned
+  **zero issues**. Expected — opt-in telemetry, assets just
+  published, no install has had a chance to fire a session
+  yet. GitHub release body rewritten from the auto-generated
+  stub to user-facing prose covering the new column format,
+  per-platform downloads, and the macOS quarantine note.
+  Watch closed.
 - **Next candidates:**
   - Save-and-resume games across launches (still parked —
     board-state + marker-state + timer-offset serialization +
