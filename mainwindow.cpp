@@ -500,7 +500,12 @@ void MainWindow::onGameWon()
     // an arbitrary grid size is not comparable to the standards.
     const bool excludedFromStats = m_isReplay || m_isCustom;
     const bool noflagWin = !ui->mineFieldWidget->anyFlagPlaced();
-    const bool newRecord = !excludedFromStats && Stats::recordWin(diffName, m_lastElapsedSeconds);
+    Stats::WinOutcome outcome{};
+    if (!excludedFromStats)
+    {
+        outcome = Stats::recordWin(diffName, m_lastElapsedSeconds);
+    }
+    const bool newRecord = outcome.newRecord;
     if (!excludedFromStats && noflagWin)
     {
         Stats::recordNoflagBest(diffName, m_lastElapsedSeconds);
@@ -523,8 +528,10 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("bv_per_second"), QString::asprintf("%.2f", bvRate)},
                                                            {QStringLiteral("clicks"), QString::number(clicks)},
                                                            {QStringLiteral("efficiency"), QString::number(efficiency)},
+                                                           {QStringLiteral("streak"), QString::number(outcome.currentStreak)},
+                                                           {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, outcome.currentStreak, outcome.newBestStreak);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -545,7 +552,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                             {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, 0, 0);
+    showEndDialog(false, false, false, 0, 0.0, 0, 0, 0, false);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -743,7 +750,7 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(QString::asprintf("%05.1f", secs));
 }
 
-void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct)
+void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, std::uint32_t currentStreak, bool newBestStreak)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -772,6 +779,17 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (newRecord)
         {
             text.prepend(tr("🏆 New record!") + QStringLiteral("  "));
+        }
+        // Streak flair — `newBestStreak` wins over the plain streak line so
+        // the user never sees both. Streak >= 2 keeps the noise off when a
+        // single win already feels celebratory enough.
+        if (newBestStreak && currentStreak >= 2)
+        {
+            text.prepend(tr("🌟 New best streak: %1!").arg(currentStreak) + QStringLiteral("  "));
+        }
+        else if (currentStreak >= 2)
+        {
+            text.prepend(tr("🔥 Streak: %1").arg(currentStreak) + QStringLiteral("  "));
         }
         box.setText(text);
         box.setIcon(QMessageBox::Information);
@@ -818,8 +836,8 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(3, 5, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)")});
+    auto *table = new QTableWidget(3, 6, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -852,6 +870,19 @@ void MainWindow::showStatsDialog()
         }
         return s;
     };
+    const auto formatStreak = [](std::uint32_t cur, std::uint32_t best, const QDate &bestDate)
+    {
+        if (cur == 0 && best == 0)
+        {
+            return QStringLiteral("—");
+        }
+        QString s = QStringLiteral("%1 / %2").arg(cur).arg(best);
+        if (bestDate.isValid())
+        {
+            s += QStringLiteral("  (") + QLocale().toString(bestDate, QLocale::ShortFormat) + QStringLiteral(")");
+        }
+        return s;
+    };
     for (int i = 0; i < 3; ++i)
     {
         const Stats::Record rec = Stats::load(QString::fromLatin1(rows[i].key));
@@ -861,6 +892,7 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 2, new QTableWidgetItem(QString::number(rec.won) + winRate));
         table->setItem(i, 3, new QTableWidgetItem(formatBest(rec.bestSeconds, rec.bestDate)));
         table->setItem(i, 4, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
+        table->setItem(i, 5, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
     }
     table->resizeColumnsToContents();
 

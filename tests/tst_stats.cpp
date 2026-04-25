@@ -43,6 +43,19 @@ class TestStats : public QObject
     void testResetAllWipesNoflag();
     void testLegacyRecordWithoutNoflagLoadsAsZero();
     void testRecordNoflagBestZeroSecondsRejected();
+
+    // win streak per difficulty
+    void testStreakDefaultsZero();
+    void testFirstWinSetsStreakOneAndBestOne();
+    void testConsecutiveWinsExtendCurrentAndBest();
+    void testLossResetsCurrentStreakOnly();
+    void testWinAfterLossRestartsAtOne();
+    void testStreakIsPerDifficulty();
+    void testBestStreakDateStampedOnHighWaterOnly();
+    void testResetWipesStreak();
+    void testResetAllWipesStreak();
+    void testLegacyRecordWithoutStreakLoadsAsZero();
+    void testRecordWinReturnsOutcomeFields();
 };
 
 void TestStats::initTestCase()
@@ -78,8 +91,8 @@ void TestStats::testRecordLossIncrementsPlayedOnly()
 
 void TestStats::testRecordWinIncrementsPlayedAndWon()
 {
-    const bool newRecord = Stats::recordWin(QStringLiteral("Beginner"), 15.5);
-    QVERIFY(newRecord);
+    const auto outcome = Stats::recordWin(QStringLiteral("Beginner"), 15.5);
+    QVERIFY(outcome.newRecord);
     const auto r = Stats::load(QStringLiteral("Beginner"));
     QCOMPARE(r.played, 1u);
     QCOMPARE(r.won, 1u);
@@ -88,23 +101,23 @@ void TestStats::testRecordWinIncrementsPlayedAndWon()
 
 void TestStats::testRecordWinSetsBestOnFirstWin()
 {
-    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0));
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0).newRecord);
     QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSeconds, 30.0);
 }
 
 void TestStats::testFasterWinBeatsBest()
 {
-    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0));
-    const bool nr = Stats::recordWin(QStringLiteral("Beginner"), 20.0);
-    QVERIFY(nr);
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0).newRecord);
+    const auto nr = Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    QVERIFY(nr.newRecord);
     QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSeconds, 20.0);
 }
 
 void TestStats::testSlowerWinKeepsBest()
 {
-    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0));
-    const bool nr = Stats::recordWin(QStringLiteral("Beginner"), 40.0);
-    QVERIFY(!nr);
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0).newRecord);
+    const auto nr = Stats::recordWin(QStringLiteral("Beginner"), 40.0);
+    QVERIFY(!nr.newRecord);
     const auto r = Stats::load(QStringLiteral("Beginner"));
     QCOMPARE(r.bestSeconds, 20.0);
     QCOMPARE(r.won, 2u);
@@ -318,6 +331,161 @@ void TestStats::testRecordNoflagBestZeroSecondsRejected()
     const auto r = Stats::load(QStringLiteral("Beginner"));
     QCOMPARE(r.bestNoflagSeconds, 0.0);
     QVERIFY(!r.bestNoflagDate.isValid());
+}
+
+void TestStats::testStreakDefaultsZero()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.currentStreak, 0u);
+    QCOMPARE(r.bestStreak, 0u);
+    QVERIFY(!r.bestStreakDate.isValid());
+}
+
+void TestStats::testFirstWinSetsStreakOneAndBestOne()
+{
+    const QDate d{2026, 4, 25};
+    const auto outcome = Stats::recordWin(QStringLiteral("Beginner"), 30.0, d);
+    QCOMPARE(outcome.currentStreak, 1u);
+    QVERIFY(outcome.newBestStreak);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.currentStreak, 1u);
+    QCOMPARE(r.bestStreak, 1u);
+    QCOMPARE(r.bestStreakDate, d);
+}
+
+void TestStats::testConsecutiveWinsExtendCurrentAndBest()
+{
+    const QDate d1{2026, 4, 23};
+    const QDate d2{2026, 4, 24};
+    const QDate d3{2026, 4, 25};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0, d1).newBestStreak);
+    const auto o2 = Stats::recordWin(QStringLiteral("Beginner"), 30.0, d2);
+    QCOMPARE(o2.currentStreak, 2u);
+    QVERIFY(o2.newBestStreak);
+    const auto o3 = Stats::recordWin(QStringLiteral("Beginner"), 30.0, d3);
+    QCOMPARE(o3.currentStreak, 3u);
+    QVERIFY(o3.newBestStreak);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.currentStreak, 3u);
+    QCOMPARE(r.bestStreak, 3u);
+    // Best-streak date is stamped on the most recent high-water-mark moment.
+    QCOMPARE(r.bestStreakDate, d3);
+}
+
+void TestStats::testLossResetsCurrentStreakOnly()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 23});
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 24});
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.currentStreak, 0u);
+    QCOMPARE(r.bestStreak, 2u);
+    QCOMPARE(r.bestStreakDate, (QDate{2026, 4, 24}));
+}
+
+void TestStats::testWinAfterLossRestartsAtOne()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 23});
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 24});
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const auto outcome = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 25});
+    QCOMPARE(outcome.currentStreak, 1u);
+    QVERIFY(!outcome.newBestStreak);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.currentStreak, 1u);
+    QCOMPARE(r.bestStreak, 2u);
+    // Best-streak date stays pinned on the original high-water moment.
+    QCOMPARE(r.bestStreakDate, (QDate{2026, 4, 24}));
+}
+
+void TestStats::testStreakIsPerDifficulty()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 23});
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 23});
+    // A loss on Expert must not touch Beginner's streak.
+    Stats::recordLoss(QStringLiteral("Expert"));
+    const auto bn = Stats::load(QStringLiteral("Beginner"));
+    const auto ex = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(bn.currentStreak, 2u);
+    QCOMPARE(bn.bestStreak, 2u);
+    QCOMPARE(ex.currentStreak, 0u);
+    QCOMPARE(ex.bestStreak, 0u);
+}
+
+void TestStats::testBestStreakDateStampedOnHighWaterOnly()
+{
+    // Win streak goes 1 → 2 → 3 → loss → 1 (no high-water bump) → 2 (still
+    // no bump, ties old best of 3 only after one more) → 3 (ties, no bump
+    // because strict greater-than) → 4 (new high-water, date stamped).
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 1});
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 2});
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 3});
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 5});                         // current=1, best stays 3
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 6});                         // current=2, best stays 3
+    const auto tieOutcome = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 7}); // current=3, ties best
+    QVERIFY(!tieOutcome.newBestStreak);
+    const auto r1 = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r1.bestStreak, 3u);
+    QCOMPARE(r1.bestStreakDate, (QDate{2026, 4, 3}));                                               // pinned on first time it hit 3
+    const auto bumpOutcome = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 8}); // current=4, new best
+    QVERIFY(bumpOutcome.newBestStreak);
+    const auto r2 = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r2.bestStreak, 4u);
+    QCOMPARE(r2.bestStreakDate, (QDate{2026, 4, 8}));
+}
+
+void TestStats::testResetWipesStreak()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 25});
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 25});
+    Stats::reset(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.currentStreak, 0u);
+    QCOMPARE(r.bestStreak, 0u);
+    QVERIFY(!r.bestStreakDate.isValid());
+}
+
+void TestStats::testResetAllWipesStreak()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 25});
+    Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 4, 25});
+    Stats::resetAll();
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).currentStreak, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestStreak, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).currentStreak, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestStreak, 0u);
+}
+
+void TestStats::testLegacyRecordWithoutStreakLoadsAsZero()
+{
+    // Pre-1.16 record: no streak_* keys present — must load as 0/0/invalid.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 42.0);
+    settings.setValue(QStringLiteral("stats/Beginner/best_date"), QStringLiteral("2026-01-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 5u);
+    QCOMPARE(r.currentStreak, 0u);
+    QCOMPARE(r.bestStreak, 0u);
+    QVERIFY(!r.bestStreakDate.isValid());
+}
+
+void TestStats::testRecordWinReturnsOutcomeFields()
+{
+    // Sanity that the WinOutcome carries newRecord, currentStreak, and
+    // newBestStreak together — the production caller reads all three.
+    const auto first = Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    QVERIFY(first.newRecord);
+    QCOMPARE(first.currentStreak, 1u);
+    QVERIFY(first.newBestStreak);
+    const auto slower = Stats::recordWin(QStringLiteral("Beginner"), 60.0);
+    QVERIFY(!slower.newRecord);
+    QCOMPARE(slower.currentStreak, 2u);
+    QVERIFY(slower.newBestStreak);
 }
 
 QTEST_MAIN(TestStats)
