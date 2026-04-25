@@ -9,7 +9,8 @@
 // Per-difficulty lifetime statistics, persisted in QSettings under the
 // stats/<DifficultyName>/{played,won,best_seconds,best_date,
 // best_noflag_seconds,best_noflag_date,streak_current,streak_best,
-// streak_best_date,best_safe_percent,best_safe_percent_date} tree.
+// streak_best_date,best_safe_percent,best_safe_percent_date,
+// best_bv_per_second,best_bv_per_second_date} tree.
 // Best-time is stored as seconds (double); 0 means "no win recorded yet".
 // Best-date is the calendar date (ISO 8601) on which the current best-time
 // run was completed; invalid/empty when no win has been recorded. The
@@ -22,7 +23,10 @@
 // best-safe-percent pair is the highest percentage of the board ever
 // cleared on a *loss* in this difficulty — surfaced in the Stats dialog
 // only when no win has been recorded yet, as a "partial-clear hall of
-// fame" anchor for players still working towards their first win.
+// fame" anchor for players still working towards their first win. The
+// best-bv-per-second pair is the highest 3BV/s ever recorded on a *win*
+// — independent of bestSeconds because a faster clock on a smaller
+// board can yield a lower 3BV/s, and vice versa.
 namespace Stats
 {
 struct Record
@@ -38,6 +42,8 @@ struct Record
     QDate bestStreakDate{};           // invalid when no streak recorded yet
     std::uint32_t bestSafePercent{0}; // [0, 100]; 0 == no partial-clear record yet
     QDate bestSafePercentDate{};      // invalid when no partial-clear record yet
+    double bestBvPerSecond{0.0};      // 0 == no 3BV/s record yet
+    QDate bestBvPerSecondDate{};      // invalid when no 3BV/s record yet
 };
 
 // Outcome of a recordWin call. `newRecord` matches the prior boolean return:
@@ -49,6 +55,11 @@ struct WinOutcome
     bool newRecord{false};
     std::uint32_t currentStreak{0};
     bool newBestStreak{false};
+    // True iff `bvPerSecond` strictly beat the prior `bestBvPerSecond` for
+    // this difficulty (including the very first win with `bvPerSecond > 0`,
+    // when the field transitions 0.0 → some positive value). Drives the
+    // win-dialog `⚡ New best 3BV/s!` flair.
+    bool newBestBvPerSecond{false};
 
     // Lets `QVERIFY(recordWin(...))` and `if (recordWin(...))` keep their
     // pre-WinOutcome bool semantics (true == new best-time set). Explicit so
@@ -90,12 +101,17 @@ LossOutcome recordLoss(const QString &difficultyName, int safePercent = 0, const
 
 // Convenience: increment Played + Won, update bestSeconds if the run was
 // faster (or no prior record), increment currentStreak, and roll bestStreak
-// forward when current crosses it. Returns the full outcome so the caller can
-// surface "New record!" / "Best streak!" flair on the win dialog.
-// `onDate` lets callers (primarily tests) inject the date stamped onto a new
-// best (best-time and best-streak share the date); in production it defaults
-// to today.
-WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate = QDate::currentDate());
+// forward when current crosses it. Optionally update `bestBvPerSecond` if
+// `bvPerSecond` strictly beats the prior record (mirrors the bestSeconds
+// gate, but on the canonical efficiency axis instead of pure clock time).
+// Returns the full outcome so the caller can surface "New record!" /
+// "Best streak!" / "New best 3BV/s!" flair on the win dialog. `onDate` lets
+// callers (primarily tests) inject the date stamped onto every new best
+// touched by this call; in production it defaults to today. `bvPerSecond`
+// defaults to 0.0 so existing callers (and 17 test sites) are
+// source-compatible — a 0.0 will never set or touch the 3BV/s best,
+// mirroring the bestSeconds 0.0-sentinel.
+WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate = QDate::currentDate(), double bvPerSecond = 0.0);
 
 // Update only the no-flag best for a difficulty if the run was faster (or
 // no prior no-flag record). Does NOT touch played/won/bestSeconds — call

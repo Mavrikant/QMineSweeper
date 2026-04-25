@@ -28,6 +28,9 @@ Record load(const QString &difficultyName)
     r.bestSafePercent = settings.value(key(difficultyName, QStringLiteral("best_safe_percent")), 0u).toUInt();
     const QString safePercentDateStr = settings.value(key(difficultyName, QStringLiteral("best_safe_percent_date")), QString{}).toString();
     r.bestSafePercentDate = safePercentDateStr.isEmpty() ? QDate{} : QDate::fromString(safePercentDateStr, Qt::ISODate);
+    r.bestBvPerSecond = settings.value(key(difficultyName, QStringLiteral("best_bv_per_second")), 0.0).toDouble();
+    const QString bvDateStr = settings.value(key(difficultyName, QStringLiteral("best_bv_per_second_date")), QString{}).toString();
+    r.bestBvPerSecondDate = bvDateStr.isEmpty() ? QDate{} : QDate::fromString(bvDateStr, Qt::ISODate);
     return r;
 }
 
@@ -73,6 +76,15 @@ void save(const QString &difficultyName, const Record &r)
     {
         settings.remove(key(difficultyName, QStringLiteral("best_safe_percent_date")));
     }
+    settings.setValue(key(difficultyName, QStringLiteral("best_bv_per_second")), r.bestBvPerSecond);
+    if (r.bestBvPerSecondDate.isValid())
+    {
+        settings.setValue(key(difficultyName, QStringLiteral("best_bv_per_second_date")), r.bestBvPerSecondDate.toString(Qt::ISODate));
+    }
+    else
+    {
+        settings.remove(key(difficultyName, QStringLiteral("best_bv_per_second_date")));
+    }
 }
 
 void reset(const QString &difficultyName)
@@ -89,6 +101,8 @@ void reset(const QString &difficultyName)
     settings.remove(key(difficultyName, QStringLiteral("streak_best_date")));
     settings.remove(key(difficultyName, QStringLiteral("best_safe_percent")));
     settings.remove(key(difficultyName, QStringLiteral("best_safe_percent_date")));
+    settings.remove(key(difficultyName, QStringLiteral("best_bv_per_second")));
+    settings.remove(key(difficultyName, QStringLiteral("best_bv_per_second_date")));
 }
 
 void resetAll()
@@ -119,7 +133,7 @@ LossOutcome recordLoss(const QString &difficultyName, int safePercent, const QDa
     return LossOutcome{newBestSafePercent};
 }
 
-WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate)
+WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate, double bvPerSecond)
 {
     Record r = load(difficultyName);
     ++r.played;
@@ -137,8 +151,15 @@ WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate 
         r.bestStreak = r.currentStreak;
         r.bestStreakDate = onDate;
     }
+    bool newBestBvPerSecond = false;
+    if (bvPerSecond > 0.0 && bvPerSecond > r.bestBvPerSecond)
+    {
+        r.bestBvPerSecond = bvPerSecond;
+        r.bestBvPerSecondDate = onDate;
+        newBestBvPerSecond = true;
+    }
     save(difficultyName, r);
-    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak};
+    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak, newBestBvPerSecond};
 }
 
 bool recordNoflagBest(const QString &difficultyName, double seconds, const QDate &onDate)
