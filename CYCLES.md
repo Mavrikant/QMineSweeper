@@ -1,5 +1,190 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 33 — v1.36.0 (autonomous)
+
+- **Chosen problem:** The win dialog showed only the *current run's*
+  duration ("You cleared the field in 1:04.2."). Best time has been
+  tracked since v1.0 but lives in the Stats dialog — there is no way
+  to see your typical performance from the win dialog itself. Best
+  time is the *peak* run; an average is the *typical* run, the lever
+  a player actually moves with practice. Speedrun trackers
+  universally split "PB" from "average of last N"; the dialog had
+  the former and not the latter. v1.35.0 cycle log explicitly listed
+  "Win-dialog Average time after ≥3 wins" as a next candidate; the
+  alternation pattern of recent cycles (v1.32 loss → v1.33 stats →
+  v1.34 loss → v1.35 stats) asked for a win/loss-dialog beat next.
+- **Evidence:** `MainWindow::onGameWon` (mainwindow.cpp:500) called
+  `Stats::recordWin` and dropped the WinOutcome on the floor for
+  anything besides streak / best-3BV/s flair. `Stats::Record` had no
+  field aggregating winning durations. The win dialog's body
+  composer (`showEndDialog`, mainwindow.cpp:822) rendered only the
+  current run's duration; nothing tracking lifetime distribution.
+- **Shipped:**
+  - Branch: `feat/v1.36.0-win-average-time` (squash-merged + deleted)
+  - PR: [#54](https://github.com/Mavrikant/QMineSweeper/pull/54)
+    (squash-merged as `4e77b7c`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.36.0
+  - Release workflow `24942541894` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage / tar.gz, macOS .dmg,
+    Windows .zip). Hand-written user-facing release notes installed
+    via `gh release edit` covering the new line, the ≥3-wins
+    threshold, the replay/custom exclusion, and the macOS quarantine
+    clear.
+- **Code surface:** ~42 LOC of production diff + ~140 LOC tests +
+  translation churn.
+  - `stats.h`: 1 new `Record::totalSecondsWon` field (double, with
+    a multi-line comment explaining the gate semantics) and 2 new
+    `WinOutcome` fields (`winsAfter`, `averageSecondsAfter`) — the
+    accumulator stays a Record member; the precomputed mean is on
+    `WinOutcome` so callers don't re-`load()`. Plist tree comment
+    extended.
+  - `stats.cpp`: 4 new lines (load default 0.0, save unconditional
+    setValue, reset remove-key, the accumulator's `if (seconds > 0.0)
+    r.totalSecondsWon += seconds;` block); 4 new lines computing
+    `averageSecondsAfter` and threading both new fields into the
+    returned `WinOutcome`.
+  - `mainwindow.h`: `showEndDialog` signature gains a 19th param
+    (`double winAverageSeconds`).
+  - `mainwindow.cpp`: `onGameWon` passes `(outcome.winsAfter >= 3) ?
+    outcome.averageSecondsAfter : 0.0` (the 0.0 sentinel doubles as
+    the don't-show signal); `onGameLost` passes 0.0 unconditionally;
+    `showEndDialog` win branch renders one new `tr("Average: %1")`
+    line under the existing duration line, gated on `> 0.0`.
+  - `tests/tst_stats.cpp`: 12 new test methods (defaults, single
+    accumulation, multi-win sum, loss-doesn't-touch, sub-tick
+    rejection, winsAfter post-increment, averageSecondsAfter == mean,
+    sub-tick averageSecondsAfter == 0, per-difficulty isolation,
+    reset wipes, resetAll wipes, legacy-plist load).
+  - `CMakeLists.txt`: version bump 1.35.0 → 1.36.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English
+    locales).
+  - `.ts` files: lupdate adds the new key (106 → 107) across all 10
+    locales; apply_translations fills 9 of them with hand
+    translations; English stays unfinished as designed.
+  - Total real code+docs diff well under the 400-LOC cycle cap.
+- **Tests added:** 12. `tst_stats` count 92 → 104.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (`107 finished, 0 unfinished`
+  per locale).
+  - TR `"Ortalama: %1"` · ES `"Promedio: %1"` · FR `"Moyenne : %1"`
+  - DE `"Durchschnitt: %1"` · RU `"Среднее: %1"` · PT `"Média: %1"`
+  - ZH `"平均：%1"` · HI `"औसत: %1"` · AR `"المتوسط: %1"`
+  - French uses ` : ` non-breaking-space style; ZH uses the
+    full-width colon `：`. Both match adjacent existing strings
+    (`Clics : %1`, `点击次数：%1`).
+- **Local verification:**
+  - `cmake -B build -DCMAKE_BUILD_TYPE=Debug -G Ninja` clean.
+  - `cmake --build build --target update_translations` reports
+    "1 new and 106 already existing" across all 10 locales —
+    confirms exactly one new tr() string and zero accidental drift.
+  - `python3 translations/apply_translations.py` reports
+    "104 translations applied" per non-English locale (was 103
+    pre-cycle).
+  - Per-locale grep confirms `<source>Average: %1</source>` →
+    `<translation>…</translation>` (not `unfinished`) in all 9
+    non-en files.
+  - `cmake --build build` clean. All 8 test binaries link.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 8/8
+    pass. `tst_stats`: 104 passed (was 92).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    after auto-fix on the lengthened `showEndDialog` call site.
+- **Adversarial self-review:**
+  - **What breaks this in production?** A long-running player whose
+    cumulative winning duration overflows `double`. Pre-empted by
+    the same `double` precision the rest of the time arithmetic in
+    this app has used since v1.0 (capacity ~1.8e308 seconds — vastly
+    beyond physical possibility).
+  - **Is the public API backwards-compatible?** Yes — `Stats::WinOutcome`
+    gains two appended fields; the explicit-bool conversion contract
+    is unchanged (still `newRecord`-only). `showEndDialog` is a
+    private member of `MainWindow` so the new param doesn't break
+    any external caller. A user with a pre-1.36 plist sees the
+    Average line read identical to their best time after their first
+    1.36 win and converge to a true mean by the third.
+  - **Error paths handled?** No new I/O. QSettings load returns 0.0
+    on a missing key, which is the in-memory default and the
+    documented sentinel.
+  - **Secrets / PII?** None. No new telemetry tag — the existing
+    per-game `duration_seconds` already supports distribution
+    analysis on the Sentry side; surfacing the aggregate to
+    telemetry would be redundant.
+  - **Performance?** O(1): one extra double load on `Stats::load`,
+    one extra `setValue` on `save`. No hot-path concern.
+  - **Concurrency?** None — single-threaded UI.
+  - **Visual regression?** A 1-line addition under the existing
+    duration line on the win dialog when wins ≥ 3. Doesn't widen
+    the dialog (the line is shorter than the existing 3BV /
+    Efficiency lines on every difficulty) and doesn't push other
+    flair lines off; subsumed by the dialog's existing variable
+    height.
+- **Assumptions made:**
+  - **≥ 3 wins threshold.** n=1 collapses to "average == best
+    time" (trivially); n=2 is a single data point of variation
+    (gimmicky). ≥ 3 mirrors the speedrun community's "ao3" minimum.
+    Documented in DECISIONS.md.
+  - **Threshold check at the call site, not in `Stats`.** Keeps
+    persistence uncoupled from display policy. Display policy may
+    change (e.g. ≥ 5, or new "average of last N" instead of
+    lifetime); persistence stays put.
+  - **Average shown on every win past the threshold,** including
+    new-best-time runs. The average is always ≥ best (best ==
+    minimum), so seeing the gap between current run and lifetime
+    average is itself informative; no need to suppress on
+    new-best.
+  - **Replays / customs excluded** by the existing
+    `!m_isReplay && !m_isCustom` gate around `recordWin`. Memorising
+    a board to game the average is therefore a non-issue.
+  - **Backwards-compatible legacy load.** Pre-1.36 plist with no
+    `total_seconds_won` key reads as 0.0; the first 1.36+ win seeds
+    the accumulator. Considered seeding from `bestSeconds × won` —
+    rejected because best is the *minimum*, not the mean, so seeded
+    averages would be optimistically wrong. Clean-slate seeding
+    drifts only for the first three displayed averages.
+  - **Format reuses `formatElapsedTime`.** Same M:SS.S / H:MM:SS.S
+    grammar as every other time string in the app — zero new
+    format helpers.
+- **Skipped:**
+  - **Loss-dialog "Time since last win" line** — re-parked from
+    cycles 28–32. Comparable cost to this cycle's pick; the win
+    dialog was the leaner surface to add a line to (the loss
+    dialog has six lines and four flairs already), so it took
+    priority.
+  - **Win-dialog "Wins so far" tail on the Average line** — e.g.
+    "Average: 1:18.9 (n=12)". Considered for legibility but adds
+    a parenthetical that doesn't translate cleanly across all 10
+    locales; deferred.
+  - **Telemetry tag for the average.** Could add
+    `average_seconds_after` to the `game.won` event for
+    distribution analysis, but the existing `duration_seconds` per
+    game is sufficient for server-side rollups; would be noise.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.36.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads at
+  watch time and telemetry is opt-in. No new crash group attributable
+  to the 1.36.0 cut. Watch closed.
+- **Next candidates:**
+  - **Loss-dialog "Time since last win" line** when the player has
+    won this difficulty before. Requires a new `last_win_date` field
+    in `Stats::Record` (separate from `bestDate`). ~30 LOC of
+    production + persistence diff + 1 translatable string × 9
+    locales. Psychological nudge for players on a long losing streak.
+  - **Stats-dialog "Best across all" footer cell** for the Best
+    time column — show e.g. "Beginner: 12.3 s" in the Total row's
+    Best time cell. Pure presentation, but the cell value mixes a
+    difficulty name and a time so estimated 3 new translatable
+    strings.
+  - **Win % column** broken out from the Won cell. Currently
+    rendered inline as `Won (X%)`. Pure presentation, ~30 LOC, 1
+    new translatable string ("Win %").
+  - **Win-dialog "Wins so far" tail** on the Average line, e.g.
+    "Average: 1:18.9 (n=12)". Surfaces the n you're averaging
+    over so a single 100-win Beginner player isn't visually
+    indistinguishable from a 4-win Expert player. Translation cost
+    depends on whether the parenthetical is bracketed by " (n=" /
+    ")" or restructured into its own line.
+
 ## 2026-04-26 — Cycle 32 — v1.35.0 (autonomous)
 
 - **Chosen problem:** The Statistics dialog showed three per-difficulty
