@@ -1,5 +1,109 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 14 — v1.17.0 (autonomous)
+
+- **Chosen problem:** The classic Minesweeper 1–8 digit palette
+  collapses `2/3` (green / red) and `5` (dark red) under red-green
+  colour vision deficiency — about 8 % of male players read those
+  digits as the same colour. Number reading is the primary input
+  modality in Minesweeper, so this is a real accessibility barrier.
+  The "Color-blind-friendly cell number palette" has been parked
+  three cycles in the Next-candidates list (v1.13 → v1.16) as
+  "design-level work"; picking the peer-reviewed Okabe-Ito palette
+  removes the design obstacle.
+- **Evidence:** `minebutton.cpp`'s `numberColor()` returns the
+  classic palette: `2` = `rgb(1,126,0)` (green), `3` = `rgb(251,3,1)`
+  (red), `5` = `rgb(125,0,1)` (dark red). Under deuteranopia those
+  three colours simulate to nearly identical olive/brown shades. No
+  `colorblind` / `colorBlind` / `cvd` anywhere in the tree. GNOME
+  Mines and Microsoft Minesweeper both ship a toggle; ours did not.
+- **Shipped:**
+  - Branch: `feat/colorblind-palette` (squash-merged + deleted)
+  - PR: [#35](https://github.com/Mavrikant/QMineSweeper/pull/35)
+  - Tag: `v1.17.0`
+  - Release: [v1.17.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.17.0)
+- **Diff shape:** 21 files, +1052/-682 LOC — productive slice
+  ~255 LOC (minebutton +71, minefield +20, mainwindow +25,
+  CMakeLists +1, apply_translations +9, tests +139 with 6 new
+  cases). The rest is per-locale `.ts` line-rewriting that
+  `lupdate` emits for the single new source string, plus the
+  DECISIONS entry. Well under the 400-LOC cycle cap.
+- **Translation cost:** 1 new source string (`&Color-blind friendly
+  numbers`) × 9 hand-translated locales = 9 fresh translations.
+  All 10 locales now 90/90 finished, 0 unfinished.
+- **Assumptions made:**
+  - **Opt-in (default off).** Existing players expect the classic
+    palette. Toggle lives at `Settings → Color-blind friendly
+    numbers`.
+  - **Okabe-Ito palette.** Peer-reviewed, CVD-safe, industry
+    standard for categorical data. Reordered so the most common
+    digits (1, 2, 3) land on the highest-contrast triad
+    (blue / bluish green / vermillion).
+  - **App-wide static on `MineButton`.** Mirrors the
+    question-marks pattern; `MineButton` has no back-pointer to
+    `MineField` by architecture, so app-global settings live as
+    static state.
+  - **Mid-game toggle repaints opened cells.** New
+    `MineField::refreshAllNumberStyles()` sweeps the grid and calls
+    `MineButton::refreshNumberStyle()` on each opened numbered
+    cell. Silent "takes effect on next reveal" would leave the user
+    doubting the toggle worked.
+  - **Zero cells skip refresh.** No digit is drawn there, so
+    there's nothing to recolour.
+  - **Mined cells skip refresh.** Re-styling them would wipe the
+    explosion / revealed-mine / wrong-flag loss-state visuals.
+  - **QSettings key `settings/colorblind_palette`.** Legacy plists
+    with no key read as `false` → classic palette. Zero migration.
+- **Skipped:**
+  - *Pattern overlays on digits (dots / stripes).* Would read as
+    visual noise over a ~22 px glyph in a 30 px cell.
+  - *Full high-contrast / dark-mode theme.* Much wider scope —
+    every stylesheet (opened cell, mine, wrong-flag, pause overlay,
+    smiley button, menu bar) would need theming. Multi-cycle work.
+  - *Per-digit custom colour picker.* Fidelity for scope-explosion
+    cost; not worth it for the accessibility payoff size.
+  - *Auto-detect via OS accessibility settings.* Qt doesn't expose
+    a CVD hint on macOS / Windows; heuristic parsing of `QPalette`
+    would guess wrong often enough to be worse than an explicit
+    opt-in.
+- **Risks logged:** none new. The palette addition is additive;
+  legacy QSettings load as the classic palette. The refresh helper
+  is gated on `m_isClicked && !m_isMined && m_number != 0` so it
+  can never wipe loss-state visuals or leak number colours onto
+  unopened cells. Tests pin those guards.
+- **UI smoke:** Deferred — cron-launched task context lacks display
+  capture permissions. Logic is covered by 6 new deterministic
+  unit tests (4 in `tst_minebutton` + 2 in `tst_minefield`); the
+  palette is a pure function of the static toggle and the digit,
+  so visual correctness is an RGB comparison. Manual end-to-end
+  verification will happen on the next interactive session if any
+  visual regression appears.
+- **Post-release watch (T+~2min):** Release workflow
+  [run 24920734444](https://github.com/Mavrikant/QMineSweeper/actions/runs/24920734444)
+  green across all three platforms; five assets published
+  (Linux AppImage, Linux tar.gz, macOS universal DMG, Windows x64
+  ZIP, plus `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for release `qminesweeper@1.17.0` (both
+  `is:unresolved` and any-status) returned **zero issues**.
+  Expected — opt-in telemetry, assets just published, zero installs
+  have had a chance to fire a session yet. GitHub release body
+  rewritten from the auto-generated stub to user-facing prose
+  covering the palette switch, opt-in default, per-platform
+  downloads, and the macOS quarantine note. Watch closed.
+- **Next candidates:**
+  - Save-and-resume games across launches (still parked — board-state
+    + marker-state + timer-offset serialization).
+  - Per-layout best-time leaderboard (mine-position hash + new
+    persistence schema).
+  - Hint button (limited per-game, exposes 1 safe cell at a cost)
+    — needs a small deterministic solver.
+  - Daily-streak / games-played-today mini-counter on the win
+    dialog — derived from QSettings + QDate, still smaller than
+    save-and-resume.
+  - MM:SS timer format for games crossing 60 s — small polish,
+    zero new translatable strings if the format is composed at
+    runtime.
+
 ## 2026-04-25 — Cycle 13 — v1.16.0 (autonomous)
 
 - **Chosen problem:** No win-streak tracking. The project had been
