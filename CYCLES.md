@@ -1,5 +1,186 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 25 — v1.28.0 (autonomous)
+
+- **Chosen problem:** Cycle 24 explicitly parked the Stats-dialog
+  partial-clear hall-of-fame as "the highest-value remaining feature":
+  for any difficulty a player has never won, the **Best time** column
+  rendered a bare em-dash forever. New players (and Expert in general)
+  can stare at three em-dashes for weeks without any indicator of
+  progress. Cycle 24's partial-3BV loss-dialog line is per-run; this
+  cycle is the *lifetime* counterpart on the Stats dialog itself.
+- **Evidence:** `MainWindow::showStatsDialog` rendered
+  `formatBest(rec.bestSeconds, rec.bestDate)` for every Best-time
+  cell — when `bestSeconds <= 0.0` it emitted a bare `"—"`. There was
+  no per-difficulty record of how close the player has come on a
+  loss; `Stats::recordLoss(diffName)` only incremented `played` and
+  reset `currentStreak`.
+- **Shipped:**
+  - Branch: `feat/stats-best-partial-percent` (squash-merged + deleted)
+  - PR: [#46](https://github.com/Mavrikant/QMineSweeper/pull/46)
+    (squash-merged as `318e451`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.28.0
+  - Release workflow `24933456501` green; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage 35.9 MB / tar.gz
+    35.6 MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB). Hand-written
+    user-facing release notes installed via `gh release edit` —
+    explains the "— (best 87%, 25.04.2026)" cell format and the
+    once-you-win-it-supersedes rule.
+- **Code surface:** ~140 LOC of production diff across `stats.{h,cpp}`
+  (two new fields on Record, load/save/reset paths, `recordLoss` gains
+  optional `safePercent`/`onDate` parameters, strict-greater-than
+  semantics with a defence-in-depth clamp at 100) +
+  `mainwindow.{h,cpp}` (hoist `safePercentCleared()` in `onGameLost`
+  to thread it to `Stats::recordLoss`; new `formatBestTimeOrPartial`
+  lambda in `showStatsDialog`). +170 LOC of new tests in
+  `tst_stats.cpp`. The 763/474 line-count number is `lupdate`-driven
+  `.ts` line renumbering. Real production+test diff well under the
+  400-LOC cycle cap.
+- **Tests added (14 new, all in `tst_stats.cpp`):**
+  - `testBestSafePercentDefaultsZero` — virgin record sanity baseline.
+  - `testRecordLossDefaultArgsKeepBestSafePercentZero` — source-compat
+    default-arg path: legacy callers still work and never touch the
+    new field.
+  - `testRecordLossWithPercentSetsOnFirstCall` — first record sets
+    both value and date.
+  - `testRecordLossWithHigherPercentBeats` — higher overwrites both.
+  - `testRecordLossWithLowerPercentKeepsOriginal` — lower keeps both.
+  - `testRecordLossWithEqualPercentKeepsOriginalDate` — strict
+    greater-than (ties keep the original date, mirroring best-streak).
+  - `testRecordLossWithZeroPercentDoesNotMutate` — explicit 0 is a
+    no-op (mirror of `recordWin`'s 0-second sentinel).
+  - `testRecordLossWithFullClearPercentBoundary` — 100 boundary
+    (defensible: a chord-click loss after the last open).
+  - `testRecordLossWithOverflowPercentClampedTo100` — defence in depth
+    against a future arithmetic-bug call site passing > 100.
+  - `testRecordWinDoesNotTouchBestSafePercent` — load-bearing
+    invariant: a win must not zero/overwrite the partial-clear field.
+  - `testBestSafePercentIsPerDifficulty` — Beginner record doesn't
+    leak into Intermediate/Expert.
+  - `testResetWipesBestSafePercent`,
+    `testResetAllWipesBestSafePercent` — both new keys cleared on
+    reset paths.
+  - `testLegacyRecordWithoutBestSafePercentLoadsAsZero` — pre-1.28
+    QSettings tree (no new keys) loads as 0 / invalid date.
+  - Adversarially verified by mutating
+    `clamped > r.bestSafePercent` to `false` — 9 of 14 new tests
+    fail with the wrong value. The 5 that pass trivially are
+    zero-baseline tests that expect an unchanged zero record (that's
+    exactly how to identify which tests are load-bearing for the
+    value path).
+- **Translation cost:** 1 new hand-translated string × 9 non-en
+  locales. 50/50 coverage preserved (all 9 .ts files
+  `Generated 99 translation(s) (99 finished and 0 unfinished)`).
+  - TR `"— (en iyi %1%, %2)"`
+  - ES `"— (mejor %1%, %2)"`
+  - FR `"— (meilleur %1%, %2)"`
+  - DE `"— (Beste %1%, %2)"`
+  - RU `"— (лучший %1%, %2)"`
+  - PT `"— (melhor %1%, %2)"`
+  - ZH `"— (最高 %1%，%2)"` (full-width comma)
+  - HI `"— (सर्वश्रेष्ठ %1%, %2)"`
+  - AR `"— (الأفضل %1%، %2)"` (Arabic comma)
+- **Assumptions made:**
+  - **Show only when `won == 0`.** Once a win is recorded, the
+    regular best-time format takes the cell back; surfacing both
+    would clutter the cell with redundant info (the win clears 100
+    %, by definition higher than any partial). The
+    `bestSafePercent` value persists in QSettings as a silent
+    record but is no longer surfaced.
+  - **Strict greater-than semantics (no ties bump the date).**
+    Mirrors the best-streak convention. Pinned by
+    `testRecordLossWithEqualPercentKeepsOriginalDate`.
+  - **Replays / custom games excluded.** Same rationale as wins: a
+    memorised board would let the user inflate the lifetime record.
+  - **One inline format string, not a new column.**
+    `"— (best %1%, %2)"` inline in the existing Best-time column
+    avoids a 7th column header × 10 locales. Pattern matches
+    cycle 1's inline-date approach in the same lambda.
+  - **uint storage, not float.** Game UI already rounds to integer
+    percent on the loss dialog; a float would invite drift between
+    the loss dialog (rounded int) and the Stats hall-of-fame
+    (whichever precision was stored).
+  - **Source-compat default-arg signature on `recordLoss`.** Adding
+    `safePercent = 0` and `onDate = QDate::currentDate()` as
+    trailing defaults keeps every existing test call site (18 in
+    `tst_stats.cpp`) source-compat. The 0 default never touches the
+    new field, mirroring the `recordWin` 0-seconds sentinel.
+- **Skipped:**
+  - *Per-difficulty Best % column.* Would add a 7th column header to
+    translate × 10 locales for incremental info. Inline annotation
+    in the existing Best-time column is cheaper.
+  - *Loss-dialog `🎯 New best %!` flair on a fresh record.* Tempting
+    and parallel to the win-side `🏆 New record!` /
+    `🌟 New best streak!` pattern, but means another translatable
+    string + a `LossOutcome` struct (returning
+    `bool newPercentRecord`). Park as a one-cycle filler for the
+    next cycle.
+  - *Telemetry tag `new_best_safe_percent` on `game.lost`.* Same
+    reasoning as the flair — if the flair gets shipped, the tag
+    rides along with it.
+  - *About-dialog mention of the new feature.* Kept the about body
+    byte-identical to avoid touching 10 hand translations.
+- **Risks logged:** none. Additive QSettings keys with safe absent-key
+  defaults; additive trailing parameters on `Stats::recordLoss` with
+  defaults; additive trailing fields on `Stats::Record`; no
+  behavioural change on win or replay paths.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* The QSettings upgrade path: a
+    player upgrading from 1.27.x has no
+    `best_safe_percent_*` keys; the
+    `testLegacyRecordWithoutBestSafePercentLoadsAsZero` test pins
+    the load-as-zero invariant. After the first 1.28.0 loss with
+    `> 0 %` cleared, the keys appear naturally.
+  - *Backwards compat?* `Stats::recordLoss` gains two trailing
+    default parameters; all existing call sites (1 in production,
+    18 in tests) remain source-compat. `Stats::Record` gains two
+    trailing fields; `load()` initialises them safely from absent
+    QSettings keys. The `formatBest` lambda is untouched — the
+    partial-clear branch lives in a sibling lambda that only fires
+    when `bestSeconds <= 0.0`.
+  - *Error paths?* The `safePercent > 100` branch clamps to 100
+    (test: `testRecordLossWithOverflowPercentClampedTo100`).
+    Negative values are filtered by the outer `safePercent > 0`
+    guard. Date validity is checked in the renderer
+    (`bestSafePercentDate.isValid()`) so a partial-but-undated
+    record falls back to a bare em-dash rather than rendering
+    `"— (best 87%, )"`.
+  - *Secrets / PII?* No new telemetry fields. Persistence is local
+    QSettings only. `safePercentCleared` is an integer in
+    `[0, 100]` derived from public game state — not PII.
+  - *Performance?* `recordLoss` adds one integer compare and one
+    date assignment on the loss path only — sub-microsecond, not
+    in any hot path. Stats dialog open is the only render path;
+    one extra conditional per row.
+  - *Concurrency?* Single-threaded. No new shared state.
+- **Post-release watch (T+~5min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.28.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and the assets just
+  published with zero downloads. The signal worth watching for is
+  *any* new group tagged with the 1.28.0 release; none observed.
+  Watch closed.
+- **Next candidates:**
+  - **Loss-dialog `🎯 New best %!` flair when a loss sets a new
+    `bestSafePercent`.** Now that the persistence layer is in place,
+    the flair is the natural one-cycle filler — mirrors the
+    win-side `🏆 New record!` pattern on the loss side.
+    `Stats::recordLoss` would return a `LossOutcome { bool
+    newPercentRecord }` analogous to `WinOutcome`. ~70-line
+    production cost; 1 new translatable string × 9 locales.
+  - **Win-dialog "Personal best 3BV/s" flair when the run beats the
+    per-difficulty best 3BV/s ever recorded.** Parallel to the
+    "🏆 New record!" flair (which gates on best-time), but for the
+    canonical efficiency metric. Needs a new
+    `Stats::recordBestBvPerSecond` accessor + lifetime persistence
+    in `~/Library/Preferences/com.mavrikant.QMineSweeper.plist`.
+    Re-parked from cycle 24.
+  - **Lifetime "first-win date" stamp on Stats dialog.** When a
+    player records their first-ever win on a difficulty, stamp the
+    date (already happens via `bestDate`). Surface a "first won:"
+    line on the Played column tooltip — no new persistence, just
+    rendering. Cosmetic.
+
 ## 2026-04-25 — Cycle 24 — v1.27.0 (autonomous)
 
 - **Chosen problem:** Cycle 23 explicitly parked partial 3BV on the
