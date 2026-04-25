@@ -1,5 +1,131 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 17 — v1.20.0 (autonomous)
+
+- **Chosen problem:** The end-of-game **You won!** dialog still
+  rendered the cleared-time line as `%.1f seconds.` — e.g.
+  `You cleared the field in 754.5 seconds.` for a 12-and-a-half
+  minute Expert run. After v1.18.0 moved the live toolbar timer
+  and v1.19.0 moved the stats-dialog *Best time* / *Best (no
+  flag)* columns to the duration-aware `S.S` / `M:SS.S` /
+  `H:MM:SS.S` formatter, the win dialog was the only remaining
+  surface where elapsed time read in raw decimal seconds.
+- **Evidence:** `mainwindow.cpp:781` —
+  `tr("You cleared the field in %1 seconds.").arg(QString::asprintf("%.1f", m_lastElapsedSeconds))`.
+  The same `formatElapsedTime(...)` helper was already imported
+  and used at three other call sites in the same file (live
+  label refresh, ready-state reset, stats-dialog formatBest).
+  Cycle 15 (v1.18.0) and Cycle 16 (v1.19.0) both explicitly
+  parked this as the next candidate, citing the 9-locale
+  hand-translation cost as the reason to defer. With both
+  earlier cycles now in production and zero Sentry hits across
+  two post-release watches, the format contract was proven and
+  the parity gap was the cleanest visible dangler.
+- **Shipped:**
+  - Branch: `feat/win-dialog-mm-ss` (squash-merged + deleted)
+  - PR: [#38](https://github.com/Mavrikant/QMineSweeper/pull/38)
+  - Squash commit: `b565081`
+  - Tag: `v1.20.0`
+  - Release: [v1.20.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.20.0)
+- **Diff shape:** 13 files changed, +760 / -724 lines, but the
+  semantic change is **2 LOC** in `mainwindow.cpp` (call swap
+  from `asprintf("%.1f", …)` to `formatElapsedTime(…)` plus
+  source-string trim of the trailing `seconds` noun), **1 LOC**
+  in `CMakeLists.txt` (version bump 1.19.0 → 1.20.0), and **9
+  LOC** in `translations/apply_translations.py` (one entry per
+  hand-locale). The remaining churn is `lupdate` rewriting all
+  10 `.ts` files — line-number metadata + the new key + the
+  `type="vanished"` bookkeeping for the obsolete key. Well
+  under the 400-LOC cycle cap once `.ts` regen is excluded.
+- **Format chosen:** identical to v1.18.0 / v1.19.0.
+  - `< 60 s` → `S.S` (`You cleared the field in 45.0.`)
+  - `60..3600 s` → `M:SS.S` (`...in 1:30.5.`,
+    `...in 12:34.5.`)
+  - `≥ 1 h` → `H:MM:SS.S` (`...in 1:00:00.5.`)
+  - Defensive: negative / NaN / inf → formatter returns
+    `"0.0"`, dialog reads `...in 0.0.`
+- **Translation cost:** real but absorbed. All 9 hand-locales
+  (tr, es, fr, de, ru, pt, zh, hi, ar) updated in one pass:
+  drop the unit-noun, no verb refactor required. `lupdate`
+  reports **92 finished / 0 unfinished** across every locale;
+  the previous translation drops to `type="vanished"` per
+  `lupdate`'s deprecated-entry bookkeeping.
+- **Assumptions made:**
+  - **Drop the `seconds` noun, don't substitute it.** A
+    colon-clock value reads wrong followed by `s`; matches
+    live-timer + stats-column precedent. Mixing `45.0 seconds`
+    and `1:30.5` inside one dialog across runs would
+    re-introduce the parity gap I came to close.
+  - **No persistence change.** Stored `bestSeconds` /
+    `bestNoflagSeconds` remain `double` of seconds. Only the
+    rendering path changes.
+  - **No new test scaffold.** Identical risk profile to v1.18 /
+    v1.19 — a one-line call swap to a helper already pinned by
+    14 deterministic test cases in `tst_time_format`. Adding a
+    `MainWindow`-level dialog test would cost more in
+    scaffolding than it earns.
+  - **Turkish translation refactor.** Direct word-drop
+    (`"Alanı %1 temizlediniz."`) reads ungrammatical without
+    a temporal particle. Used the natural locative
+    `"Alanı %1 içinde temizlediniz."` ("You cleared the field
+    within %1.") — preserves the verb and reads idiomatically
+    with a colon-clock placeholder. All other 8 locales took
+    a clean unit-noun drop with no verb change.
+- **Skipped:**
+  - *Lifting the win-dialog text composition into a testable
+    helper.* Single call site; the format half is already
+    pinned by `tst_time_format` and the translation half is a
+    static `tr(...)` lookup. Premature.
+  - *Hint button (limited per game).* Still parked — needs a
+    small deterministic solver and a ~250-400 LOC slice.
+    Multi-cycle work, not this one.
+  - *Save-and-resume across launches.* Still parked — board
+    state + marker state + timer offset + QSettings schema
+    bump. Multi-cycle.
+  - *Daily / "games played today" mini-counter.* Still on the
+    parking lot but burns translation churn for a small
+    surface; not next.
+- **UI smoke:** Local `clang++` smoke compile of
+  `formatElapsedTime` against the new template
+  (`"You cleared the field in %1."`) confirmed exact strings
+  for 7.3 / 45.0 / 90.5 / 754.5 / 3600.5 / 0.0 / -1.0:
+  `You cleared the field in 7.3.`,
+  `...in 45.0.`, `...in 1:30.5.`, `...in 12:34.5.`,
+  `...in 1:00:00.5.`, `...in 0.0.`, `...in 0.0.`. Headless
+  `ctest` 6/6 green; `clang-format` clean across all `.cpp`
+  / `.h`.
+- **Risks logged:** none new. No persistence change, no
+  signal/slot wiring, no public API change. Worst case is a
+  win-dialog format regression caught by the formatter's
+  `tst_time_format` if the helper itself drifts.
+- **Post-release watch (T+~3 min):** Release workflow
+  [run 24923854735](https://github.com/Mavrikant/QMineSweeper/actions/runs/24923854735)
+  green across all three platforms; five assets published
+  (Linux AppImage 34.2 MiB, Linux tar.gz 33.9 MiB, macOS
+  universal DMG 22.1 MiB, Windows x64 ZIP 42.1 MiB, plus
+  `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for `release:qminesweeper@1.20.0` returned
+  **zero issues**. Expected: opt-in telemetry, assets fresh,
+  no install has had a chance to fire a release-health
+  session yet. GitHub release body rewritten from the
+  auto-generated stub to user-facing prose covering the new
+  win-dialog format, per-platform downloads, and the macOS
+  quarantine note. Watch closed.
+- **Next candidates:**
+  - Save-and-resume across launches (still parked; multi-cycle).
+  - Hint button (limited per-game; needs a small deterministic
+    solver).
+  - Daily / "games played today" mini-counter on the win
+    dialog — derived from QSettings + QDate; small but burns
+    translation churn.
+  - Per-layout best-time leaderboard (mine-position hash + new
+    persistence schema; multi-cycle).
+  - Optional `Settings → Show tenths-of-a-second on the live
+    timer` toggle for players who want a steadier `S` / `M:SS`
+    / `H:MM:SS` clock without the flicker. Cheap to ship,
+    purely additive, no new translatable strings if framed as
+    a checkbox under an existing menu.
+
 ## 2026-04-25 — Cycle 16 — v1.19.0 (autonomous)
 
 - **Chosen problem:** The Statistics dialog's *Best time* and

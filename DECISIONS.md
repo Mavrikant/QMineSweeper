@@ -1,5 +1,102 @@
 # Cycle decisions
 
+## 2026-04-25 — Win-dialog adopts MM:SS clock format (v1.20.0)
+
+**Chosen:** Replace the win-dialog's
+`tr("You cleared the field in %1 seconds.").arg(QString::asprintf("%.1f", m_lastElapsedSeconds))`
+with `tr("You cleared the field in %1.").arg(formatElapsedTime(m_lastElapsedSeconds))`.
+The cleared-time line now renders the duration in the same
+`S.S` / `M:SS.S` / `H:MM:SS.S` shape as the live toolbar timer
+(v1.18.0) and the stats-dialog *Best time* / *Best (no flag)*
+columns (v1.19.0). The literal `seconds` noun is dropped from
+the source string; the format itself carries the unit, identical
+to the other two surfaces.
+
+**Why this one (cycle 17):** Cycle 15 (v1.18.0) and Cycle 16
+(v1.19.0) both explicitly listed this as the natural follow-up
+and parked it on translation cost. With both earlier cycles in
+production for two cycles each and zero Sentry hits across both
+post-release watches, the format contract is proven and the
+win-dialog is the only remaining surface that still reads in raw
+decimal seconds. Closing this loop now means every elapsed-time
+surface in the app uses one shared formatter.
+
+**Rejected alternatives:**
+
+- **Substitute "seconds" with "time" or "minutes" instead of
+  dropping it.** "You cleared the field in 1:30.5 minutes." is
+  factually wrong (1:30.5 is one minute thirty-and-a-half
+  seconds, not 90.5 minutes); "in 1:30.5 time." is awkward in
+  English and more so in target languages. Dropping the noun
+  entirely matches both prior surfaces and reads cleanly.
+- **Keep "seconds" only when the format is bare-decimal.**
+  `"You cleared the field in 45.0 seconds."` for sub-60 runs +
+  `"You cleared the field in 1:30.5."` for longer ones. Mixed
+  format inside the same dialog across runs is exactly the
+  parity-gap class of problem this cycle came to close.
+- **Lift the dialog text into a free function in
+  `time_format.h` for direct testing.** Adds `tr()` wiring and
+  a translation context to a header that today is one
+  branchless formatter. Single call site; the format half is
+  already pinned by 14 cases in `tst_time_format`.
+- **Add a `tst_mainwindow` test that constructs a `MainWindow`,
+  drives a fake game to a win, and snapshots the dialog
+  string.** Way over-budget for a one-line call swap; same
+  scaffolding cost the earlier cycles rejected.
+- **Defer one more cycle to ship `Hint button` first.** The
+  hint-button slice is at least 250-400 LOC and needs a
+  deterministic solver; the win-dialog parity is concrete and
+  cheap. Cycle slots are 1/cycle — pick the cleaner ship.
+
+**Assumptions:**
+
+- The format itself carries the unit — both prior surfaces
+  proved players read `1:30.5` as a duration without a unit
+  word, and the win dialog header (`You won!`) already frames
+  the context.
+- Stored `bestSeconds` / `bestNoflagSeconds` in QSettings
+  remain byte-identical; only the dialog rendering path
+  changes. Legacy records render in the new format on the
+  next win with no migration step.
+- The defensive `seconds <= 0.0` / NaN / inf paths in
+  `formatElapsedTime` already return `"0.0"`, so a degenerate
+  win clock can't reach the user as `nan` or a negative number.
+
+**Translation strategy:**
+
+- All 9 hand-locales drop the unit noun in place. No verb
+  refactor required for 8 of 9.
+- Turkish needs a temporal particle in place of `saniyede`
+  (`saniyede` = "in seconds" with the locative on the noun).
+  Direct drop reads ungrammatical. Use
+  `"Alanı %1 içinde temizlediniz."` ("You cleared the field
+  within %1.") — the locative attaches to the new postposition
+  `içinde` and the string reads naturally with a colon-clock
+  placeholder.
+- `lupdate` confirms 92 finished / 0 unfinished across all 10
+  locales. The previous translation drops to `type="vanished"`
+  per `lupdate`'s deprecated-entry bookkeeping (not
+  user-visible; just keeps the old translation around in case
+  the source string ever reverts).
+
+**Risks considered, none load-bearing:**
+
+- *Mixed-format ambiguity.* "1:30.5" alone could be parsed by
+  some users as "one and a half hours", but the live timer +
+  stats columns have shipped this exact format for two cycles
+  with zero feedback or telemetry events flagging it.
+- *Translation regression in a locale I don't read fluently.*
+  Mitigated by keeping the substitution mechanical (drop the
+  unit-noun) and validating that `lupdate` shows finished /
+  not-unfinished; semantic correctness verified on tr / en /
+  de / es / fr / pt by reading; ru / zh / hi / ar verified
+  structurally (mechanical noun-drop, no verb refactor).
+- *PR diff bloat from `.ts` regeneration.* +760/-724 lines in
+  the diff is mostly `lupdate` rewriting line-number metadata
+  in 10 `.ts` files. Reviewer-friendliness is fine because the
+  *semantic* diff is 12 lines: 2 in `mainwindow.cpp`, 1 in
+  `CMakeLists.txt`, 9 in `apply_translations.py`.
+
 ## 2026-04-25 — Stats-dialog adopts MM:SS clock format (v1.19.0)
 
 **Chosen:** Replace the stats-dialog `formatBest` lambda's
