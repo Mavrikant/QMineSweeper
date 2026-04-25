@@ -1,5 +1,119 @@
 # Cycle decisions
 
+## 2026-04-26 — Loss dialog: "Last win: %1" line when difficulty has a prior win (v1.37.0)
+
+**Chosen:** Add a `Last win: %1` line to the loss dialog that shows
+the calendar date of the player's most recent win on the current
+difficulty, when one exists. Persist `lastWinDate` on
+`Stats::Record` (separate from `bestDate`, which only stamps the
+current best-time run). `Stats::recordWin` always overwrites
+`lastWinDate` with `onDate` (every counted win, not just record
+runs). The loss dialog's `MainWindow::onGameLost` reads the
+per-difficulty record and renders the line — gated on
+`lastWinDate.isValid()` — independent of whether the loss itself
+was counted (replays / customs render the line too if the standard
+difficulty has a prior win).
+
+**Why this one:**
+- v1.36.0 cycle log explicitly listed "Loss-dialog 'Time since last
+  win' line" as the top next candidate; previously parked from
+  cycles 28–32 in favour of leaner-surface picks. The win dialog
+  just gained a line in v1.36; alternation pattern (v1.32 loss →
+  v1.33 stats → v1.34 loss → v1.35 stats → v1.36 win) asks for a
+  loss-dialog beat next.
+- New player-facing information: the loss dialog already carries
+  six lines and four flairs, but none of them anchor the loss to
+  the player's broader history. "Last win: 25.04.2026" reframes a
+  loss as a stumble rather than a streak — psychological nudge for
+  players on a long losing streak.
+- Schema diff is well-trodden in this codebase (seven prior cycles
+  have added a persisted `Stats::Record` field with
+  load/save/reset/test churn): ~50 LOC of production diff plus
+  tests, one new translatable string × 9 locales.
+
+**Rejected alternatives from the v1.36.0 candidate list:**
+- *Stats-dialog "Best across all" footer cell.* Pure presentation
+  but the cell value mixes a difficulty name and a time; the
+  v1.35.0 / v1.36.0 cycle logs estimated 3 new translatable
+  strings. Park.
+- *Win % column broken out from Won.* Pure presentation, ~30 LOC,
+  1 new translatable string. Smallest possible diff but adds zero
+  *new* information — the Won column already renders `5 (50%)`
+  inline; pulling it into its own column is rearrangement, not
+  signal. Park.
+- *Win-dialog "Wins so far" tail* on the Average line, e.g.
+  `Average: 1:18.9 (n=12)`. Surfaces useful denominator context
+  but the parenthetical translates awkwardly across all 10 locales
+  (Arabic and Hindi numeral systems, Russian plural rules). Park.
+
+**Implementation choices:**
+
+1. **Show a date, not a duration.** "Last win: 25.04.2026" instead
+   of "Time since last win: 2 days". Avoids plural-forms hell
+   (Arabic alone has 6 plural forms; "2 day(s) ago" requires Qt's
+   `%n` machinery and a per-locale plural table that
+   `apply_translations.py` would need to grow). The date format
+   reuses `QLocale().toString(date, QLocale::ShortFormat)`, which
+   the Stats dialog has rendered consistently since v1.3.
+   Trade-off: less emotional resonance ("3 days ago" reads more
+   visceral than "23.04.2026"), but recoverable in a future cycle
+   if telemetry / feedback shows the date is too cold.
+
+2. **`recordWin` overwrites `lastWinDate` unconditionally.**
+   Mirrors the design of `bestDate` (date of the best-time run)
+   but tracks the *most recent* win instead of the *fastest*. The
+   two stamps are independent: a new win always updates
+   `lastWinDate`; only a strictly-faster win updates `bestDate`.
+   Keeps the persistence layer dumb — display policy lives at the
+   call site.
+
+3. **Threshold = "lastWinDate is valid".** No min-wins gate. The
+   first win on each difficulty seeds `lastWinDate`, and every
+   subsequent loss surfaces it. No equivalent of the win-dialog's
+   `≥ 3 wins` because the line is informational about the *date*,
+   not statistical about a *distribution* — n=1 is a perfectly
+   valid date.
+
+4. **Loss-dialog rendering is unconditional on replay/custom
+   status.** The line reflects the per-difficulty record, not the
+   current run. A replay-loss on Beginner where the player has
+   previously won Beginner shows "Last win: …" — the data is
+   correct regardless of whether *this* loss was counted. Custom
+   games don't have stats, so `Stats::load("Custom")` returns the
+   default record with an invalid `lastWinDate`; the line stays
+   hidden by the `isValid()` gate. No special-casing.
+
+5. **Backwards-compatible load.** A pre-1.37 plist with no
+   `last_win_date` key reads as the default-constructed (invalid)
+   `QDate`, so the line stays hidden until the player's *next* win
+   in 1.37+. Considered seeding `lastWinDate = bestDate` on first
+   load — rejected because best-date is the date of the best-time
+   run, which may have been months ago even if the player won
+   yesterday. Clean-slate seeding is the honest default.
+
+6. **Reset semantics.** `Stats::reset(name)` removes the
+   `last_win_date` key alongside the other per-record keys.
+   `resetAll()` already wipes the whole `stats/` group.
+
+7. **No `WinOutcome` field for `lastWinDate`.** Unlike v1.36's
+   averaging path, the loss dialog needs the *previous* lastWinDate
+   (before this run), not the post-update one. The dialog reads
+   `Stats::load(diffName)` directly inside `onGameLost` — there's
+   no `WinOutcome`-equivalent on `recordLoss` that needs to carry
+   it, and threading it through `recordLoss`'s return type would be
+   wrong (the loss didn't update it).
+
+**Assumptions:**
+- Showing a bare date is the right rendering (decision 1).
+- The line should be unconditional on replay/custom (decision 4).
+- The line should NOT show on the *win* dialog. Its job is to
+  contextualise a loss; on a win the player has just *demonstrated*
+  the most recent win, so the line collapses to "Last win: today",
+  which is noise.
+- Format reuses `QLocale().toString(date, QLocale::ShortFormat)` —
+  same locale-aware date format the Stats dialog uses for all four
+  best-* date stamps. Zero new format helpers.
+
 ## 2026-04-26 — Win dialog: "Average: %1" line after ≥3 wins (v1.36.0)
 
 **Chosen:** Add an `Average: %1` line to the win dialog that shows the

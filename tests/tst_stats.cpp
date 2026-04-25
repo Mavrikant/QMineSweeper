@@ -131,6 +131,19 @@ class TestStats : public QObject
     void testResetWipesTotalSecondsWon();
     void testResetAllWipesTotalSecondsWon();
     void testLegacyRecordWithoutTotalSecondsWonLoadsAsZero();
+
+    // last_win_date — drives the loss-dialog "Last win: %1" line
+    void testLastWinDateDefaultsInvalid();
+    void testFirstWinStampsLastWinDate();
+    void testSlowerWinOverwritesLastWinDateEvenWhenBestUnchanged();
+    void testFasterWinAlsoOverwritesLastWinDate();
+    void testLossDoesNotTouchLastWinDate();
+    void testSubTickWinStampsLastWinDate();
+    void testLastWinDateIsPerDifficulty();
+    void testResetWipesLastWinDate();
+    void testResetAllWipesLastWinDate();
+    void testLegacyRecordWithoutLastWinDateLoadsAsInvalid();
+    void testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid();
 };
 
 void TestStats::initTestCase()
@@ -1335,6 +1348,134 @@ void TestStats::testLegacyRecordWithoutTotalSecondsWonLoadsAsZero()
     QCOMPARE(r.won, 4u);
     QCOMPARE(r.bestSeconds, 12.5);
     QCOMPARE(r.totalSecondsWon, 0.0);
+}
+
+void TestStats::testLastWinDateDefaultsInvalid()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QVERIFY(!r.lastWinDate.isValid());
+}
+
+void TestStats::testFirstWinStampsLastWinDate()
+{
+    const QDate d{2026, 4, 23};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0, d));
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).lastWinDate, d);
+}
+
+void TestStats::testSlowerWinOverwritesLastWinDateEvenWhenBestUnchanged()
+{
+    // The diverging behaviour from `bestDate`: a slower follow-up win
+    // does NOT touch `bestDate` (the original best-time run keeps it),
+    // but DOES overwrite `lastWinDate` (this is the most-recent win,
+    // not the fastest). Mirrors the "every counted win" semantic.
+    const QDate originalDate{2026, 1, 1};
+    const QDate laterDate{2026, 4, 23};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, originalDate));
+    QVERIFY(!Stats::recordWin(QStringLiteral("Beginner"), 40.0, laterDate));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestDate, originalDate); // best stayed
+    QCOMPARE(r.lastWinDate, laterDate); // last advanced
+}
+
+void TestStats::testFasterWinAlsoOverwritesLastWinDate()
+{
+    const QDate originalDate{2026, 1, 1};
+    const QDate fasterDate{2026, 4, 23};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 30.0, originalDate));
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, fasterDate));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestDate, fasterDate);    // best advanced
+    QCOMPARE(r.lastWinDate, fasterDate); // and so did last
+}
+
+void TestStats::testLossDoesNotTouchLastWinDate()
+{
+    const QDate winDate{2026, 1, 1};
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, winDate));
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.lastWinDate, winDate);
+    QCOMPARE(r.played, 2u);
+    QCOMPARE(r.won, 1u);
+}
+
+void TestStats::testSubTickWinStampsLastWinDate()
+{
+    // A 0.0-seconds win still counts as a win (won/played both increment),
+    // so it must stamp lastWinDate too — the date is meaningful regardless
+    // of duration, unlike the bestSeconds / totalSecondsWon updates which
+    // gate on `seconds > 0.0`.
+    const QDate d{2026, 4, 23};
+    Stats::recordWin(QStringLiteral("Beginner"), 0.0, d);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 1u);
+    QCOMPARE(r.bestSeconds, 0.0); // best stays at sentinel
+    QCOMPARE(r.lastWinDate, d);   // but last-win date is stamped
+}
+
+void TestStats::testLastWinDateIsPerDifficulty()
+{
+    const QDate beginnerDate{2026, 4, 1};
+    const QDate expertDate{2026, 4, 23};
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0, beginnerDate);
+    Stats::recordWin(QStringLiteral("Expert"), 200.0, expertDate);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).lastWinDate, beginnerDate);
+    QVERIFY(!Stats::load(QStringLiteral("Intermediate")).lastWinDate.isValid());
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).lastWinDate, expertDate);
+}
+
+void TestStats::testResetWipesLastWinDate()
+{
+    QVERIFY(Stats::recordWin(QStringLiteral("Beginner"), 20.0, QDate{2026, 1, 1}));
+    Stats::reset(QStringLiteral("Beginner"));
+    QVERIFY(!Stats::load(QStringLiteral("Beginner")).lastWinDate.isValid());
+}
+
+void TestStats::testResetAllWipesLastWinDate()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0, QDate{2026, 4, 1});
+    Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 4, 23});
+    Stats::resetAll();
+    QVERIFY(!Stats::load(QStringLiteral("Beginner")).lastWinDate.isValid());
+    QVERIFY(!Stats::load(QStringLiteral("Expert")).lastWinDate.isValid());
+}
+
+void TestStats::testLegacyRecordWithoutLastWinDateLoadsAsInvalid()
+{
+    // Pre-1.37 record: no `last_win_date` key present. Must load as
+    // an invalid QDate so the loss-dialog gate (`isValid()`) keeps the
+    // line hidden until the player's next 1.37+ win.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 12.5);
+    settings.setValue(QStringLiteral("stats/Beginner/best_date"), QStringLiteral("2026-01-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 3u);
+    QVERIFY(!r.lastWinDate.isValid());
+}
+
+void TestStats::testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid()
+{
+    // Defensive: even with `won > 0`, an absent `last_win_date` must NOT
+    // be back-filled from `best_date`. The loss dialog's gate is purely
+    // `isValid()` — we want a clean miss until the next counted win
+    // refreshes it, rather than silently aliasing `bestDate` (which may
+    // be months stale even if the user won yesterday).
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Expert/played"), 100u);
+    settings.setValue(QStringLiteral("stats/Expert/won"), 50u);
+    settings.setValue(QStringLiteral("stats/Expert/best_seconds"), 250.0);
+    settings.setValue(QStringLiteral("stats/Expert/best_date"), QStringLiteral("2025-06-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.won, 50u);
+    QCOMPARE(r.bestDate, QDate(2025, 6, 1));
+    QVERIFY(!r.lastWinDate.isValid()); // not back-filled
 }
 
 QTEST_MAIN(TestStats)
