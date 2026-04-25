@@ -83,6 +83,17 @@ class MineField : public QWidget
     // on the win dialog.
     [[nodiscard]] int boardValue() const noexcept;
 
+    // Partial 3BV: how many of the boardValue() "clicks" the player has
+    // effectively completed at the moment of query. Walks the live board
+    // with the same region/isolated-cell partition as compute3BV(); counts
+    // an opening (+1) only if any cell in it has been opened, and counts
+    // each opened isolated numbered cell (+1). On a win this equals
+    // boardValue(); on a loss it equals the speedrun-canonical "cleared
+    // 3BV" — used by MainWindow to render the loss-dialog
+    // "Partial 3BV: X / Y · 3BV/s: Z" line. Returns 0 before mines have
+    // been placed.
+    [[nodiscard]] int partialBoardValue() const;
+
     // Useful-click count: number of user gestures during the current game
     // that revealed at least one cell. Counts left-click reveals (one per
     // gesture, not per cascaded flood-cell), chord clicks that opened ≥1

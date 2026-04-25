@@ -225,6 +225,105 @@ bool MineField::anyFlagPlaced() const noexcept { return m_anyFlagPlaced; }
 
 int MineField::boardValue() const noexcept { return m_boardValue; }
 
+int MineField::partialBoardValue() const
+{
+    // Re-walks compute3BV()'s partition (zero-flood regions + isolated numbered
+    // cells), counting only the units the player has effectively cleared.
+    //   region (+1) iff any zero or fringe-numbered cell in it is opened.
+    //   isolated numbered cell (+1) iff it is opened.
+    // Mirrors the canonical Minesweeper-Arbiter "Cleared 3BV" definition. Used
+    // by the loss dialog; runs O(rows × cols) ≤ 480 (Expert) once per game.
+    const auto h = m_difficulty.height;
+    const auto w = m_difficulty.width;
+    if (h == 0 || w == 0)
+    {
+        return 0;
+    }
+    if (m_buttons.size() != h)
+    {
+        return 0;
+    }
+
+    std::vector<std::vector<bool>> visited(h, std::vector<bool>(w, false));
+    int pbv = 0;
+
+    for (std::uint32_t r = 0; r < h; ++r)
+    {
+        for (std::uint32_t c = 0; c < w; ++c)
+        {
+            const auto *cell = m_buttons[r][c];
+            if (cell == nullptr || cell->isMined() || visited[r][c])
+            {
+                continue;
+            }
+            if (cell->Number() != 0)
+            {
+                continue;
+            }
+            std::queue<std::pair<std::uint32_t, std::uint32_t>> q;
+            q.emplace(r, c);
+            visited[r][c] = true;
+            bool regionOpened = cell->isOpened();
+            while (!q.empty())
+            {
+                auto [rr, cc] = q.front();
+                q.pop();
+                for (int dr = -1; dr <= 1; ++dr)
+                {
+                    for (int dc = -1; dc <= 1; ++dc)
+                    {
+                        if (dr == 0 && dc == 0)
+                        {
+                            continue;
+                        }
+                        const int nr = static_cast<int>(rr) + dr;
+                        const int nc = static_cast<int>(cc) + dc;
+                        if (!inBounds(nr, nc, h, w))
+                        {
+                            continue;
+                        }
+                        if (visited[nr][nc])
+                        {
+                            continue;
+                        }
+                        const auto *n = m_buttons[nr][nc];
+                        if (n == nullptr || n->isMined())
+                        {
+                            continue;
+                        }
+                        visited[nr][nc] = true;
+                        if (n->isOpened())
+                        {
+                            regionOpened = true;
+                        }
+                        if (n->Number() == 0)
+                        {
+                            q.emplace(static_cast<std::uint32_t>(nr), static_cast<std::uint32_t>(nc));
+                        }
+                    }
+                }
+            }
+            if (regionOpened)
+            {
+                ++pbv;
+            }
+        }
+    }
+
+    for (std::uint32_t r = 0; r < h; ++r)
+    {
+        for (std::uint32_t c = 0; c < w; ++c)
+        {
+            const auto *cell = m_buttons[r][c];
+            if (cell != nullptr && !cell->isMined() && !visited[r][c] && cell->isOpened())
+            {
+                ++pbv;
+            }
+        }
+    }
+    return pbv;
+}
+
 int MineField::userClicks() const noexcept { return m_userClicks; }
 
 int MineField::flagsPlaced() const noexcept { return m_flagCount; }

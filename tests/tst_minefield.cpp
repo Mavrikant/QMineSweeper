@@ -70,6 +70,14 @@ class TestMineField : public QObject
     void testBoardValueComputedAfterFirstClick();
     void testBoardValueReplayPreservesValue();
     void testBoardValuePreservedOnLoss();
+    void testPartialBoardValueZeroBeforeMinesPlaced();
+    void testPartialBoardValueZeroBeforeAnyOpen();
+    void testPartialBoardValueRegionCountedWhenAnyCellOpened();
+    void testPartialBoardValueIsolatedNumberedCellsCountedIndividually();
+    void testPartialBoardValueTwoSeparateOpenings();
+    void testPartialBoardValueEqualsBoardValueOnWin();
+    void testPartialBoardValuePreservedOnLoss();
+    void testPartialBoardValueResetByNewGame();
     void testUserClicksZeroBeforeAnyClick();
     void testUserClicksLeftClickIncrementsOnce();
     void testUserClicksFloodCountsOnce();
@@ -1019,6 +1027,103 @@ void TestMineField::testBoardValuePreservedOnLoss()
     sendMousePress(field.cellAt(0, 2), Qt::LeftButton);
     QCOMPARE(field.state(), GameState::Lost);
     QCOMPARE(field.boardValue(), initialBV);
+}
+
+void TestMineField::testPartialBoardValueZeroBeforeMinesPlaced()
+{
+    MineField field;
+    QCOMPARE(field.partialBoardValue(), 0);
+}
+
+void TestMineField::testPartialBoardValueZeroBeforeAnyOpen()
+{
+    // Mines placed (BV non-zero) but the player hasn't opened anything.
+    MineField field;
+    field.setFixedLayout(3, 3, {{1, 1}});
+    QVERIFY(field.boardValue() > 0);
+    QCOMPARE(field.partialBoardValue(), 0);
+}
+
+void TestMineField::testPartialBoardValueRegionCountedWhenAnyCellOpened()
+{
+    // 5x5 with two corner mines = single opening covering every safe cell.
+    // Opening any one cell floods the entire region, so partialBV jumps to 1.
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}, {4, 4}});
+    QCOMPARE(field.boardValue(), 1);
+    QCOMPARE(field.partialBoardValue(), 0);
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    QCOMPARE(field.partialBoardValue(), 1);
+}
+
+void TestMineField::testPartialBoardValueIsolatedNumberedCellsCountedIndividually()
+{
+    // 3x3 with center mine = 8 isolated numbered cells (no zeros). Each opened
+    // cell is +1 to partial BV; opening one then another goes 0 → 1 → 2.
+    MineField field;
+    field.setFixedLayout(3, 3, {{1, 1}});
+    QCOMPARE(field.boardValue(), 8);
+    sendMousePress(field.cellAt(0, 0), Qt::LeftButton);
+    QCOMPARE(field.partialBoardValue(), 1);
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    QCOMPARE(field.partialBoardValue(), 2);
+}
+
+void TestMineField::testPartialBoardValueTwoSeparateOpenings()
+{
+    // 3x7 with a mine wall at row 3 splits into upper + lower openings (BV=2).
+    // Opening one upper cell triggers a zero-flood through the whole upper
+    // region (+1); opening one lower cell does the same (+1).
+    MineField field;
+    field.setFixedLayout(3, 7, {{3, 0}, {3, 1}, {3, 2}});
+    QCOMPARE(field.boardValue(), 2);
+    sendMousePress(field.cellAt(0, 0), Qt::LeftButton);
+    QCOMPARE(field.partialBoardValue(), 1);
+    sendMousePress(field.cellAt(6, 0), Qt::LeftButton);
+    QCOMPARE(field.partialBoardValue(), 2);
+}
+
+void TestMineField::testPartialBoardValueEqualsBoardValueOnWin()
+{
+    // Fully solving the board must yield partialBV == boardValue() — the
+    // post-condition that anchors the loss-dialog line: on a loss it's a
+    // strict prefix of the win endpoint.
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}, {4, 4}});
+    field.cellAt(2, 2)->Open();
+    openAllSafe(field);
+    QCOMPARE(field.state(), GameState::Won);
+    QCOMPARE(field.partialBoardValue(), field.boardValue());
+}
+
+void TestMineField::testPartialBoardValuePreservedOnLoss()
+{
+    // Regression guard for the loss-dialog "Partial 3BV: X / Y · 3BV/s: Z"
+    // line: at gameLost emission, partialBoardValue() must reflect what the
+    // player had cleared up to the moment of explosion. revealAllMines paints
+    // mines but must not touch m_buttons opened-state for safe cells; this
+    // test pins that invariant.
+    MineField field;
+    // 5x5 with row-1 mine wall: upper row (5 isolated numbered cells) above,
+    // a single opening (rows 3-4 zeros + row-2 numbered fringe) below. BV = 6.
+    field.setFixedLayout(5, 5, {{1, 0}, {1, 1}, {1, 2}, {1, 3}, {1, 4}});
+    // Open (3,0): a zero cell — floods the entire lower region (+1 to BV).
+    sendMousePress(field.cellAt(3, 0), Qt::LeftButton);
+    QCOMPARE(field.partialBoardValue(), 1);
+    // Click a mine — boom. Partial BV must survive the loss reveal.
+    sendMousePress(field.cellAt(1, 0), Qt::LeftButton);
+    QCOMPARE(field.state(), GameState::Lost);
+    QCOMPARE(field.partialBoardValue(), 1);
+}
+
+void TestMineField::testPartialBoardValueResetByNewGame()
+{
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}, {4, 4}});
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    QVERIFY(field.partialBoardValue() > 0);
+    field.newGame(MineField::Beginner);
+    QCOMPARE(field.partialBoardValue(), 0);
 }
 
 void TestMineField::testUserClicksZeroBeforeAnyClick()
