@@ -1,5 +1,95 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 16 — v1.19.0 (autonomous)
+
+- **Chosen problem:** The Statistics dialog's *Best time* and
+  *Best (no flag)* columns rendered as `%.1f s` (e.g.
+  `754.5 s`), forcing the player to mentally divide by 60 to
+  reason about a long run. The live toolbar clock had already
+  been switched to a duration-aware `S.S` / `M:SS.S` /
+  `H:MM:SS.S` formatter in v1.18.0, so the stats column lagged
+  the in-game display. v1.18.0's CYCLES entry explicitly listed
+  this parity fix as the next candidate after the live-label
+  change had aged.
+- **Evidence:** `MainWindow::showStatsDialog` lambda
+  `formatBest` used `QString::asprintf("%.1f s", seconds)`. No
+  call to `formatElapsedTime` from `mainwindow.cpp` outside the
+  live-label path.
+- **Shipped:**
+  - Branch: `feat/stats-dialog-mm-ss` (squash-merged + deleted)
+  - PR: [#37](https://github.com/Mavrikant/QMineSweeper/pull/37)
+  - Squash commit: `28cb44c`
+  - Tag: `v1.19.0`
+  - Release: pending — workflow triggered on tag push, body to be
+    rewritten from the auto-generated stub once assets publish.
+- **Diff shape:** 2 files, +6/-3 LOC of behavior — the smallest
+  cycle so far. Plus `DECISIONS.md` +57 and this CYCLES entry.
+  Well under the 400-LOC cycle cap.
+- **Translation cost:** zero. The format is composed at runtime
+  inside `formatElapsedTime`. All 10 locales stay 90/90
+  finished, 0 unfinished.
+- **Format chosen:** identical to v1.18.0's live label.
+  - `< 60 s` → `S.S` (e.g. `45.0`)
+  - `60..3600 s` → `M:SS.S` (e.g. `1:30.5`, `12:34.5`)
+  - `≥ 1 h` → `H:MM:SS.S` (e.g. `1:00:00.0`)
+  - Negative / NaN / inf → `0.0` (defensive, formatter-side)
+- **Assumptions made:**
+  - **Drop the `s` unit.** The "Best time" / "Best (no flag)"
+    column headers carry the unit; pairing `s` with `1:30.5`
+    reads wrong. Other Minesweeper-family games (KMines, GNOME
+    Mines) ship without per-cell units in these columns.
+  - **No persistence change.** Stored `bestSeconds` /
+    `bestNoflagSeconds` remain `double` of seconds. Legacy
+    QSettings load identically; only the rendering path
+    changes.
+  - **No new test scaffold.** The change is a literal call
+    swap to a helper that's already pinned by 14 deterministic
+    test cases (boundary rounding, hour carry, defensive zero,
+    trailing-tenth preservation). Adding a stats-dialog test
+    layer would have cost more in scaffolding than it earned
+    in coverage.
+  - **Lambda's own `seconds <= 0.0` early-return stays.** The
+    "no record yet" cell needs to render `"—"`, not `"0.0"`,
+    so the rendering still distinguishes "absent" from "zero".
+- **Skipped:**
+  - *Reformat the win-dialog "You cleared the field in %1
+    seconds." line.* Would touch a translated string and burn
+    9 hand-translations on a cosmetic change. v1.18.0 already
+    rejected this for the same reason; keep the cycle additive.
+  - *Lift `formatBest` to a free function in `time_format.h`
+    for direct testing.* Adds `QLocale` + `QDate` to the
+    header; single call site; the format half is already
+    tested in isolation.
+  - *Hint button (limited per game).* On the parking lot since
+    v1.18.0 — needs a small deterministic solver and a
+    ~250-400 LOC slice. Multi-cycle work, not this one.
+- **Risks logged:** none new. No persistence change, no
+  signal/slot wiring, no public API change. Worst case is a
+  stats-dialog format regression; the formatter's behavior is
+  pinned by `tst_time_format`.
+- **UI smoke:** Deferred — cron-launched task context lacks
+  display capture permissions. Full headless `ctest` (6/6)
+  green; `clang-format` clean across all `.cpp` / `.h`. The
+  single line of behavior change is a literal call swap to a
+  tested helper.
+- **Post-release watch:** to be filled once the v1.19.0
+  release workflow lands all five assets and Sentry has had a
+  chance to surface any release `qminesweeper@1.19.0` events.
+- **Next candidates:**
+  - Save-and-resume games across launches (still parked —
+    board-state + marker-state + timer-offset serialization +
+    QSettings schema bump).
+  - Hint button (limited per-game, exposes 1 safe cell at a
+    cost) — needs a small deterministic solver.
+  - Daily-streak / "games played today" mini-counter on the
+    win dialog — derived from QSettings + QDate, smaller than
+    save-and-resume.
+  - Per-layout best-time leaderboard (mine-position hash + new
+    persistence schema).
+  - Reformat the win-dialog "You cleared the field in N
+    seconds." line to use clock format — natural follow-up,
+    but burns 9 hand-translations.
+
 ## 2026-04-25 — Cycle 15 — v1.18.0 (autonomous)
 
 - **Chosen problem:** The toolbar clock label rendered as a

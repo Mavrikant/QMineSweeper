@@ -1,5 +1,65 @@
 # Cycle decisions
 
+## 2026-04-25 — Stats-dialog adopts MM:SS clock format (v1.19.0)
+
+**Chosen:** Replace the stats-dialog `formatBest` lambda's
+`QString::asprintf("%.1f s", seconds)` with a single call to the
+duration-aware `formatElapsedTime(seconds)` shipped in v1.18.0.
+The "Best time" / "Best (no flag)" columns now render as
+`S.S`, `M:SS.S`, or `H:MM:SS.S` depending on duration, matching
+the live toolbar clock. The trailing `" s"` unit is dropped; the
+column header carries the unit and `s` reads wrong on a
+colon-clock value.
+
+**Why this one (cycle 16):** v1.18.0's CYCLES entry explicitly
+listed this as the "natural follow-up" — its scope (the live
+label) was contained, and the stats column was deliberately
+deferred so the live format could age. With v1.18.0 in the wild
+and zero Sentry hits in the post-release watch, the contract is
+proven and the parity gap is the next cleanest visible polish.
+Five-minute cycle, ~6 LOC of productive change, zero new
+translatable strings, zero persistence churn, formatter already
+covered by 14 unit tests.
+
+**Rejected alternatives:**
+
+- **Keep the unit conditionally** (`"45.0 s"` for sub-60,
+  `"1:30.5"` past it). Mixed format inside one column is
+  visually inconsistent and contradicts the goal of matching
+  the live clock.
+- **Lift `formatBest` to a free function in `time_format.h`**
+  so it could be unit-tested directly. Adds `QLocale` and
+  `QDate` to a header that today has only `QString`. Single
+  call site, no real testability win — the format part is
+  already pinned by `tst_time_format.cpp`, and the date-pairing
+  half is locale-formatted boilerplate.
+- **Also reformat the win-dialog "You cleared the field in %1
+  seconds." message.** Would touch a translated string and burn
+  9 hand-translations on a cosmetic change. v1.18.0 already
+  rejected the same scope expansion for the same reason; keep
+  the cycle additive.
+- **Add a duration suffix only when the format wraps** (e.g.
+  `"45.0 s"` < 60, `"1:30.5"` past). Same mixed-format problem.
+- **Ship a stats-dialog refactor that lifts everything into a
+  `Stats::DialogModel` class** so the rendering helpers are
+  testable. Premature; the existing showStatsDialog is small
+  and the new line is one call swap.
+
+**Assumptions:**
+
+- The "Best time" / "Best (no flag)" column headers carry the
+  unit clearly enough that dropping the literal `s` doesn't
+  introduce ambiguity. Other Minesweeper-family games (KMines,
+  GNOME Mines) ship without per-cell units in these columns.
+- Stats values stored as `double` seconds in QSettings remain
+  byte-identical; only their string rendering changes. Legacy
+  records render in the new format on first dialog open with
+  no migration step.
+- `formatElapsedTime` already handles the defensive cases
+  (`<= 0`, `NaN`, infinity) — but the lambda's own
+  `seconds <= 0.0` early-return for "no record yet" stays in
+  place because the rendering needs to emit `"—"`, not `"0.0"`.
+
 ## 2026-04-25 — MM:SS timer format for long runs (v1.18.0)
 
 **Chosen:** Switch the live timer label from a fixed-width
