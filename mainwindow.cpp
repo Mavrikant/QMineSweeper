@@ -541,7 +541,7 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("streak"), QString::number(outcome.currentStreak)},
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -560,6 +560,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     const int clicks = ui->mineFieldWidget->userClicks();
     const int flags = ui->mineFieldWidget->flagsPlaced();
     const int bv = ui->mineFieldWidget->boardValue();
+    const int qmarks = ui->mineFieldWidget->questionMarksPlaced();
     Telemetry::recordEvent(QStringLiteral("game.lost"), {
                                                             {QStringLiteral("difficulty"), diffName},
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
@@ -567,8 +568,9 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("clicks"), QString::number(clicks)},
                                                             {QStringLiteral("flags"), QString::number(flags)},
                                                             {QStringLiteral("bv"), QString::number(bv)},
+                                                            {QStringLiteral("qmarks"), QString::number(qmarks)},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -778,7 +780,8 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(formatElapsedTime(secs));
 }
 
-void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue)
+void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
+                               int lossQuestionMarks)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -859,6 +862,18 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (flagsPlaced > 0)
         {
             text += QStringLiteral("\n") + tr("Flags placed: %1").arg(flagsPlaced);
+        }
+        // Question-mark count — completes the right-click action recap alongside
+        // Flags. Mirrors the flagsPlaced gate exactly: gated > 0 so a common no-`?`
+        // loss doesn't render a noisy "Question marks: 0", and skipped on wins
+        // because the win-path's flagAllMines does not touch question marks but
+        // `?` only ever appears on Question-cycled cells (the question-marks toggle
+        // can be off entirely). Reads MineField::questionMarksPlaced() at gameLost
+        // emission; the loss path's revealAllMines does not clear m_marker, so the
+        // value is the user's true count of `?`-marked cells.
+        if (lossQuestionMarks > 0)
+        {
+            text += QStringLiteral("\n") + tr("Question marks: %1").arg(lossQuestionMarks);
         }
         box.setText(text);
         box.setIcon(QMessageBox::Warning);

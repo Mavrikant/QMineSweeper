@@ -97,6 +97,11 @@ class TestMineField : public QObject
     void testFlagsPlacedDecrementsOnUnflag();
     void testFlagsPlacedPreservedOnLoss();
     void testFlagsPlacedResetByNewGame();
+    void testQuestionMarksPlacedZeroBeforeAnyMark();
+    void testQuestionMarksPlacedCountsOnlyQuestionCells();
+    void testQuestionMarksPlacedDecrementsOnCycleAway();
+    void testQuestionMarksPlacedPreservedOnLoss();
+    void testQuestionMarksPlacedResetByNewGame();
 
   private:
     static void openAllSafe(MineField &field);
@@ -1374,6 +1379,75 @@ void TestMineField::testFlagsPlacedResetByNewGame()
     QCOMPARE(field.flagsPlaced(), 1);
     field.newGame(MineField::Beginner);
     QCOMPARE(field.flagsPlaced(), 0);
+}
+
+void TestMineField::testQuestionMarksPlacedZeroBeforeAnyMark()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    QCOMPARE(field.questionMarksPlaced(), 0);
+}
+
+void TestMineField::testQuestionMarksPlacedCountsOnlyQuestionCells()
+{
+    // Right-click cycles None → Flag → Question → None. The counter must include
+    // the cell currently in Question and exclude one currently in Flag.
+    MineButton::setQuestionMarksEnabled(true);
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(0, 1)->cycleMarker(); // None → Flag
+    field.cellAt(0, 1)->cycleMarker(); // Flag → Question
+    QCOMPARE(field.questionMarksPlaced(), 1);
+    field.cellAt(2, 2)->cycleMarker(); // None → Flag (does not count)
+    QCOMPARE(field.questionMarksPlaced(), 1);
+    field.cellAt(1, 1)->cycleMarker(); // None → Flag
+    field.cellAt(1, 1)->cycleMarker(); // Flag → Question
+    QCOMPARE(field.questionMarksPlaced(), 2);
+}
+
+void TestMineField::testQuestionMarksPlacedDecrementsOnCycleAway()
+{
+    MineButton::setQuestionMarksEnabled(true);
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(2, 2)->cycleMarker(); // None → Flag
+    field.cellAt(2, 2)->cycleMarker(); // Flag → Question
+    QCOMPARE(field.questionMarksPlaced(), 1);
+    field.cellAt(2, 2)->cycleMarker(); // Question → None
+    QCOMPARE(field.questionMarksPlaced(), 0);
+}
+
+void TestMineField::testQuestionMarksPlacedPreservedOnLoss()
+{
+    // The loss path's revealAllMines does NOT clear m_marker, so a `?` placed
+    // by the user — even on a mined cell — still counts after the loss reveal.
+    // Regression guard for the loss-dialog "Question marks: %1" line: any
+    // future change that wipes the marker on reveal would silently zero this
+    // out and break the dialog metric.
+    MineButton::setQuestionMarksEnabled(true);
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {0, 2}});
+    // User cycles (0, 0) (a mine) all the way to Question, then steps on the other mine.
+    field.cellAt(0, 0)->cycleMarker(); // None → Flag
+    field.cellAt(0, 0)->cycleMarker(); // Flag → Question
+    QCOMPARE(field.questionMarksPlaced(), 1);
+    sendMousePress(field.cellAt(0, 2), Qt::LeftButton);
+    QCOMPARE(field.state(), GameState::Lost);
+    // Still 1 — revealAllMines paints the mined cell as exploded but does not
+    // touch the underlying CellMarker, so isQuestion() stays true.
+    QCOMPARE(field.questionMarksPlaced(), 1);
+}
+
+void TestMineField::testQuestionMarksPlacedResetByNewGame()
+{
+    MineButton::setQuestionMarksEnabled(true);
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(0, 0)->cycleMarker(); // None → Flag
+    field.cellAt(0, 0)->cycleMarker(); // Flag → Question
+    QCOMPARE(field.questionMarksPlaced(), 1);
+    field.newGame(MineField::Beginner);
+    QCOMPARE(field.questionMarksPlaced(), 0);
 }
 
 QTEST_MAIN(TestMineField)
