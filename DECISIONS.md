@@ -1,5 +1,65 @@
 # Cycle decisions
 
+## 2026-04-25 — Color-blind friendly number palette (v1.17.0)
+
+**Chosen:** Add an opt-in `Settings → Color-blind friendly numbers`
+toggle (checkable QAction, default off). When enabled, `MineButton`'s
+`numberColor()` returns an Okabe-Ito-derived palette instead of the
+classic Minesweeper 1–8 palette. The new palette keeps every digit
+distinguishable under deuteranopia and protanopia — the classic
+palette's 2/3 (green/red) and 5 (dark red) collide under red-green
+CVD. App-wide static state on `MineButton` (mirrors the
+question-marks pattern). Persisted as QSettings
+`settings/colorblind_palette`. Toggling mid-game sweeps the grid via
+a new `MineField::refreshAllNumberStyles()` → `MineButton::refreshNumberStyle()`
+helper so the change is visible on already-opened cells.
+
+**Why this one (cycle 14):** Parked for three cycles running as
+"design-level work" in the Next-candidates list (v1.13, v1.14,
+v1.15, v1.16). The design work isn't actually open-ended — the
+Okabe-Ito palette is a published, peer-reviewed 8-colour set
+specifically for CVD-safe categorical data. Picking that palette
+removes the "need to design" obstacle and leaves a small diff:
+~60 LOC core + wiring, 1 new translatable string × 9 locales, 4
+new unit tests. Accessibility payoff is real (≈8 % of male players
+have red-green CVD). Opt-in default keeps the classic look for
+everyone else. Diff is well under the 400-LOC cycle cap.
+
+**Rejected alternatives:**
+
+- **Pattern overlays on digits (dots/stripes).** Considered a
+  pure-shape distinguisher that works for total colour blindness.
+  Cells are 30×30 px with a ~22 px digit; overlay patterns would
+  clash with the numeric glyph and read as visual noise. A palette
+  swap keeps the interface clean.
+- **Full high-contrast / "dark mode" theme.** Much wider surface
+  — every stylesheet (opened cell, mine, wrong-flag, pause
+  overlay, smiley button, menu text) would have to be themed.
+  Multi-cycle work; the number palette is the single highest-value
+  accessibility slice.
+- **Per-digit individual colour picker.** Interesting config
+  fidelity but the scope explosion (9 new strings for the dialog,
+  serialization schema) dwarfs the feature's actual accessibility
+  payoff.
+- **Auto-detect via OS accessibility settings.** Qt doesn't expose
+  a colour-blind hint on macOS/Windows; parsing `QPalette` would
+  be a heuristic. An explicit user toggle avoids guessing.
+- **Default on.** Would change the look for every existing player
+  without warning — the classic palette is what the muscle memory
+  is trained on. Opt-in mirrors the GNOME Mines and Microsoft
+  Minesweeper model.
+- **Silent mid-game toggle.** I.e. change the flag, but only new
+  reveals use the new palette (already-opened cells keep the old
+  colours until next game). Cheaper to implement (no refresh
+  helper), but the UX is confusing — the user flips the toggle,
+  nothing visible happens, and they can't tell if it worked.
+  `refreshAllNumberStyles()` is a ~20 LOC addition for a much
+  clearer feedback loop.
+- **Apply palette to the `number=0` opened-cell background.** No
+  digit is drawn on a zero cell, so there's nothing to recolour;
+  the guard in `refreshNumberStyle()` skips zeros to avoid
+  needlessly churning their stylesheets.
+
 ## 2026-04-25 — Win streak per difficulty (v1.16.0)
 
 **Chosen:** Track current and best win streak per difficulty in the

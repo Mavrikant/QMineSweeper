@@ -5,11 +5,11 @@
     <name>MainWindow</name>
     <message>
         <location filename="../mainwindow.ui" line="20"/>
-        <location filename="../mainwindow.cpp" line="125"/>
-        <location filename="../mainwindow.cpp" line="291"/>
-        <location filename="../mainwindow.cpp" line="309"/>
-        <location filename="../mainwindow.cpp" line="329"/>
-        <location filename="../mainwindow.cpp" line="362"/>
+        <location filename="../mainwindow.cpp" line="128"/>
+        <location filename="../mainwindow.cpp" line="300"/>
+        <location filename="../mainwindow.cpp" line="318"/>
+        <location filename="../mainwindow.cpp" line="338"/>
+        <location filename="../mainwindow.cpp" line="371"/>
         <source>QMineSweeper</source>
         <translation></translation>
     </message>
@@ -39,314 +39,319 @@
         <translation>&amp;О программе</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="145"/>
+        <location filename="../mainwindow.cpp" line="148"/>
         <source>&amp;New</source>
         <translation>&amp;Новая</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="150"/>
+        <location filename="../mainwindow.cpp" line="153"/>
         <source>&amp;Replay same layout</source>
         <translation>&amp;Повторить ту же расстановку</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="156"/>
-        <location filename="../mainwindow.cpp" line="744"/>
+        <location filename="../mainwindow.cpp" line="159"/>
+        <location filename="../mainwindow.cpp" line="765"/>
         <source>&amp;Pause</source>
         <translation>&amp;Пауза</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="164"/>
+        <location filename="../mainwindow.cpp" line="167"/>
         <source>&amp;Difficulty</source>
         <translation>С&amp;ложность</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="177"/>
+        <location filename="../mainwindow.cpp" line="180"/>
         <source>&amp;Beginner  (9×9, 10 mines)</source>
         <translation>&amp;Новичок  (9×9, 10 мин)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="178"/>
+        <location filename="../mainwindow.cpp" line="181"/>
         <source>&amp;Intermediate  (16×16, 40 mines)</source>
         <translation>&amp;Любитель  (16×16, 40 мин)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="179"/>
+        <location filename="../mainwindow.cpp" line="182"/>
         <source>&amp;Expert  (30×16, 99 mines)</source>
         <translation>&amp;Эксперт  (30×16, 99 мин)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="193"/>
+        <location filename="../mainwindow.cpp" line="196"/>
         <source>&amp;Custom…</source>
         <translation>&amp;Особая…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="202"/>
+        <location filename="../mainwindow.cpp" line="205"/>
         <source>&amp;Statistics…</source>
         <translation>&amp;Статистика…</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="208"/>
+        <location filename="../mainwindow.cpp" line="211"/>
         <source>&amp;Quit</source>
         <translation>&amp;Выход</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="213"/>
+        <location filename="../mainwindow.cpp" line="216"/>
         <source>&amp;Settings</source>
         <translation>&amp;Настройки</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="216"/>
+        <location filename="../mainwindow.cpp" line="219"/>
         <source>&amp;Language</source>
         <translation>&amp;Язык</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="234"/>
+        <location filename="../mainwindow.cpp" line="237"/>
         <source>Auto (system)</source>
         <translation>Автоматически (системная)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="242"/>
+        <location filename="../mainwindow.cpp" line="245"/>
         <source>Enable &amp;question marks</source>
         <translation>Включить &amp;знаки вопроса</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="251"/>
+        <source>&amp;Color-blind friendly numbers</source>
+        <translation>Цифры для &amp;дальтоников</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="260"/>
         <source>Send anonymous &amp;crash reports and usage data</source>
         <translation>Отправлять анонимные &amp;отчёты о сбоях и данные использования</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="266"/>
+        <location filename="../mainwindow.cpp" line="275"/>
         <source>&amp;Tutorial</source>
         <translation>&amp;Обучение</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="376"/>
+        <location filename="../mainwindow.cpp" line="385"/>
         <source>Custom difficulty</source>
         <translation>Особая сложность</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="384"/>
+        <location filename="../mainwindow.cpp" line="393"/>
         <source>Width:</source>
         <translation>Ширина:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="389"/>
+        <location filename="../mainwindow.cpp" line="398"/>
         <source>Height:</source>
         <translation>Высота:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="406"/>
+        <location filename="../mainwindow.cpp" line="415"/>
         <source>Mines:</source>
         <translation>Мин:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="468"/>
+        <location filename="../mainwindow.cpp" line="477"/>
         <source>QMineSweeper — Playing</source>
         <translation>QMineSweeper — Идёт игра</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="494"/>
+        <location filename="../mainwindow.cpp" line="503"/>
         <source>QMineSweeper — You won!</source>
         <translation>QMineSweeper — Вы победили!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="544"/>
+        <location filename="../mainwindow.cpp" line="553"/>
         <source>QMineSweeper — Boom</source>
         <translation>QMineSweeper — Бум!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="586"/>
+        <location filename="../mainwindow.cpp" line="607"/>
         <source>Language changed</source>
         <translation>Язык изменён</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="588"/>
+        <location filename="../mainwindow.cpp" line="609"/>
         <source>Language changes take effect after restart.</source>
         <translation>Изменения языка вступят в силу после перезапуска.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="589"/>
+        <location filename="../mainwindow.cpp" line="610"/>
         <source>Restart QMineSweeper now?</source>
         <translation>Перезапустить QMineSweeper сейчас?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="590"/>
+        <location filename="../mainwindow.cpp" line="611"/>
         <source>Restart now</source>
         <translation>Перезапустить сейчас</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="591"/>
+        <location filename="../mainwindow.cpp" line="612"/>
         <source>Later</source>
         <translation>Позже</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="613"/>
+        <location filename="../mainwindow.cpp" line="634"/>
         <source>Help improve QMineSweeper</source>
         <translation>Помогите улучшить QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="615"/>
+        <location filename="../mainwindow.cpp" line="636"/>
         <source>Would you like to send anonymous crash reports and usage data?</source>
         <translation>Отправлять анонимные отчёты о сбоях и данные использования?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="616"/>
+        <location filename="../mainwindow.cpp" line="637"/>
         <source>We collect: app crashes, game results (win/loss, duration, difficulty), OS name, CPU architecture, Qt version, and an anonymous install ID.&lt;br/&gt;&lt;br/&gt;We do &lt;b&gt;not&lt;/b&gt; collect: your name, email, IP address, file paths, or any in-game actions.&lt;br/&gt;&lt;br/&gt;You can change this later in &lt;b&gt;Settings&lt;/b&gt;.</source>
         <translation>Мы собираем: сбои приложения, результаты игр (победа/поражение, длительность, сложность), название ОС, архитектуру процессора, версию Qt и анонимный идентификатор установки.&lt;br/&gt;&lt;br/&gt;Мы &lt;b&gt;не&lt;/b&gt; собираем: ваше имя, e-mail, IP-адрес, пути к файлам или действия в игре.&lt;br/&gt;&lt;br/&gt;Изменить выбор можно позже в разделе &lt;b&gt;Настройки&lt;/b&gt;.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="624"/>
+        <location filename="../mainwindow.cpp" line="645"/>
         <source>Yes, send</source>
         <translation>Да, отправить</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="625"/>
+        <location filename="../mainwindow.cpp" line="646"/>
         <source>No thanks</source>
         <translation>Нет, спасибо</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="744"/>
+        <location filename="../mainwindow.cpp" line="765"/>
         <source>&amp;Resume</source>
         <translation>Про&amp;должить</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="756"/>
+        <location filename="../mainwindow.cpp" line="777"/>
         <source>You won!</source>
         <translation>Вы победили!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="756"/>
+        <location filename="../mainwindow.cpp" line="777"/>
         <source>Boom</source>
         <translation>Бум!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="759"/>
+        <location filename="../mainwindow.cpp" line="780"/>
         <source>You cleared the field in %1 seconds.</source>
         <translation>Вы разминировали поле за %1 секунд.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="766"/>
+        <location filename="../mainwindow.cpp" line="787"/>
         <source>3BV: %1 · 3BV/s: %2</source>
         <translation>3BV: %1 · 3BV/с: %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="773"/>
+        <location filename="../mainwindow.cpp" line="794"/>
         <source>Clicks: %1 · Efficiency: %2%</source>
         <translation>Кликов: %1 · Эффективность: %2 %</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="777"/>
+        <location filename="../mainwindow.cpp" line="798"/>
         <source>🏃 No-flag run!</source>
         <translation>🏃 Без флагов!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="781"/>
+        <location filename="../mainwindow.cpp" line="802"/>
         <source>🏆 New record!</source>
         <translation>🏆 Новый рекорд!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="788"/>
+        <location filename="../mainwindow.cpp" line="809"/>
         <source>🌟 New best streak: %1!</source>
         <translation>🌟 Новая лучшая серия: %1!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="792"/>
+        <location filename="../mainwindow.cpp" line="813"/>
         <source>🔥 Streak: %1</source>
         <translation>🔥 Серия: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="799"/>
+        <location filename="../mainwindow.cpp" line="820"/>
         <source>You stepped on a mine.</source>
         <translation>Вы наступили на мину.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="72"/>
-        <location filename="../mainwindow.cpp" line="802"/>
+        <location filename="../mainwindow.cpp" line="75"/>
+        <location filename="../mainwindow.cpp" line="823"/>
         <source>New Game</source>
         <translation>Новая игра</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="803"/>
+        <location filename="../mainwindow.cpp" line="824"/>
         <source>Close</source>
         <translation>Закрыть</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="835"/>
+        <location filename="../mainwindow.cpp" line="856"/>
         <source>Statistics</source>
         <translation>Статистика</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="840"/>
+        <location filename="../mainwindow.cpp" line="861"/>
         <source>Difficulty</source>
         <translation>Сложность</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="840"/>
+        <location filename="../mainwindow.cpp" line="861"/>
         <source>Played</source>
         <translation>Сыграно</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="840"/>
+        <location filename="../mainwindow.cpp" line="861"/>
         <source>Won</source>
         <translation>Побед</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="840"/>
+        <location filename="../mainwindow.cpp" line="861"/>
         <source>Best time</source>
         <translation>Лучшее время</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="840"/>
+        <location filename="../mainwindow.cpp" line="861"/>
         <source>Best (no flag)</source>
         <translation>Лучшее (без флагов)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="840"/>
+        <location filename="../mainwindow.cpp" line="861"/>
         <source>Streak</source>
         <translation>Серия</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="853"/>
+        <location filename="../mainwindow.cpp" line="874"/>
         <source>Beginner</source>
         <translation>Новичок</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="854"/>
+        <location filename="../mainwindow.cpp" line="875"/>
         <source>Intermediate</source>
         <translation>Любитель</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="855"/>
+        <location filename="../mainwindow.cpp" line="876"/>
         <source>Expert</source>
         <translation>Эксперт</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="902"/>
+        <location filename="../mainwindow.cpp" line="923"/>
         <source>Reset all</source>
         <translation>Сбросить все</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="908"/>
+        <location filename="../mainwindow.cpp" line="929"/>
         <source>Reset statistics?</source>
         <translation>Сбросить статистику?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="908"/>
+        <location filename="../mainwindow.cpp" line="929"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>Безвозвратно удалить все записи сыгранных / побед / лучших времён?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="928"/>
+        <location filename="../mainwindow.cpp" line="949"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;Собрано с Qt %1 — %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="929"/>
+        <location filename="../mainwindow.cpp" line="950"/>
         <source>About QMineSweeper</source>
         <translation>О QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="922"/>
+        <location filename="../mainwindow.cpp" line="943"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Игра «Сапёр» на базе Qt6.&lt;/p&gt;&lt;p&gt;Левый клик — открыть, правый — флаг, средний клик на открытой цифре — открыть нераспознанных соседей.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>

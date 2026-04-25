@@ -23,8 +23,9 @@ constexpr const char *kMineRevealStyle = "border: 0px; background: rgba(255, 209
 constexpr const char *kWrongFlagStyle = "border: 0px; background: rgba(200, 80, 80, 0.9);";
 
 bool g_questionMarksEnabled = true;
+bool g_colorBlindPaletteEnabled = false;
 
-QColor numberColor(std::uint32_t number)
+QColor classicNumberColor(std::uint32_t number)
 {
     switch (number)
     {
@@ -48,6 +49,37 @@ QColor numberColor(std::uint32_t number)
         return {};
     }
 }
+
+// Okabe-Ito palette, reordered so the most common numbers (1, 2, 3) land on
+// the highest-contrast triad (blue / bluish-green / vermillion) that stays
+// distinguishable under deuteranopia and protanopia. 7/8 keep the classic
+// black/grey so the terminal digits read as "this is rare, look carefully".
+QColor colorBlindNumberColor(std::uint32_t number)
+{
+    switch (number)
+    {
+    case 1:
+        return {0, 114, 178}; // blue
+    case 2:
+        return {0, 158, 115}; // bluish green
+    case 3:
+        return {213, 94, 0}; // vermillion
+    case 4:
+        return {86, 180, 233}; // sky blue
+    case 5:
+        return {230, 159, 0}; // orange
+    case 6:
+        return {204, 121, 167}; // reddish purple
+    case 7:
+        return {0, 0, 0}; // black
+    case 8:
+        return {85, 85, 85}; // dark grey
+    default:
+        return {};
+    }
+}
+
+QColor numberColor(std::uint32_t number) { return g_colorBlindPaletteEnabled ? colorBlindNumberColor(number) : classicNumberColor(number); }
 } // namespace
 
 MineButton::MineButton(std::uint32_t row, std::uint32_t col, QWidget *parent) : QPushButton{parent}, m_row{row}, m_col{col}
@@ -241,6 +273,25 @@ void MineButton::clearQuestion()
 void MineButton::setQuestionMarksEnabled(bool enabled) noexcept { g_questionMarksEnabled = enabled; }
 
 bool MineButton::questionMarksEnabled() noexcept { return g_questionMarksEnabled; }
+
+void MineButton::setColorBlindPaletteEnabled(bool enabled) noexcept { g_colorBlindPaletteEnabled = enabled; }
+
+bool MineButton::colorBlindPaletteEnabled() noexcept { return g_colorBlindPaletteEnabled; }
+
+void MineButton::refreshNumberStyle()
+{
+    // Only affects cells that were opened to a number. Unopened cells and
+    // mined cells (explosion / revealAsMine / wrong-flag) keep their own
+    // stylesheets; re-applying the opened-cell style over those would wipe
+    // the loss-state visuals.
+    if (!m_isClicked || m_isMined || m_number == 0)
+    {
+        return;
+    }
+    applyOpenedStyle();
+    const QColor color = numberColor(m_number);
+    setStyleSheet(styleSheet() + QStringLiteral("color: rgb(%1, %2, %3);").arg(color.red()).arg(color.green()).arg(color.blue()));
+}
 
 void MineButton::mousePressEvent(QMouseEvent *e)
 {

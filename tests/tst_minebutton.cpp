@@ -36,6 +36,11 @@ class TestMineButton : public QObject
     void testMiddlePressEmitsPressStart();
     void testMouseReleaseEmitsPressEnd();
     void testDisabledCellEmitsNoPressSignals();
+    void testColorBlindPaletteToggleStatic();
+    void testColorBlindPaletteAffectsOpenedNumberStyle();
+    void testRefreshNumberStyleIsNoOpOnUnopened();
+    void testRefreshNumberStyleIsNoOpOnMined();
+    void testRefreshNumberStyleIsNoOpOnZero();
     void cleanup();
 };
 
@@ -357,10 +362,92 @@ void TestMineButton::testDisabledCellEmitsNoPressSignals()
     QCOMPARE(startSpy.count(), 0);
 }
 
+void TestMineButton::testColorBlindPaletteToggleStatic()
+{
+    // Defaults off; setter flips the app-global bit in both directions.
+    QVERIFY(!MineButton::colorBlindPaletteEnabled());
+    MineButton::setColorBlindPaletteEnabled(true);
+    QVERIFY(MineButton::colorBlindPaletteEnabled());
+    MineButton::setColorBlindPaletteEnabled(false);
+    QVERIFY(!MineButton::colorBlindPaletteEnabled());
+}
+
+void TestMineButton::testColorBlindPaletteAffectsOpenedNumberStyle()
+{
+    // Open a numbered cell under the classic palette, snapshot its
+    // stylesheet, flip the palette, refresh, and confirm the color rule
+    // changed. We don't assert on specific RGB values — the palettes are
+    // an implementation detail and may be retuned; the contract is "it is
+    // different".
+    MineButton::setColorBlindPaletteEnabled(false);
+    MineButton btn(0, 0, nullptr);
+    btn.setNumber(3); // one of the classic-vs-Okabe-Ito divergent digits
+    btn.Open();
+    const QString classicStyle = btn.styleSheet();
+    QVERIFY(classicStyle.contains(QStringLiteral("color: rgb(")));
+
+    MineButton::setColorBlindPaletteEnabled(true);
+    btn.refreshNumberStyle();
+    const QString cbStyle = btn.styleSheet();
+    QVERIFY(cbStyle.contains(QStringLiteral("color: rgb(")));
+    QVERIFY(classicStyle != cbStyle);
+
+    // Flipping back restores the classic color rule. Using equality would
+    // be fragile against stylesheet whitespace; check that flipping again
+    // yields something that differs from the colourblind form.
+    MineButton::setColorBlindPaletteEnabled(false);
+    btn.refreshNumberStyle();
+    QVERIFY(btn.styleSheet() != cbStyle);
+}
+
+void TestMineButton::testRefreshNumberStyleIsNoOpOnUnopened()
+{
+    // An unopened cell has no numbered visual to refresh; refreshing must
+    // leave its baseline stylesheet alone (no colour rule injected).
+    MineButton::setColorBlindPaletteEnabled(true);
+    MineButton btn(0, 0, nullptr);
+    btn.setNumber(3);
+    const QString before = btn.styleSheet();
+    btn.refreshNumberStyle();
+    QCOMPARE(btn.styleSheet(), before);
+    QVERIFY(!btn.styleSheet().contains(QStringLiteral("color: rgb(")));
+}
+
+void TestMineButton::testRefreshNumberStyleIsNoOpOnMined()
+{
+    // A mined + opened cell shows the explosion style. Refreshing number
+    // style must not overwrite the loss-state visual with a number-coloured
+    // background.
+    MineButton btn(0, 0, nullptr);
+    btn.setMined();
+    btn.Open(); // paints kMineStyle
+    const QString afterExplosion = btn.styleSheet();
+    MineButton::setColorBlindPaletteEnabled(true);
+    btn.refreshNumberStyle();
+    QCOMPARE(btn.styleSheet(), afterExplosion);
+}
+
+void TestMineButton::testRefreshNumberStyleIsNoOpOnZero()
+{
+    // A number=0 opened cell has no visible digit, so the palette has
+    // nothing to re-render there. refreshNumberStyle must leave its
+    // stylesheet untouched regardless of palette mode — otherwise the
+    // opened background would flicker through palette toggles with no
+    // user-visible effect.
+    MineButton btn(0, 0, nullptr);
+    btn.setNumber(0);
+    btn.Open();
+    const QString before = btn.styleSheet();
+    MineButton::setColorBlindPaletteEnabled(true);
+    btn.refreshNumberStyle();
+    QCOMPARE(btn.styleSheet(), before);
+}
+
 void TestMineButton::cleanup()
 {
     // Every test leaves the global toggle in a defined state for the next one.
     MineButton::setQuestionMarksEnabled(true);
+    MineButton::setColorBlindPaletteEnabled(false);
 }
 
 QTEST_MAIN(TestMineButton)

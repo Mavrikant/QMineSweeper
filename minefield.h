@@ -101,6 +101,12 @@ class MineField : public QWidget
     // the user disables question marks mid-game so no cell is left stuck in `?`.
     void clearAllQuestionMarks();
 
+    // Sweep the live board and re-apply number-colour styles on every opened
+    // numbered cell. Used when the user toggles the colour-blind palette
+    // mid-game so the switch is visible immediately on the already-revealed
+    // board.
+    void refreshAllNumberStyles();
+
     // Test helper: deterministic layout with explicit mine positions.
     void setFixedLayout(std::uint32_t width, std::uint32_t height, const std::vector<std::pair<std::uint32_t, std::uint32_t>> &minePositions);
 
