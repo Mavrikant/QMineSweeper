@@ -1,5 +1,59 @@
 # Cycle decisions
 
+## 2026-04-25 — Win streak per difficulty (v1.16.0)
+
+**Chosen:** Track current and best win streak per difficulty in the
+existing per-difficulty `Stats::Record`. `recordWin` increments
+`currentStreak`, updates `bestStreak` when current exceeds it, and
+stamps `bestStreakDate` on the high-water-mark moment. `recordLoss`
+zeroes `currentStreak` (per the difficulty being played) and leaves
+the best alone. Surface a "Streak" column in the Statistics dialog
+(`current/best`, `—` when both are zero) and a `🔥 Streak: N` flair
+on the win dialog when current ≥ 2, swapped for `🌟 New best streak!`
+when the high-water mark grows. Replays and Custom games stay
+excluded — same exclusion rule as `played`/`won`/`bestSeconds`, so
+neither a memorised-board win nor a custom-grid loss can game the
+streak.
+
+**Why this one (cycle 13):** Last cycle's "Next candidates" list
+re-stated the same four parked-multiple-times items (save-and-resume,
+per-layout leaderboard, color-blind palette, hint button), every one
+of which is multi-cycle work or design-heavy. Win streak slots in
+underneath all of them: small (~150 LOC core), zero risk to game
+logic, additive Stats schema (legacy records load with zero streak),
+and engagement payoff is real — it pairs naturally with the
+speedrun-aware direction (best-time-with-date in v1.3.0, no-flag
+bracket in v1.13.0, 3BV/s in v1.14.0, efficiency in v1.15.0). One
+cycle, one feature, ships clean.
+
+**Rejected alternatives:**
+
+- **Global streak (not per-difficulty).** A Beginner win after an
+  Expert loss would extend the streak; conceptually muddled and
+  unfair to the player switching difficulties. Per-difficulty
+  matches the rest of the schema.
+- **Reset other difficulties' streaks on a loss.** A Beginner loss
+  doesn't say anything about Expert skill; cross-difficulty resets
+  punish exploration. Per-difficulty losses only.
+- **Time-window streaks (e.g. last 24h).** Adds a clock-based
+  invalidation path and complicates persistence. Lifetime streaks
+  match `played`/`won`/`bestSeconds`'s lifetime semantics.
+- **Track streak length history (last N) for an "average streak"
+  number.** Inflates schema for marginal display value. Two scalars
+  (current + best) cover 95 % of the engagement story.
+- **Only show on the win dialog (no Stats column).** Hides the best
+  streak when the user wants to look it up between games. The
+  Statistics dialog is the one place to see lifetime aggregates;
+  streak belongs there.
+- **Pre-deduct on first-click loss.** First-click loss can't happen
+  on a real game (first-click safety) but can on replay. Replays are
+  excluded from streaks anyway, so no special-case needed.
+- **Reset on `New Game` mid-run.** Conceptually — abandoning a game
+  and starting another is a "loss" of intent. But it's never been
+  counted as a loss in `played`, so streak follows the same rule:
+  only an explicit Lost state resets. Avoids surprising the user
+  who hits Ctrl+N out of curiosity.
+
 ## 2026-04-25 — Click count + Efficiency % metric (v1.15.0)
 
 **Chosen:** Track every user gesture that reveals at least one cell —
