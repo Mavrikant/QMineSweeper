@@ -16,7 +16,13 @@
 - **Shipped:**
   - Branch: `feat/loss-dialog-flags-placed`
   - PR: [#42](https://github.com/Mavrikant/QMineSweeper/pull/42)
+    (squash-merged as `39dca4f`)
   - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.24.0
+  - Release workflow `24929128997` green; all 5 assets +
+    `SHA256SUMS.txt` published. Hand-written user-facing release notes
+    installed via `gh release edit` (the auto-generated body is
+    raw commit-list noise; the rewritten copy explains *why* a player
+    reading the recap should care about flag count).
 - **Code surface:** ~1 line getter on `MineField` + ~6 lines in
   `mainwindow.cpp` (read flag count, thread parameter, append gated
   line, telemetry tag) + 5 new `tst_minefield` regression tests + 1 new
@@ -94,7 +100,13 @@
   - *Performance?* O(1) read of an int counter; nothing in any hot
     path.
   - *Concurrency?* Single-threaded; no new shared state.
-- **Post-release watch:** [filled after release publishes]
+- **Post-release watch (T+~5min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.24.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and the assets just
+  published with zero downloads. The signal worth watching for is
+  *any* new group tagged with the 1.24.0 release; none observed.
+  Watch closed.
 - **Next candidates:**
   - **3BV: %1 line on the loss dialog** — surfaces the *board's*
     objective difficulty as a 5th line, complementing the four
