@@ -541,7 +541,7 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("streak"), QString::number(outcome.currentStreak)},
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -554,14 +554,18 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     setWindowTitle(tr("QMineSweeper — Boom"));
     const QString diffName = difficultyName(m_currentDifficulty);
     const int safePercent = ui->mineFieldWidget->safePercentCleared();
+    Stats::LossOutcome lossOutcome{};
     if (!m_isReplay && !m_isCustom)
     {
         // Pass safePercent so Stats can update the per-difficulty
         // best-partial-clear hall-of-fame (surfaced in the Stats dialog only
         // when the user has never won this difficulty). Replays / custom
         // games are excluded for the same reason wins are: a memorised
-        // board would let the user inflate the lifetime record.
-        Stats::recordLoss(diffName, safePercent);
+        // board would let the user inflate the lifetime record. The
+        // returned LossOutcome carries `newBestSafePercent` so the loss
+        // dialog can flair on a fresh hall-of-fame entry, parallel to the
+        // win-side `🏆 New record!` flair.
+        lossOutcome = Stats::recordLoss(diffName, safePercent);
     }
     const int clicks = ui->mineFieldWidget->userClicks();
     const int flags = ui->mineFieldWidget->flagsPlaced();
@@ -581,8 +585,9 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("partial_bv"), QString::number(partialBv)},
                                                             {QStringLiteral("partial_bv_per_second"), QString::asprintf("%.2f", partialBvRate)},
                                                             {QStringLiteral("qmarks"), QString::number(qmarks)},
+                                                            {QStringLiteral("new_best_safe_percent"), lossOutcome.newBestSafePercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -793,7 +798,7 @@ void MainWindow::updateTimerLabel()
 }
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
-                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond)
+                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -887,6 +892,17 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (lossQuestionMarks > 0)
         {
             text += QStringLiteral("\n") + tr("Question marks: %1").arg(lossQuestionMarks);
+        }
+        // Mirror of the win-side `🏆 New record!` prepend: a fresh per-difficulty
+        // partial-clear hall-of-fame entry deserves a celebratory flair on the
+        // loss dialog too. `lossNewBestSafePercent` is true iff `Stats::recordLoss`
+        // strictly beat the prior `bestSafePercent` for this difficulty (only
+        // possible on standard, non-replay difficulties — same gate as the
+        // recorded-loss path itself), so a first-click boom (0% cleared) and a
+        // replay loss never flair.
+        if (lossNewBestSafePercent)
+        {
+            text.prepend(tr("🎯 New best %!") + QStringLiteral("  "));
         }
         box.setText(text);
         box.setIcon(QMessageBox::Warning);

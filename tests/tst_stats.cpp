@@ -72,6 +72,16 @@ class TestStats : public QObject
     void testResetWipesBestSafePercent();
     void testResetAllWipesBestSafePercent();
     void testLegacyRecordWithoutBestSafePercentLoadsAsZero();
+
+    // LossOutcome — `🎯 New best %!` flair gate
+    void testLossOutcomeDefaultArgsReturnsNoNewBest();
+    void testLossOutcomeWithZeroPercentReturnsNoNewBest();
+    void testLossOutcomeFirstPositivePercentReturnsNewBest();
+    void testLossOutcomeHigherPercentReturnsNewBest();
+    void testLossOutcomeEqualPercentReturnsNoNewBest();
+    void testLossOutcomeLowerPercentReturnsNoNewBest();
+    void testLossOutcomeOverflowAtCapReturnsNoNewBest();
+    void testLossOutcomeBoolConversion();
 };
 
 void TestStats::initTestCase()
@@ -656,6 +666,78 @@ void TestStats::testLegacyRecordWithoutBestSafePercentLoadsAsZero()
     QCOMPARE(r.played, 5u);
     QCOMPARE(r.bestSafePercent, 0u);
     QVERIFY(!r.bestSafePercentDate.isValid());
+}
+
+void TestStats::testLossOutcomeDefaultArgsReturnsNoNewBest()
+{
+    // Default-arg recordLoss (no percent supplied) cannot set a new best —
+    // safePercent==0 short-circuits the update path.
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"));
+    QVERIFY(!out.newBestSafePercent);
+    QVERIFY(!static_cast<bool>(out));
+}
+
+void TestStats::testLossOutcomeWithZeroPercentReturnsNoNewBest()
+{
+    // Explicit 0 percent (e.g. first-click boom) must never set the flair —
+    // mirrors the recordLoss zero-sentinel: no record persisted, no flair.
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 0, QDate{2026, 4, 25});
+    QVERIFY(!out.newBestSafePercent);
+}
+
+void TestStats::testLossOutcomeFirstPositivePercentReturnsNewBest()
+{
+    // The very first loss with safePercent > 0 transitions the field
+    // 0 → some positive value, which IS a new high-water mark — the flair
+    // must fire (parallel to the first-win == newRecord case).
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 47, QDate{2026, 4, 25});
+    QVERIFY(out.newBestSafePercent);
+    QVERIFY(static_cast<bool>(out));
+}
+
+void TestStats::testLossOutcomeHigherPercentReturnsNewBest()
+{
+    // A subsequent loss that strictly beats the prior best fires the flair.
+    Stats::recordLoss(QStringLiteral("Expert"), 30, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 70, QDate{2026, 4, 25});
+    QVERIFY(out.newBestSafePercent);
+}
+
+void TestStats::testLossOutcomeEqualPercentReturnsNoNewBest()
+{
+    // Strict greater-than semantics: a tie with the prior best does NOT fire
+    // the flair (matches the persistence layer's date-pin behaviour).
+    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    QVERIFY(!out.newBestSafePercent);
+}
+
+void TestStats::testLossOutcomeLowerPercentReturnsNoNewBest()
+{
+    // A worse loss leaves the prior record intact — no flair.
+    Stats::recordLoss(QStringLiteral("Expert"), 70, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 50, QDate{2026, 4, 25});
+    QVERIFY(!out.newBestSafePercent);
+}
+
+void TestStats::testLossOutcomeOverflowAtCapReturnsNoNewBest()
+{
+    // Defence-in-depth: an overflowed value clamps to 100 in the persisted
+    // record. Once a record has been clamped to 100, a subsequent overflow
+    // call is a tie, NOT a new best — so the flair must not fire twice.
+    Stats::recordLoss(QStringLiteral("Expert"), 200, QDate{2026, 1, 1});
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 250, QDate{2026, 4, 25});
+    QVERIFY(!out.newBestSafePercent);
+}
+
+void TestStats::testLossOutcomeBoolConversion()
+{
+    // The explicit operator bool exists so future call sites can do
+    // `if (Stats::recordLoss(...))`. Confirm it tracks newBestSafePercent.
+    const auto first = Stats::recordLoss(QStringLiteral("Beginner"), 30, QDate{2026, 4, 25});
+    QVERIFY(static_cast<bool>(first));
+    const auto tie = Stats::recordLoss(QStringLiteral("Beginner"), 30, QDate{2026, 4, 25});
+    QVERIFY(!static_cast<bool>(tie));
 }
 
 QTEST_MAIN(TestStats)
