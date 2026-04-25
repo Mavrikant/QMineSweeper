@@ -10,7 +10,8 @@
 // stats/<DifficultyName>/{played,won,best_seconds,best_date,
 // best_noflag_seconds,best_noflag_date,streak_current,streak_best,
 // streak_best_date,best_safe_percent,best_safe_percent_date,
-// best_bv_per_second,best_bv_per_second_date} tree.
+// best_bv_per_second,best_bv_per_second_date,
+// best_flag_accuracy_percent,best_flag_accuracy_date} tree.
 // Best-time is stored as seconds (double); 0 means "no win recorded yet".
 // Best-date is the calendar date (ISO 8601) on which the current best-time
 // run was completed; invalid/empty when no win has been recorded. The
@@ -27,6 +28,16 @@
 // best-bv-per-second pair is the highest 3BV/s ever recorded on a *win*
 // — independent of bestSeconds because a faster clock on a smaller
 // board can yield a lower 3BV/s, and vice versa.
+// The best-flag-accuracy pair is the highest flag-placement accuracy
+// (correctFlags / flagsPlaced · 100, rounded to integer percent) ever
+// recorded on a *loss* in this difficulty — surfaced as a Stats-dialog
+// column to mirror the v1.32 per-loss "Correct flags: X / Y" line.
+// Only updated on losses where the player placed at least one flag and
+// the rounded accuracy strictly beats the prior record. 0 == no record
+// yet; in production a value of 0 cannot persist (the gate requires a
+// strictly-greater positive result), so the sentinel is always a clean
+// "never recorded" signal — a lone wrong-flag loss leaves the field
+// untouched.
 namespace Stats
 {
 struct Record
@@ -39,11 +50,13 @@ struct Record
     QDate bestNoflagDate{};        // invalid when no no-flag record yet
     std::uint32_t currentStreak{0};
     std::uint32_t bestStreak{0};
-    QDate bestStreakDate{};           // invalid when no streak recorded yet
-    std::uint32_t bestSafePercent{0}; // [0, 100]; 0 == no partial-clear record yet
-    QDate bestSafePercentDate{};      // invalid when no partial-clear record yet
-    double bestBvPerSecond{0.0};      // 0 == no 3BV/s record yet
-    QDate bestBvPerSecondDate{};      // invalid when no 3BV/s record yet
+    QDate bestStreakDate{};                   // invalid when no streak recorded yet
+    std::uint32_t bestSafePercent{0};         // [0, 100]; 0 == no partial-clear record yet
+    QDate bestSafePercentDate{};              // invalid when no partial-clear record yet
+    double bestBvPerSecond{0.0};              // 0 == no 3BV/s record yet
+    QDate bestBvPerSecondDate{};              // invalid when no 3BV/s record yet
+    std::uint32_t bestFlagAccuracyPercent{0}; // [0, 100]; 0 == no flag-accuracy record yet
+    QDate bestFlagAccuracyDate{};             // invalid when no flag-accuracy record yet
 };
 
 // Outcome of a recordWin call. `newRecord` matches the prior boolean return:
@@ -76,10 +89,22 @@ struct WinOutcome
 struct LossOutcome
 {
     bool newBestSafePercent{false};
+    // True iff `flagAccuracyPercent` strictly beat the prior
+    // `bestFlagAccuracyPercent` for this difficulty (including the very first
+    // loss with `flagAccuracyPercent > 0`, when the field transitions 0 →
+    // some positive value). Drives a future loss-dialog flair if/when one
+    // ships; for now it's surfaced through telemetry alongside the existing
+    // `new_best_safe_percent` tag so flag-accuracy distributions can be
+    // analysed.
+    bool newBestFlagAccuracyPercent{false};
 
     // Mirror of WinOutcome::operator bool — explicit so accidental assignment
     // to `bool` still requires `.newBestSafePercent`. Lets future call sites
-    // do `if (Stats::recordLoss(...))` if they want.
+    // do `if (Stats::recordLoss(...))` if they want. Bool conversion
+    // intentionally tracks ONLY `newBestSafePercent` so existing callers
+    // (and the v1.29.0 🎯 flair gate) keep their pre-1.33 semantics — a
+    // freshly-set flag-accuracy record on a loss that didn't also set a
+    // safe-percent record returns false.
     explicit operator bool() const noexcept { return newBestSafePercent; }
 };
 
@@ -95,9 +120,15 @@ void resetAll();
 // stamps `bestSafePercentDate` with `onDate`. Defaults to 0 so existing
 // callers (and tests) are source-compatible — a 0 percent will never set or
 // touch the partial-clear best, mirroring the recordWin sentinel for 0
-// seconds. Returns LossOutcome so callers can surface "New best %!" flair
-// on the end-of-game dialog; ignoring the return value is harmless.
-LossOutcome recordLoss(const QString &difficultyName, int safePercent = 0, const QDate &onDate = QDate::currentDate());
+// seconds. `flagAccuracyPercent` is the rounded percentage of the user's
+// placed flags that landed on actual mines at the moment of explosion
+// (0..100); same semantics as `safePercent` — strictly greater than the
+// current `bestFlagAccuracyPercent` overwrites the field and stamps
+// `bestFlagAccuracyDate` with `onDate`; defaults to 0 so the 12 pre-1.33
+// recordLoss test sites stay source-compatible. Returns LossOutcome so
+// callers can surface "New best %!" flair on the end-of-game dialog;
+// ignoring the return value is harmless.
+LossOutcome recordLoss(const QString &difficultyName, int safePercent = 0, int flagAccuracyPercent = 0, const QDate &onDate = QDate::currentDate());
 
 // Convenience: increment Played + Won, update bestSeconds if the run was
 // faster (or no prior record), increment currentStreak, and roll bestStreak
