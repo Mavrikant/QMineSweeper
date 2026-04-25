@@ -4,6 +4,7 @@
 #include "language.h"
 #include "stats.h"
 #include "telemetry.h"
+#include "time_format.h"
 #include "tutorial.h"
 
 #include <QAction>
@@ -659,7 +660,7 @@ void MainWindow::resetTimerUi()
 {
     m_displayTimer->stop();
     m_lastElapsedSeconds = 0.0;
-    ui->Time->setText(QStringLiteral("000.0"));
+    ui->Time->setText(formatElapsedTime(0.0));
 }
 
 void MainWindow::setSmileyState(GameState state)
@@ -768,7 +769,7 @@ void MainWindow::updatePauseAction()
 void MainWindow::updateTimerLabel()
 {
     const double secs = m_displayTimer->isActive() ? elapsedSeconds() : m_lastElapsedSeconds;
-    ui->Time->setText(QString::asprintf("%05.1f", secs));
+    ui->Time->setText(formatElapsedTime(secs));
 }
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, std::uint32_t currentStreak, bool newBestStreak)
