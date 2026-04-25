@@ -882,10 +882,13 @@ void MainWindow::showStatsDialog()
         {
             return QStringLiteral("—");
         }
-        QString s = QString::asprintf("%.1f s", seconds);
+        // Duration-aware clock format matches the live timer label.
+        // The "s" unit is dropped because the column header carries it
+        // and "s" reads wrong on M:SS.S / H:MM:SS.S values.
+        QString s = formatElapsedTime(seconds);
         if (date.isValid())
         {
-            // Locale-formatted date in parentheses, e.g. "15.5 s (23.04.2026)".
+            // Locale-formatted date in parentheses, e.g. "1:30.5 (23.04.2026)".
             // Inline (vs. a separate column) keeps the row narrow and avoids
             // introducing another translatable column header per stat.
             s += QStringLiteral("  (") + QLocale().toString(date, QLocale::ShortFormat) + QStringLiteral(")");
