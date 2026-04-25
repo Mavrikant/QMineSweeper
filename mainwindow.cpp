@@ -14,6 +14,7 @@
 #include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFont>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -1001,7 +1002,7 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(3, 8, &dlg);
+    auto *table = new QTableWidget(4, 8, &dlg);
     table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best flag accuracy")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
@@ -1069,6 +1070,8 @@ void MainWindow::showStatsDialog()
         }
         return QStringLiteral("—");
     };
+    std::uint64_t totalPlayed = 0;
+    std::uint64_t totalWon = 0;
     for (int i = 0; i < 3; ++i)
     {
         const Stats::Record rec = Stats::load(QString::fromLatin1(rows[i].key));
@@ -1081,7 +1084,30 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 5, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
         table->setItem(i, 6, new QTableWidgetItem(formatBvPerSecondCell(rec.bestBvPerSecond, rec.bestBvPerSecondDate)));
         table->setItem(i, 7, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
+        totalPlayed += rec.played;
+        totalWon += rec.won;
     }
+    // "Total" row aggregates Played and Won across all three difficulties.
+    // Best-time / best-streak / best-3BV/s / best-flag-accuracy columns
+    // collapse to em-dash because per-difficulty bests don't sum or
+    // average meaningfully across difficulties of different sizes.
+    const QString totalWinRate = totalPlayed > 0 ? QStringLiteral(" (%1%)").arg(100 * totalWon / totalPlayed) : QString{};
+    QFont totalFont = table->font();
+    totalFont.setBold(true);
+    const auto makeTotalItem = [&totalFont](const QString &text)
+    {
+        auto *item = new QTableWidgetItem(text);
+        item->setFont(totalFont);
+        return item;
+    };
+    table->setItem(3, 0, makeTotalItem(tr("Total")));
+    table->setItem(3, 1, makeTotalItem(QString::number(totalPlayed)));
+    table->setItem(3, 2, makeTotalItem(QString::number(totalWon) + totalWinRate));
+    table->setItem(3, 3, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 4, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 5, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 6, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 7, makeTotalItem(QStringLiteral("—")));
     table->resizeColumnsToContents();
 
     layout->addWidget(table);
