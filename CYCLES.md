@@ -1,5 +1,117 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 18 — v1.21.0 (autonomous)
+
+- **Chosen problem:** The end-of-game **Boom** dialog still read just
+  `You stepped on a mine.` — no run length, no context. After v1.18.0
+  (live timer), v1.19.0 (stats best-time columns), and v1.20.0 (win
+  dialog) all migrated their duration display onto the
+  `formatElapsedTime` helper (`S.S` / `M:SS.S` / `H:MM:SS.S`), the
+  loss dialog was the only duration-relevant surface that still
+  showed nothing at all. Cycle 17 explicitly parked nothing here, but
+  the parity gap was the cleanest visible dangler in the loss UX —
+  players had no way to gauge how far into a run their mistake landed.
+- **Evidence:** `mainwindow.cpp:821` — `box.setText(tr("You stepped on
+  a mine."));` is the entire body text of the loss dialog. The win
+  dialog directly above it composes a multi-line `text` with
+  `formatElapsedTime(m_lastElapsedSeconds)`. `m_lastElapsedSeconds` is
+  already populated by `onGameLost` for the toolbar refresh; nothing
+  new to thread.
+- **Shipped:**
+  - Branch: `feat/loss-dialog-duration` (squash-merged + deleted)
+  - PR: [#39](https://github.com/Mavrikant/QMineSweeper/pull/39)
+  - Squash commit: `c71150b`
+  - Tag: `v1.21.0`
+  - Release: [v1.21.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.21.0)
+- **Diff shape:** 13 files, +243 / -182. Semantic change is **3 LOC**
+  in `mainwindow.cpp` (compose a two-line `text`, append the new
+  `formatElapsedTime` line, set on the box), **1 LOC** in
+  `CMakeLists.txt` (1.20.0 → 1.21.0), and **9 LOC** in
+  `translations/apply_translations.py` (one entry per hand-locale).
+  Remainder is `lupdate` rewriting line-number metadata across all 10
+  `.ts` files for the new key. Well under the 400-LOC cycle cap.
+- **Format chosen:** identical to win dialog.
+  - `< 60 s` → `S.S` (`You survived for 45.0.`)
+  - `60..3600 s` → `M:SS.S` (`You survived for 12:34.5.`)
+  - `≥ 1 h` → `H:MM:SS.S` (`You survived for 1:00:00.5.`)
+  - First-click loss on replay: `m_lastElapsedSeconds` is small but
+    positive (the press emitted `gameStarted` before the explosion);
+    renders as `0.0` or e.g. `0.1`. Internally consistent with the
+    live timer reading at the moment of explosion.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. `lupdate` reports **93 finished / 0 unfinished** across
+  every hand-locale. Existing `You stepped on a mine.` translation
+  preserved verbatim — the duration line is appended on a new line,
+  not substituted.
+- **Assumptions made:**
+  - **Append, don't replace.** Replacing the message would force a
+    rewrite of `You stepped on a mine.` across 9 hand-locales for
+    cosmetic prose elegance. Two short sentences read just as well
+    and cost zero churn on the existing translation.
+  - **Always show the line, even when zero.** First-click loss on
+    replay yields `0.0`-ish; consistent with how the live timer
+    reads at the same moment. A guard (`if elapsed > 0.05`) would
+    make the dialog inconsistent across runs.
+  - **No persistence change.** No new QSettings keys, no schema bump.
+    Only the rendering path changes.
+  - **No new test scaffold.** Identical risk profile to v1.18 / v1.19
+    / v1.20 — single tr() call into a helper already pinned by 14
+    deterministic test cases in `tst_time_format`. A `MainWindow`-
+    level dialog test would cost more in scaffolding than it earns.
+  - **"You survived for"** vs **"Time:"**. Mirrors the win dialog's
+    full-sentence register (`You cleared the field in %1.`). A flat
+    label clashes with the rest of the dialog body.
+- **Skipped:**
+  - *Hide duration on first-click loss.* See above — would create
+    inconsistent reads across runs and add a guard for a one-edge-case
+    aesthetic.
+  - *Show "% of board cleared" on loss.* Tempting feedback for
+    learning, but adds another translatable string and another
+    rendering branch. Not this cycle.
+  - *Show 3BV / clicks / efficiency on loss.* These metrics are
+    win-only by definition (3BV is "minimum clicks to **clear**");
+    partial completion has no canonical analog.
+  - *Hint button (limited per game).* Still parked — needs a small
+    deterministic solver and a ~250-400 LOC slice. Multi-cycle.
+  - *Save-and-resume across launches.* Still parked — board state +
+    marker state + timer offset + QSettings schema bump. Multi-cycle.
+- **UI smoke:** `ctest` 6/6 green; `clang-format` clean across all
+  `.cpp` / `.h` / `tests/*.cpp`. Compiled Debug bundle on macOS
+  (Qt 6.11) without warnings. The `formatElapsedTime` helper is
+  already pinned by `tst_time_format` (14 cases including 7.3, 45.0,
+  90.5, 754.5, 3600.5, 0.0, -1.0).
+- **Risks logged:** none new. No persistence change, no signal/slot
+  wiring, no public API change. Worst case is a loss-dialog format
+  regression caught by `tst_time_format` if the helper itself drifts.
+- **Post-release watch (T+~3 min):** Release workflow
+  [run 24924905588](https://github.com/Mavrikant/QMineSweeper/actions/runs/24924905588)
+  green across all three platforms in 1m53s (macOS), 1m16s (Windows),
+  1m26s (Linux) — total wall-clock ~2 min. Five assets published
+  (Linux AppImage, Linux tar.gz, macOS universal DMG, Windows x64
+  ZIP, plus `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for `release:qminesweeper@1.21.0` in the last hour
+  returned **zero issues**. Expected: opt-in telemetry, assets fresh,
+  no install has had a chance to fire a release-health session yet.
+  GitHub release body rewritten from the auto-generated stub to
+  user-facing prose covering the new loss-dialog line, per-platform
+  downloads, and the macOS quarantine note. Watch closed.
+- **Next candidates:**
+  - Save-and-resume across launches (still parked; multi-cycle).
+  - Hint button (limited per-game; needs a small deterministic
+    solver).
+  - Daily / "games played today" mini-counter on the win/loss dialog
+    — derived from QSettings + QDate; small but burns translation
+    churn (~2 strings × 9 locales).
+  - Per-layout best-time leaderboard (mine-position hash + new
+    persistence schema; multi-cycle).
+  - Optional `Settings → Show tenths-of-a-second on the live timer`
+    toggle for players who want a steadier `S` / `M:SS` / `H:MM:SS`
+    clock without the flicker. Cheap; one new translatable checkbox
+    label.
+  - "% of board cleared" on the loss dialog — informative for
+    learning ("you were 87% there before stepping on it"); one extra
+    translatable string × 9 locales.
+
 ## 2026-04-25 — Cycle 17 — v1.20.0 (autonomous)
 
 - **Chosen problem:** The end-of-game **You won!** dialog still
