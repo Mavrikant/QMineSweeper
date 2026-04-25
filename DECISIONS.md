@@ -1,5 +1,96 @@
 # Cycle decisions
 
+## 2026-04-25 — Win dialog: ⚡ New best 3BV/s flair (v1.30.0)
+
+**Chosen:** Add a per-difficulty lifetime `bestBvPerSecond` (double) +
+`bestBvPerSecondDate` (QDate) pair to `Stats::Record`, and on a win
+that strictly beats the prior rate, surface a `⚡ New best 3BV/s!`
+flair on the win dialog. Mirrors the existing `🏆 New record!` flair
+gate but for the canonical efficiency metric (3BV/s) instead of pure
+clock time.
+
+**Why this and not something else:**
+- The cycle 24, 25, 26 logs all explicitly re-parked this as the
+  next-highest-value win-side feature. Three deferrals is enough — the
+  persistence-layer cost is fixed (two new keys, two new fields) and
+  small enough to fit a single cycle.
+- 3BV/s is the canonical Minesweeper efficiency metric (already
+  surfaced on every win dialog since v1.14.0 as the "3BV: %1 ·
+  3BV/s: %2" line). A new personal best at 3BV/s is the speedrun
+  community's primary progress signal — much more meaningful than a
+  faster clock time on a lower-3BV (i.e. easier) board.
+- The win dialog already has three flair slots (`🏆`, `🌟`, `🔥`,
+  plus the `🏃` no-flag prefix). Adding `⚡` for "New best 3BV/s!"
+  completes the speedrun-recognition picture in one micro-feature.
+
+**Independence from the existing `🏆 New record!` flair:**
+- Best-time and best-3BV/s are independent records. A faster win on a
+  smaller board could set a new best clock without touching 3BV/s
+  (lower 3BV → lower 3BV/s); a slower win on a denser board could set
+  a new best 3BV/s without beating the clock. The cycle's tests pin
+  both axes independently.
+- Both flairs can fire on the same dialog. The render order (top to
+  bottom): `⚡` → `🌟`/`🔥` → `🏃` → `🏆`. Pre-prepended bottom-up so
+  the user reads the strongest result (`🏆 New record!`) first, then
+  the modifiers. Pinned by `WinOutcome` field ordering and the
+  prepend-only `showEndDialog` path.
+
+**Strict greater-than semantics:**
+- A tie does NOT bump the date or fire the flair. Mirrors the
+  best-streak / best-percent-cleared convention pinned in cycles 22
+  and 25. Floating-point rounding makes ties effectively impossible
+  in practice (3BV/s is double-precision), but the semantics matter
+  for the rare deterministic case (e.g. a fixed-layout test, a
+  pathological setFixedLayout-with-known-bv run).
+- Persistence layer guards against `bvPerSecond <= 0.0` — a
+  sub-tick win (only reachable from `setFixedLayout`-driven test
+  setups; the live timer always advances at least 0.1s) returns
+  `bvRate == 0.0` and skips the update path entirely. Mirror of the
+  `recordWin` zero-seconds sentinel.
+
+**Replay/custom exclusion (already in place):**
+- The new path runs inside `MainWindow::onGameWon`'s existing
+  `!excludedFromStats` branch (replay or custom games skip
+  `recordWin` entirely), so a memorised-board run can never set a
+  new lifetime best 3BV/s. No new gate needed.
+
+**API shape:**
+- New parameter on `recordWin`: `double bvPerSecond = 0.0` (trailing
+  default, source-compat for existing callers and 17 test sites).
+- `WinOutcome` gains `bool newBestBvPerSecond{false}` (additive
+  field; existing readers of `newRecord` / `currentStreak` /
+  `newBestStreak` are unaffected).
+- `MainWindow::showEndDialog` gains a 16th positional parameter
+  `bool winNewBestBvPerSecond`. The 14-then-15 parameter pattern
+  established in v1.28.0 / v1.29.0 stays — a struct refactor would
+  be churn for no net benefit at this size.
+
+**Why a new flair string and not reuse `🏆 New record!`:**
+- The existing flair semantically means "fastest clock time ever".
+  Reusing it for "best 3BV/s" would conflate two different records
+  and break the user's intuition built up since v1.3.0. A distinct
+  glyph (`⚡` for speed/electricity, recognisable as efficiency) +
+  distinct copy (`New best 3BV/s!`) keeps the records visually
+  separated.
+
+**Telemetry:**
+- Add `new_best_bv_per_second` boolean tag on `game.won`. Mirrors
+  v1.29.0's `new_best_safe_percent` tag on `game.lost`. Lets us see
+  the 3BV/s record-bump frequency without inspecting individual
+  payloads.
+
+**Skipped (parked for next cycle):**
+- *Stats-dialog "Best 3BV/s" column.* The Stats-side counterpart to
+  this flair. Bundle into a near-future cycle to amortise the column
+  header translation cost (10 locales × 1 string).
+- *Loss-dialog "Time since last win" line.* Needs a new
+  `last_win_date` field (separate from `bestDate`, which is the date
+  of the best-time win, not the most recent). Defer to a future
+  cycle.
+- *Reset of `bestBvPerSecond` on a stats schema migration.* Not
+  needed — additive QSettings keys load as 0.0 / invalid date for
+  upgrading users; the first 1.30.0 win seeds the record naturally.
+
 ## 2026-04-25 — Loss dialog: partial-3BV line (v1.27.0)
 
 **Chosen:** Replace v1.25.0's static `Board 3BV: %1` line on the loss

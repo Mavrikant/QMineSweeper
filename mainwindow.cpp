@@ -510,20 +510,25 @@ void MainWindow::onGameWon()
     // an arbitrary grid size is not comparable to the standards.
     const bool excludedFromStats = m_isReplay || m_isCustom;
     const bool noflagWin = !ui->mineFieldWidget->anyFlagPlaced();
+    const int bv = ui->mineFieldWidget->boardValue();
+    // Guard against div-by-zero on a sub-tick win (pathological setFixedLayout
+    // case in tests; in real play the timer always advances at least 0.1s).
+    const double bvRate = (m_lastElapsedSeconds > 0.05) ? (bv / m_lastElapsedSeconds) : 0.0;
     Stats::WinOutcome outcome{};
     if (!excludedFromStats)
     {
-        outcome = Stats::recordWin(diffName, m_lastElapsedSeconds);
+        // Threading bvRate into recordWin lets the persistence layer maintain
+        // the per-difficulty `bestBvPerSecond` hall-of-fame; the returned
+        // WinOutcome.newBestBvPerSecond drives the win-dialog
+        // `⚡ New best 3BV/s!` flair, parallel to `🏆 New record!` /
+        // `🌟 New best streak!`.
+        outcome = Stats::recordWin(diffName, m_lastElapsedSeconds, QDate::currentDate(), bvRate);
     }
     const bool newRecord = outcome.newRecord;
     if (!excludedFromStats && noflagWin)
     {
         Stats::recordNoflagBest(diffName, m_lastElapsedSeconds);
     }
-    const int bv = ui->mineFieldWidget->boardValue();
-    // Guard against div-by-zero on a sub-tick win (pathological setFixedLayout
-    // case in tests; in real play the timer always advances at least 0.1s).
-    const double bvRate = (m_lastElapsedSeconds > 0.05) ? (bv / m_lastElapsedSeconds) : 0.0;
     const int clicks = ui->mineFieldWidget->userClicks();
     // Efficiency = 3BV / useful clicks · 100, rounded. Uncapped — chord-heavy
     // play legitimately yields >100 % and the speedrun community reports it.
@@ -540,8 +545,9 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("efficiency"), QString::number(efficiency)},
                                                            {QStringLiteral("streak"), QString::number(outcome.currentStreak)},
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
+                                                           {QStringLiteral("new_best_bv_per_second"), outcome.newBestBvPerSecond ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -587,7 +593,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("qmarks"), QString::number(qmarks)},
                                                             {QStringLiteral("new_best_safe_percent"), lossOutcome.newBestSafePercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -798,7 +804,7 @@ void MainWindow::updateTimerLabel()
 }
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
-                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent)
+                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -838,6 +844,17 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         else if (currentStreak >= 2)
         {
             text.prepend(tr("🔥 Streak: %1").arg(currentStreak) + QStringLiteral("  "));
+        }
+        // 3BV/s record flair — fires on a strict-greater-than personal best
+        // for this difficulty. Independent of `newRecord` (best clock time)
+        // because best-time and best-3BV/s are independent records: a faster
+        // win on a smaller board can set a new clock without touching 3BV/s,
+        // and vice versa. Prepended last so it ends up leftmost — reading
+        // left-to-right the player sees ⚡ first, then 🌟/🔥, then 🏆, then
+        // 🏃, then the base "You cleared the field in …" line.
+        if (winNewBestBvPerSecond)
+        {
+            text.prepend(tr("⚡ New best 3BV/s!") + QStringLiteral("  "));
         }
         box.setText(text);
         box.setIcon(QMessageBox::Information);

@@ -82,6 +82,23 @@ class TestStats : public QObject
     void testLossOutcomeLowerPercentReturnsNoNewBest();
     void testLossOutcomeOverflowAtCapReturnsNoNewBest();
     void testLossOutcomeBoolConversion();
+
+    // best 3BV/s + WinOutcome.newBestBvPerSecond — `⚡ New best 3BV/s!` flair
+    void testBestBvPerSecondDefaultsZero();
+    void testRecordWinDefaultArgsKeepsBestBvPerSecondZero();
+    void testRecordWinWithBvRateSetsOnFirstCall();
+    void testRecordWinWithHigherBvRateBeats();
+    void testRecordWinWithLowerBvRateKeepsOriginal();
+    void testRecordWinWithEqualBvRateKeepsOriginalDate();
+    void testRecordWinWithZeroBvRateNoOp();
+    void testRecordWinWithNegativeBvRateNoOp();
+    void testRecordLossDoesNotTouchBestBvPerSecond();
+    void testBestBvPerSecondIsPerDifficulty();
+    void testResetWipesBestBvPerSecond();
+    void testResetAllWipesBestBvPerSecond();
+    void testLegacyRecordWithoutBestBvPerSecondLoadsAsZero();
+    void testFasterClockMayNotBeatBvRateAndViceVersa();
+    void testWinOutcomeBvRateIndependentOfNewRecord();
 };
 
 void TestStats::initTestCase()
@@ -738,6 +755,214 @@ void TestStats::testLossOutcomeBoolConversion()
     QVERIFY(static_cast<bool>(first));
     const auto tie = Stats::recordLoss(QStringLiteral("Beginner"), 30, QDate{2026, 4, 25});
     QVERIFY(!static_cast<bool>(tie));
+}
+
+void TestStats::testBestBvPerSecondDefaultsZero()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestBvPerSecond, 0.0);
+    QVERIFY(!r.bestBvPerSecondDate.isValid());
+}
+
+void TestStats::testRecordWinDefaultArgsKeepsBestBvPerSecondZero()
+{
+    // Default-arg recordWin (no bvPerSecond supplied) must not touch the
+    // 3BV/s best — preserves source-compat for the 17 pre-1.30 test sites
+    // that don't care about the new field.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    QVERIFY(!out.newBestBvPerSecond);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestBvPerSecond, 0.0);
+    QVERIFY(!r.bestBvPerSecondDate.isValid());
+}
+
+void TestStats::testRecordWinWithBvRateSetsOnFirstCall()
+{
+    const QDate d{2026, 4, 25};
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0, d, 2.5);
+    QVERIFY(out.newBestBvPerSecond);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestBvPerSecond, 2.5);
+    QCOMPARE(r.bestBvPerSecondDate, d);
+}
+
+void TestStats::testRecordWinWithHigherBvRateBeats()
+{
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 250.0, d1, 1.20).newBestBvPerSecond);
+    const auto out = Stats::recordWin(QStringLiteral("Expert"), 240.0, d2, 1.55);
+    QVERIFY(out.newBestBvPerSecond);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestBvPerSecond, 1.55);
+    QCOMPARE(r.bestBvPerSecondDate, d2);
+}
+
+void TestStats::testRecordWinWithLowerBvRateKeepsOriginal()
+{
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 200.0, d1, 1.80).newBestBvPerSecond);
+    const auto out = Stats::recordWin(QStringLiteral("Expert"), 220.0, d2, 1.40);
+    QVERIFY(!out.newBestBvPerSecond);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestBvPerSecond, 1.80);
+    QCOMPARE(r.bestBvPerSecondDate, d1);
+}
+
+void TestStats::testRecordWinWithEqualBvRateKeepsOriginalDate()
+{
+    // Strict greater-than semantics: ties don't bump the date — mirrors the
+    // best-streak / best-percent date-pin convention. In production, FP
+    // rounding makes ties effectively impossible, but the semantics matter
+    // for fixed-layout test setups.
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 200.0, d1, 1.80).newBestBvPerSecond);
+    const auto out = Stats::recordWin(QStringLiteral("Expert"), 200.0, d2, 1.80);
+    QVERIFY(!out.newBestBvPerSecond);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestBvPerSecond, 1.80);
+    QCOMPARE(r.bestBvPerSecondDate, d1);
+}
+
+void TestStats::testRecordWinWithZeroBvRateNoOp()
+{
+    // First seed a non-zero best, then a zero-bvRate win must leave it.
+    // Mirrors the bestSeconds 0.0-sentinel — a sub-tick win (only reachable
+    // from setFixedLayout-driven test setups) skips the update path.
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 1, 1}, 1.40).newBestBvPerSecond);
+    const auto out = Stats::recordWin(QStringLiteral("Expert"), 220.0, QDate{2026, 4, 25}, 0.0);
+    QVERIFY(!out.newBestBvPerSecond);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.played, 2u);
+    QCOMPARE(r.bestBvPerSecond, 1.40);
+    QCOMPARE(r.bestBvPerSecondDate, (QDate{2026, 1, 1}));
+}
+
+void TestStats::testRecordWinWithNegativeBvRateNoOp()
+{
+    // Defence-in-depth: a future caller that passes a pathologically negative
+    // bvRate (arithmetic bug, sign flip) must not set the record. Mirrors the
+    // recordNoflagBest negative-second guard.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 25}, -1.5);
+    QVERIFY(!out.newBestBvPerSecond);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestBvPerSecond, 0.0);
+    QVERIFY(!r.bestBvPerSecondDate.isValid());
+}
+
+void TestStats::testRecordLossDoesNotTouchBestBvPerSecond()
+{
+    // Seed a 3BV/s best, then lose. recordLoss must not zero or overwrite the
+    // 3BV/s field — losses are accounted on a different axis.
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 1, 1}, 1.55).newBestBvPerSecond);
+    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestBvPerSecond, 1.55);
+    QCOMPARE(r.bestBvPerSecondDate, (QDate{2026, 1, 1}));
+}
+
+void TestStats::testBestBvPerSecondIsPerDifficulty()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 15.0, QDate{2026, 4, 25}, 3.20);
+    Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 4, 25}, 1.55);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestBvPerSecond, 3.20);
+    QCOMPARE(Stats::load(QStringLiteral("Intermediate")).bestBvPerSecond, 0.0);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestBvPerSecond, 1.55);
+}
+
+void TestStats::testResetWipesBestBvPerSecond()
+{
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 4, 25}, 1.55).newBestBvPerSecond);
+    Stats::reset(QStringLiteral("Expert"));
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestBvPerSecond, 0.0);
+    QVERIFY(!r.bestBvPerSecondDate.isValid());
+}
+
+void TestStats::testResetAllWipesBestBvPerSecond()
+{
+    Stats::recordWin(QStringLiteral("Beginner"), 15.0, QDate{2026, 4, 25}, 3.20);
+    Stats::recordWin(QStringLiteral("Expert"), 200.0, QDate{2026, 4, 25}, 1.55);
+    Stats::resetAll();
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestBvPerSecond, 0.0);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestBvPerSecond, 0.0);
+}
+
+void TestStats::testLegacyRecordWithoutBestBvPerSecondLoadsAsZero()
+{
+    // Pre-1.30 record: no best_bv_per_second_* keys present — must load as
+    // 0.0 / invalid date so an upgrading user's first 1.30.0 win seeds the
+    // record cleanly.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 42.0);
+    settings.setValue(QStringLiteral("stats/Beginner/best_date"), QStringLiteral("2026-01-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 5u);
+    QCOMPARE(r.bestSeconds, 42.0);
+    QCOMPARE(r.bestBvPerSecond, 0.0);
+    QVERIFY(!r.bestBvPerSecondDate.isValid());
+}
+
+void TestStats::testFasterClockMayNotBeatBvRateAndViceVersa()
+{
+    // Independence pin: best-time and best-3BV/s axes are not coupled. A
+    // faster clock on a smaller-3BV board can leave 3BV/s best untouched;
+    // a slower clock on a denser-3BV board can set 3BV/s without beating
+    // the clock.
+    const QDate d1{2026, 4, 23};
+    const QDate d2{2026, 4, 24};
+    const QDate d3{2026, 4, 25};
+
+    // First run: 30s, 1.5 3BV/s on Beginner. Both axes set.
+    {
+        const auto o = Stats::recordWin(QStringLiteral("Beginner"), 30.0, d1, 1.50);
+        QVERIFY(o.newRecord);
+        QVERIFY(o.newBestBvPerSecond);
+    }
+    // Second run: 25s (faster clock, new bestSeconds) but only 1.20 3BV/s
+    // (slower rate — easier board). Best-time updates; 3BV/s does not.
+    {
+        const auto o = Stats::recordWin(QStringLiteral("Beginner"), 25.0, d2, 1.20);
+        QVERIFY(o.newRecord);
+        QVERIFY(!o.newBestBvPerSecond);
+    }
+    // Third run: 28s (slower than 25, no clock record) but 2.10 3BV/s
+    // (denser board, faster rate). 3BV/s updates; clock does not.
+    {
+        const auto o = Stats::recordWin(QStringLiteral("Beginner"), 28.0, d3, 2.10);
+        QVERIFY(!o.newRecord);
+        QVERIFY(o.newBestBvPerSecond);
+    }
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestSeconds, 25.0);
+    QCOMPARE(r.bestDate, d2);
+    QCOMPARE(r.bestBvPerSecond, 2.10);
+    QCOMPARE(r.bestBvPerSecondDate, d3);
+}
+
+void TestStats::testWinOutcomeBvRateIndependentOfNewRecord()
+{
+    // The four WinOutcome flags carry independent signal. Pin the matrix so
+    // a future refactor can't accidentally couple them.
+    const auto first = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 23}, 1.50);
+    QVERIFY(first.newRecord);
+    QVERIFY(first.newBestStreak);
+    QVERIFY(first.newBestBvPerSecond);
+    QCOMPARE(first.currentStreak, 1u);
+
+    // Slower clock + slower rate — neither bestSeconds nor bestBvPerSecond
+    // bumps; streak still extends.
+    const auto slower = Stats::recordWin(QStringLiteral("Beginner"), 60.0, QDate{2026, 4, 24}, 0.50);
+    QVERIFY(!slower.newRecord);
+    QVERIFY(slower.newBestStreak); // streak crosses 2 > 1
+    QVERIFY(!slower.newBestBvPerSecond);
+    QCOMPARE(slower.currentStreak, 2u);
 }
 
 QTEST_MAIN(TestStats)
