@@ -4,6 +4,7 @@
 #include "minefield.h"
 #include "smiley.h"
 
+#include <QDate>
 #include <QElapsedTimer>
 #include <QMainWindow>
 #include <QTimer>
@@ -51,7 +52,8 @@ class MainWindow : public QMainWindow
     void setSmileyTension(bool pressing);
     void applySmiley();
     void showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
-                       int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds);
+                       int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds,
+                       const QDate &lossLastWinDate);
     void maybeAskTelemetryConsent();
     void restartApp();
     void refitWindowToContents();

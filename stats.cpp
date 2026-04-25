@@ -35,6 +35,8 @@ Record load(const QString &difficultyName)
     const QString flagAccDateStr = settings.value(key(difficultyName, QStringLiteral("best_flag_accuracy_date")), QString{}).toString();
     r.bestFlagAccuracyDate = flagAccDateStr.isEmpty() ? QDate{} : QDate::fromString(flagAccDateStr, Qt::ISODate);
     r.totalSecondsWon = settings.value(key(difficultyName, QStringLiteral("total_seconds_won")), 0.0).toDouble();
+    const QString lastWinDateStr = settings.value(key(difficultyName, QStringLiteral("last_win_date")), QString{}).toString();
+    r.lastWinDate = lastWinDateStr.isEmpty() ? QDate{} : QDate::fromString(lastWinDateStr, Qt::ISODate);
     return r;
 }
 
@@ -99,6 +101,14 @@ void save(const QString &difficultyName, const Record &r)
         settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_date")));
     }
     settings.setValue(key(difficultyName, QStringLiteral("total_seconds_won")), r.totalSecondsWon);
+    if (r.lastWinDate.isValid())
+    {
+        settings.setValue(key(difficultyName, QStringLiteral("last_win_date")), r.lastWinDate.toString(Qt::ISODate));
+    }
+    else
+    {
+        settings.remove(key(difficultyName, QStringLiteral("last_win_date")));
+    }
 }
 
 void reset(const QString &difficultyName)
@@ -120,6 +130,7 @@ void reset(const QString &difficultyName)
     settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_percent")));
     settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_date")));
     settings.remove(key(difficultyName, QStringLiteral("total_seconds_won")));
+    settings.remove(key(difficultyName, QStringLiteral("last_win_date")));
 }
 
 void resetAll()
@@ -192,6 +203,10 @@ WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate 
     {
         r.totalSecondsWon += seconds;
     }
+    // Most-recent-win timestamp — overwritten unconditionally on every counted
+    // win, even sub-tick (the date is meaningful regardless of duration). Drives
+    // the loss-dialog "Last win: %1" line on the *next* loss for this difficulty.
+    r.lastWinDate = onDate;
     save(difficultyName, r);
     // averageSecondsAfter is the post-update mean, computed from the same
     // numerator (totalSecondsWon) and denominator (won) the next load() will

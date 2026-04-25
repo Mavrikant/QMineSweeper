@@ -12,7 +12,7 @@
 // streak_best_date,best_safe_percent,best_safe_percent_date,
 // best_bv_per_second,best_bv_per_second_date,
 // best_flag_accuracy_percent,best_flag_accuracy_date,
-// total_seconds_won} tree.
+// total_seconds_won,last_win_date} tree.
 // Best-time is stored as seconds (double); 0 means "no win recorded yet".
 // Best-date is the calendar date (ISO 8601) on which the current best-time
 // run was completed; invalid/empty when no win has been recorded. The
@@ -65,6 +65,16 @@ struct Record
     // 0.0 == no counted winning duration yet (first-load sentinel for legacy
     // pre-1.36 plists with no `total_seconds_won` key).
     double totalSecondsWon{0.0};
+    // Calendar date (ISO 8601) on which the player's *most recent* counted win
+    // for this difficulty completed. Distinct from `bestDate` (date of the
+    // best-time run, which may be much older): `lastWinDate` is overwritten on
+    // every counted `recordWin`, regardless of whether the run set a new best.
+    // Drives the loss-dialog "Last win: %1" line, gated on `isValid()`.
+    // Invalid (default-constructed) when the player has never won this
+    // difficulty in 1.37+; pre-1.37 plists with `won > 0` but no
+    // `last_win_date` key load as invalid by design — clean-slate seeding
+    // surfaces the line on the *next* win, not retroactively.
+    QDate lastWinDate{};
 };
 
 // Outcome of a recordWin call. `newRecord` matches the prior boolean return:
