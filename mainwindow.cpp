@@ -818,7 +818,9 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
     }
     else
     {
-        box.setText(tr("You stepped on a mine."));
+        QString text = tr("You stepped on a mine.");
+        text += QStringLiteral("\n") + tr("You survived for %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
+        box.setText(text);
         box.setIcon(QMessageBox::Warning);
     }
     QPushButton *newGameBtn = box.addButton(tr("New Game"), QMessageBox::AcceptRole);
