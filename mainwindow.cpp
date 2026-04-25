@@ -541,7 +541,7 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("streak"), QString::number(outcome.currentStreak)},
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -561,6 +561,10 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     const int flags = ui->mineFieldWidget->flagsPlaced();
     const int bv = ui->mineFieldWidget->boardValue();
     const int qmarks = ui->mineFieldWidget->questionMarksPlaced();
+    const int partialBv = ui->mineFieldWidget->partialBoardValue();
+    // Same sub-tick guard as the win path — a fast loss with zero elapsed time
+    // would otherwise divide by zero. 0.05s mirrors the win-side threshold.
+    const double partialBvRate = (m_lastElapsedSeconds > 0.05) ? (partialBv / m_lastElapsedSeconds) : 0.0;
     Telemetry::recordEvent(QStringLiteral("game.lost"), {
                                                             {QStringLiteral("difficulty"), diffName},
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
@@ -568,9 +572,11 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("clicks"), QString::number(clicks)},
                                                             {QStringLiteral("flags"), QString::number(flags)},
                                                             {QStringLiteral("bv"), QString::number(bv)},
+                                                            {QStringLiteral("partial_bv"), QString::number(partialBv)},
+                                                            {QStringLiteral("partial_bv_per_second"), QString::asprintf("%.2f", partialBvRate)},
                                                             {QStringLiteral("qmarks"), QString::number(qmarks)},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -781,7 +787,7 @@ void MainWindow::updateTimerLabel()
 }
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
-                               int lossQuestionMarks)
+                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -830,18 +836,19 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         QString text = tr("You stepped on a mine.");
         text += QStringLiteral("\n") + tr("You survived for %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
         text += QStringLiteral("\n") + tr("You cleared %1% of the board.").arg(ui->mineFieldWidget->safePercentCleared());
-        // Board's own difficulty — 3BV is the canonical Minesweeper measure of
-        // how hard the *board* is (minimum left-clicks to clear, no flags or
-        // chords). Surfaces what kind of layout the player was up against
-        // alongside their own action metrics. Mirrors the win-dialog 3BV line
-        // (without /s — a partial-clear rate would imply the user cleared the
-        // whole board's 3BV at that pace, which is false). Gated > 0 because
-        // boardValue is unset before the first click triggers placeMines —
-        // pathological loss paths (only setFixedLayout-with-zero-mines or a
-        // pre-placement loss, neither reachable in real play) skip the line.
+        // Speedrun-canonical "cleared 3BV" line. X = how many of the board's
+        // 3BV "clicks" the player effectively completed at the moment of
+        // explosion (opened openings + opened isolated numbered cells); Y =
+        // total board 3BV; Z = X / elapsed = the player's per-second clearing
+        // pace at the moment of death. Subsumes (and replaces) the v1.25.0
+        // static "Board 3BV: %1" line — strict superset of the same info.
+        // Gated on lossBoardValue (= Y) > 0 because boardValue is unset before
+        // the first click triggers placeMines — pathological loss paths (only
+        // setFixedLayout-with-zero-mines or a pre-placement loss, neither
+        // reachable in real play) skip the line.
         if (lossBoardValue > 0)
         {
-            text += QStringLiteral("\n") + tr("Board 3BV: %1").arg(lossBoardValue);
+            text += QStringLiteral("\n") + tr("Partial 3BV: %1 / %2 · 3BV/s: %3").arg(lossPartialBoardValue).arg(lossBoardValue).arg(QString::asprintf("%.2f", lossBvPerSecond));
         }
         // Click count mirrors the win-dialog's "Clicks: %1 · Efficiency: %2%"
         // line minus the efficiency suffix — efficiency = 3BV / clicks · 100
