@@ -541,7 +541,7 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("streak"), QString::number(outcome.currentStreak)},
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -559,14 +559,16 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     }
     const int clicks = ui->mineFieldWidget->userClicks();
     const int flags = ui->mineFieldWidget->flagsPlaced();
+    const int bv = ui->mineFieldWidget->boardValue();
     Telemetry::recordEvent(QStringLiteral("game.lost"), {
                                                             {QStringLiteral("difficulty"), diffName},
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                             {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                             {QStringLiteral("clicks"), QString::number(clicks)},
                                                             {QStringLiteral("flags"), QString::number(flags)},
+                                                            {QStringLiteral("bv"), QString::number(bv)},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -776,7 +778,7 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(formatElapsedTime(secs));
 }
 
-void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak)
+void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -825,6 +827,19 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         QString text = tr("You stepped on a mine.");
         text += QStringLiteral("\n") + tr("You survived for %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
         text += QStringLiteral("\n") + tr("You cleared %1% of the board.").arg(ui->mineFieldWidget->safePercentCleared());
+        // Board's own difficulty — 3BV is the canonical Minesweeper measure of
+        // how hard the *board* is (minimum left-clicks to clear, no flags or
+        // chords). Surfaces what kind of layout the player was up against
+        // alongside their own action metrics. Mirrors the win-dialog 3BV line
+        // (without /s — a partial-clear rate would imply the user cleared the
+        // whole board's 3BV at that pace, which is false). Gated > 0 because
+        // boardValue is unset before the first click triggers placeMines —
+        // pathological loss paths (only setFixedLayout-with-zero-mines or a
+        // pre-placement loss, neither reachable in real play) skip the line.
+        if (lossBoardValue > 0)
+        {
+            text += QStringLiteral("\n") + tr("Board 3BV: %1").arg(lossBoardValue);
+        }
         // Click count mirrors the win-dialog's "Clicks: %1 · Efficiency: %2%"
         // line minus the efficiency suffix — efficiency = 3BV / clicks · 100
         // assumes a complete board, which a loss isn't. Gated by `userClicks
