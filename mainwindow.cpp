@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include "./ui_mainwindow.h"
+#include "bv_per_second_format.h"
 #include "language.h"
 #include "stats.h"
 #include "telemetry.h"
@@ -961,8 +962,8 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(3, 6, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak")});
+    auto *table = new QTableWidget(3, 7, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -1039,6 +1040,7 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 3, new QTableWidgetItem(formatBestTimeOrPartial(rec)));
         table->setItem(i, 4, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
         table->setItem(i, 5, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
+        table->setItem(i, 6, new QTableWidgetItem(formatBvPerSecondCell(rec.bestBvPerSecond, rec.bestBvPerSecondDate)));
     }
     table->resizeColumnsToContents();
 

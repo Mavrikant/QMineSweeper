@@ -1,5 +1,83 @@
 # Cycle decisions
 
+## 2026-04-25 — Stats dialog: Best 3BV/s column (v1.31.0)
+
+**Chosen:** Add a 7th column "Best 3BV/s" to the Statistics dialog
+table — the lifetime hall-of-fame counterpart to v1.30's
+`⚡ New best 3BV/s!` win-dialog flair. Reads the per-difficulty
+`bestBvPerSecond` + `bestBvPerSecondDate` fields shipped in v1.30 and
+renders them via a new pure helper (`bv_per_second_format.h`).
+
+**Why this and not something else:**
+- The v1.30 cycle log explicitly tagged this as the highest-value next
+  cycle filler ("the lifetime hall-of-fame counterpart to today's
+  flair … reads the just-shipped `bestBvPerSecond` + `bestBvPerSecondDate`
+  fields, renders as a new 7th column on the Stats table. ~50 LOC + 1
+  translatable column header × 9 locales").
+- The persistence layer is already in place — no schema change, no new
+  QSettings keys, no new state. Pure presentation.
+- Same cycle-shape as v1.27 → v1.28 (per-loss partial 3BV → lifetime
+  hall-of-fame for the same metric). Closes the win-side mirror of
+  that thread.
+
+**Render format:**
+- `bvPerSecond <= 0` → `"—"` (no record yet — same em-dash sentinel
+  the Best-time / Best-(no flag) cells already use).
+- `bvPerSecond > 0`, no date → `"X.YZ"`.
+- `bvPerSecond > 0`, date → `"X.YZ  (LL.LL.YYYY)"`.
+- Two-decimal rate matches the live win-dialog
+  `"3BV: %1 · 3BV/s: %2"` format and the `⚡ New best 3BV/s!` flair, so
+  the persisted lifetime record reads identically to the celebration
+  the user just saw on their best run.
+- Locale-formatted date inlined in parentheses with two-space
+  separator — mirrors Best-time / Best-(no flag) / Streak cells. No
+  new column header per stat, no extra translatable string for the
+  date format.
+
+**Why a free helper, not a private lambda:**
+- The Stats dialog itself isn't unit-tested (it lives behind
+  `QDialog::exec()`); past stats-dialog cycles (v1.28, v1.29, v1.30)
+  tested only the persistence layer. To get tests on the new
+  presentation logic without standing up a `tst_mainwindow`, the
+  formatter is extracted to `bv_per_second_format.h` analogous to
+  `time_format.h` and tested in `tst_bv_per_second_format.cpp`.
+- Inline-header `formatBvPerSecondCell(double, const QDate&)` keeps
+  the call site identical to the prior lambda-based pattern.
+
+**Why "Best" not "Highest" / "Top" in the header:**
+- Matches existing column terminology ("Best time", "Best (no flag)").
+  Per-locale, the same word-for-"best" used in `Best (no flag)` is
+  reused — except German, where `Bestzeit` is specifically
+  best-*time* and would mislead on a rate; switched to `Bestwert 3BV/s`,
+  which also matches v1.30's German flair (`Neuer Bestwert 3BV/s!`).
+
+**Strict-greater-than semantics inherited:**
+- The new cell only displays the existing `bestBvPerSecond` field;
+  the strict-greater-than gate on `recordWin` (pinned in v1.30 by
+  `testRecordWinWithEqualBvRateKeepsOriginalDate`) governs whether
+  the field updates. No new gate added in this cycle.
+
+**Replay/custom exclusion already covered:**
+- `recordWin` is only called from the `!excludedFromStats` branch in
+  `MainWindow::onGameWon`. Replay and Custom wins never touch
+  `bestBvPerSecond`, so the new cell can never display a memorised-
+  board record. Inherited from v1.13.0 / v1.30.0.
+
+**Tests added:**
+- 11 cases in `tst_bv_per_second_format.cpp`:
+  zero/negative/NaN→`"—"`; +inf documented (returns `"inf"` from
+  printf, non-empty string asserted); positive without date renders
+  two decimals (`1.234→"1.23"`, `0.5→"0.50"`, `12.0→"12.00"`);
+  positive with date appends locale short date with two-space
+  separator; trailing-zero preserved (`2.10→"2.10"`); rounding
+  (`1.236→"1.24"`, `1.234→"1.23"`); very small positive
+  (`0.005→"0.01"`); empty-ISO-string-derived invalid date drops
+  parenthesised suffix (the persistence-layer load path for
+  no-record-yet).
+- Adversarial mutation runs verified by mutating the em-dash
+  sentinel (3 tests fail) and `%.2f` → `%.1f` (6 tests fail). The
+  tests catch the bugs they're supposed to.
+
 ## 2026-04-25 — Win dialog: ⚡ New best 3BV/s flair (v1.30.0)
 
 **Chosen:** Add a per-difficulty lifetime `bestBvPerSecond` (double) +
