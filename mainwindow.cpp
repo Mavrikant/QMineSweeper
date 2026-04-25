@@ -820,6 +820,7 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
     {
         QString text = tr("You stepped on a mine.");
         text += QStringLiteral("\n") + tr("You survived for %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
+        text += QStringLiteral("\n") + tr("You cleared %1% of the board.").arg(ui->mineFieldWidget->safePercentCleared());
         box.setText(text);
         box.setIcon(QMessageBox::Warning);
     }

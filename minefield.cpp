@@ -227,6 +227,16 @@ int MineField::boardValue() const noexcept { return m_boardValue; }
 
 int MineField::userClicks() const noexcept { return m_userClicks; }
 
+int MineField::safePercentCleared() const noexcept
+{
+    const std::uint32_t total = m_difficulty.width * m_difficulty.height - m_difficulty.mineCount;
+    if (total == 0)
+    {
+        return 0;
+    }
+    return static_cast<int>((m_openedSafeCount * 100u + total / 2u) / total);
+}
+
 void MineField::setPaused(bool paused)
 {
     if (m_paused == paused)

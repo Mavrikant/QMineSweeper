@@ -95,6 +95,13 @@ class MineField : public QWidget
     // win dialog.
     [[nodiscard]] int userClicks() const noexcept;
 
+    // Fraction of safe (non-mine) cells revealed so far, expressed as an integer
+    // 0-100. Round-half-up. Useful as an end-of-game progress hint on losses —
+    // a player who exploded after revealing 87% of the board sees that they
+    // were almost there. Stays at the value reached at the moment of explosion
+    // (m_openedSafeCount is not touched on loss). Reads 100 after a win.
+    [[nodiscard]] int safePercentCleared() const noexcept;
+
     void setMineCountLabel(QLabel *label);
 
     // Sweep the live board and reset any Question-marked cell to None. Used when
