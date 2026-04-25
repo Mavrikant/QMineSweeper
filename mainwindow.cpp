@@ -549,7 +549,7 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                            {QStringLiteral("new_best_bv_per_second"), outcome.newBestBvPerSecond ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0, false);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -608,7 +608,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("new_best_safe_percent"), lossOutcome.newBestSafePercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                             {QStringLiteral("new_best_flag_accuracy"), lossOutcome.newBestFlagAccuracyPercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags, lossOutcome.newBestFlagAccuracyPercent);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -819,7 +819,7 @@ void MainWindow::updateTimerLabel()
 }
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
-                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags)
+                               int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -945,6 +945,21 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (lossNewBestSafePercent)
         {
             text.prepend(tr("🎯 New best %!") + QStringLiteral("  "));
+        }
+        // Mirror of the win-side `⚡ New best 3BV/s!` flair: a fresh per-difficulty
+        // best-flag-accuracy hall-of-fame entry deserves a celebratory flair on the
+        // loss dialog parallel to the v1.29 🎯 safe-percent flair. Independent of
+        // `lossNewBestSafePercent` because the two records track different axes
+        // (board coverage vs. flag-placement accuracy) and can co-fire on a single
+        // loss; prepended last so 🚩 ends up leftmost when both fire — matches
+        // the win-side convention of putting the newer flair leftmost. 🚩 was
+        // chosen to map to the in-game flag mechanic and to stay visually
+        // distinct from the existing 🎯. Gate is `lossOutcome.newBestFlagAccuracyPercent`,
+        // which is false on replays / custom games (recordLoss is skipped) and on
+        // any loss where flagsPlaced == 0 (recordLoss's no-flag sentinel).
+        if (lossNewBestFlagAccuracy)
+        {
+            text.prepend(tr("🚩 New best flag accuracy!") + QStringLiteral("  "));
         }
         box.setText(text);
         box.setIcon(QMessageBox::Warning);

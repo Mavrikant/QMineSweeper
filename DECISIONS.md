@@ -1,5 +1,69 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: 🚩 New best flag accuracy! flair (v1.34.0)
+
+**Chosen:** Mirror v1.31.0 → v1.34.0 the same way v1.30 was followed
+by v1.31: v1.33.0 added a "Best flag accuracy" Stats column backed
+by `LossOutcome.newBestFlagAccuracyPercent`, but the bool was only
+consumed by telemetry. This cycle prepends a celebratory
+`🚩 New best flag accuracy!` line on the loss dialog when the bool
+fires — the per-game flair counterpart to the lifetime column.
+
+**Why this and not something else:**
+- It was the lead "Next candidate" in the v1.33.0 cycle log —
+  "persistence layer already returns the bool; only the dialog needs
+  to consume it." Smallest and highest-leverage diff in the queue.
+- Closes the same per-loss-readout → lifetime persistence → flair
+  triplet the project has now run twice (v1.30 ⚡ flair → v1.31
+  Best 3BV/s column was the win-side; v1.32 Correct flags line →
+  v1.33 Best flag accuracy column → v1.34 🚩 flair is the loss-side).
+- Pure additive: no schema change, no new persistence, no new
+  computation. ~10 LOC of production diff plus 1 translatable
+  string × 9 locales.
+
+**Why 🚩 and not 🏹:**
+- 🚩 (red flag) maps directly to the in-game flag mechanic — the
+  same visual the player has been planting on cells throughout the
+  game. Recognised at a glance.
+- Distinct from the v1.29 🎯 (safe-percent) flair on the same
+  dialog, so a loss that improves both records reads with two
+  unambiguous icons. The v1.33 cycle log explicitly flagged this
+  ambiguity as the blocker — "Two flairs on the same emoji is the
+  blocker — pick a different emoji (`🎯 → 🏹`?) or a longer
+  distinguishing label." 🚩 is more thematic than 🏹 (no
+  archery in Minesweeper) and the project doesn't use it anywhere
+  else (verified by grep).
+
+**Why prepend AFTER 🎯 (so 🚩 ends up leftmost when both fire):**
+- Mirrors the win-side ordering convention — `⚡` (the flair shipped
+  most recently in v1.30) is prepended last and ends up leftmost,
+  ahead of `🌟/🔥` (v1.18 streak) and `🏆` (v1.2 best time).
+- Same logic on the loss side: `🚩` (this cycle) is the newest flair,
+  so it goes to the left of `🎯` (v1.29). Reading left-to-right the
+  player sees the freshest celebration first.
+
+**Why no new test:**
+- The bool's source — `Stats::recordLoss(...).newBestFlagAccuracyPercent`
+  — was exhaustively tested in v1.33.0 (16 new tests in
+  `tst_stats.cpp` covering strict-greater-than semantics, the
+  `flagsPlaced > 0` gate, replay/custom exclusion, the legacy-plist
+  zero-load, the safePercent independence matrix, and the
+  `operator bool` backwards-compat pin).
+- The new flair is `if (lossNewBestFlagAccuracy) text.prepend(...)`
+  inside `MainWindow::showEndDialog` — pure boolean propagation, not
+  unit-testable without a `QMessageBox` harness, and consistent with
+  prior dialog-flair cycles (v1.18 streak, v1.29 🎯, v1.30 ⚡)
+  which also added flairs without dialog tests.
+- Both `showEndDialog` call sites updated; the win-side passes
+  `false` for the new bool (a win never sets a flag-accuracy record;
+  see v1.33 `testRecordWinDoesNotTouchBestFlagAccuracy`).
+
+**Translation cost:** 1 new key × 9 locales, all hand-translated.
+Mirrors the column-header phrasing already established in v1.33:
+e.g. tr_TR "Best flag accuracy" → "En iyi bayrak isabeti", flair
+becomes "🚩 Yeni en iyi bayrak isabeti!". 50/50 translation
+coverage preserved.
+
 ## 2026-04-25 — Loss dialog: "Correct flags: %1 / %2" line (v1.32.0)
 
 **Chosen:** Add a flag-accuracy readout to the loss dialog. Right after

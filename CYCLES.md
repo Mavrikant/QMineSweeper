@@ -1,5 +1,150 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 31 — v1.34.0 (autonomous)
+
+- **Chosen problem:** v1.33.0 wired
+  `LossOutcome.newBestFlagAccuracyPercent` into the persistence layer
+  and surfaced it as a "Best flag accuracy" Stats-dialog column, but
+  the bool was *only* consumed by telemetry — the loss dialog itself
+  said nothing when the player set a fresh per-difficulty flag-accuracy
+  personal best. The v1.33.0 cycle log explicitly tagged a
+  loss-dialog 🚩-style flair as the lead next candidate
+  ("persistence layer already returns the bool; only the dialog needs
+  to consume it"). Same per-loss-readout → lifetime-persistence →
+  per-game-flair triplet the project has now run twice (v1.30 ⚡
+  win-flair / v1.31 Stats column was the win-side analogue; v1.32
+  Correct flags line / v1.33 Stats column / v1.34 🚩 loss-flair
+  closes the loss-side).
+- **Evidence:** `Stats::recordLoss` already returns
+  `LossOutcome.newBestFlagAccuracyPercent` (v1.33.0). `MainWindow::onGameLost`
+  already binds the result and threads it into telemetry. The
+  `showEndDialog` loss branch already prepends the v1.29 `🎯 New best %!`
+  flair on a fresh `bestSafePercent`. The 🚩 mirror was the trivially-
+  missing prepend on a parallel field. Pure presentation gap.
+- **Shipped:**
+  - Branch: `feat/v1.34.0-loss-dialog-flag-accuracy-flair`
+  - PR: [pending]
+  - Release: [pending]
+- **Code surface:** ~10 LOC of production diff plus translation churn.
+  - `mainwindow.h`: 1 LOC new positional bool param at end of
+    `showEndDialog` signature.
+  - `mainwindow.cpp`: 1 LOC matching signature; 1 LOC win-side call
+    site adds `false` (a win never sets a flag-accuracy record); 1 LOC
+    loss-side call site threads
+    `lossOutcome.newBestFlagAccuracyPercent`; 14 LOC doc-comment +
+    `if (lossNewBestFlagAccuracy) text.prepend(tr("🚩 New best flag accuracy!") + "  ");`
+    after the existing `🎯` prepend. Order chosen so 🚩 ends up
+    leftmost when both flairs fire — mirrors win-side
+    `⚡ → 🌟/🔥 → 🏆` convention.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 locales).
+  - `CMakeLists.txt`: 1 LOC version bump.
+  - `.ts` files: lupdate adds the new key (104 → 105) across all 10
+    locales; apply_translations fills 9 of them with hand
+    translations, leaving English at the source string.
+  - Total real code+docs diff: well under the 400-LOC cycle cap.
+- **Tests added:** none new. The bool's source (`Stats::recordLoss(...).newBestFlagAccuracyPercent`)
+  was exhaustively tested in v1.33.0 (16 new methods in `tst_stats.cpp`
+  covering the strict-greater-than gate, the `flagsPlaced > 0` no-flag
+  sentinel, replay/custom exclusion, the legacy-plist zero-load, the
+  safePercent independence matrix, and the `operator bool`
+  backwards-compat pin). The flair gate is pure boolean propagation
+  inside a `QMessageBox` show, not unit-testable without a MainWindow
+  harness — consistent with prior flair cycles (v1.18 🌟 streak,
+  v1.29 🎯 safe-percent, v1.30 ⚡ 3BV/s) which all shipped flairs
+  without dialog tests because the underlying bool was already
+  pinned.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. Each translation mirrors the column-header phrasing
+  already shipped in v1.33.0 (e.g. tr_TR "En iyi bayrak isabeti" →
+  "🚩 Yeni en iyi bayrak isabeti!"). 50/50 coverage preserved.
+- **Local verification:**
+  - `cmake -B build -DCMAKE_BUILD_TYPE=Debug -G Ninja` clean.
+  - `cmake --build build --target update_translations` reports
+    "1 new and 104 already existing" across all 10 locales — confirms
+    exactly one new tr() string and zero accidental drift.
+  - `python3 translations/apply_translations.py` reports
+    "102 translations applied" per non-English locale (the 102 already-
+    finished keys + the 1 new one merged in by lupdate; en stays at 0).
+  - All 9 non-English `.ts` files verified by grep to have the new
+    key as `<translation>…</translation>` (not `unfinished`).
+  - `cmake --build build` clean. All targets including
+    `QMineSweeper.app` and 8 test binaries link.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 8/8
+    pass. tst_stats which exhaustively covers the bool source
+    explicitly green.
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean.
+- **Adversarial self-review:**
+  - **What breaks this in production?** A pre-1.34 user upgrading with
+    `best_flag_accuracy_percent=0` in QSettings will see the flair on
+    their first 1.34 loss with `flagsPlaced > 0` — but that IS a new
+    record (0 → positive transition), so the flair is correct. Same
+    UX pattern as v1.29 introducing 🎯 on top of pre-existing
+    `best_safe_percent=0` plists; not a regression.
+  - **Is the public API backwards-compatible?** Yes — `showEndDialog`
+    is a private member of `MainWindow`, called only from
+    `onGameWon` / `onGameLost`. New positional bool with no default,
+    both call sites updated.
+  - **Error paths handled?** No new error path — pure boolean
+    propagation. `lossOutcome` is default-initialized `{}` on
+    replay/custom (the `if (!m_isReplay && !m_isCustom)` branch),
+    so the bool stays `false` and the flair correctly does not fire.
+  - **Secrets / PII?** None — telemetry already shipped the bool tag
+    in v1.33; no new fields.
+  - **Performance?** Zero — one extra branch + one possible
+    `prepend` on an already-built `QString` inside the loss path.
+    Subsumed by `QMessageBox::exec()` overhead.
+  - **Concurrency?** None — single-threaded UI, no shared state.
+  - **Co-fire with 🎯?** Tested by reading the prepend order: existing
+    `🎯` block first, new `🚩` block second → `🚩` ends up leftmost.
+    Visually: "🚩 New best flag accuracy!  🎯 New best %!  You stepped
+    on a mine.\n…". Both readable, neither overwrites the other.
+- **Assumptions made:**
+  - 🚩 was chosen over 🏹 / 🏳️ / 🎌 because it visually maps to the
+    in-game flag mechanic. Verified `🚩` is unused elsewhere in the
+    codebase by grep before commit.
+  - The flair fires unconditionally when the bool is true — no
+    additional gating on win-count, difficulty, or session state.
+    Mirrors the v1.29 🎯 flair which also fires on every fresh
+    safe-percent record, not just first-ever or once-per-session.
+  - No new telemetry tag — `new_best_flag_accuracy` was already
+    shipped in v1.33.0, so the flair shipping silently piggybacks on
+    the existing distribution analysis.
+- **Skipped:**
+  - **Loss-dialog "Time since last win" line** — re-parked from
+    cycles 28–30. Needs a new `last_win_date` QSettings field; ~30
+    LOC + 1 translatable string × 9 locales. Higher-effort than this
+    cycle's flair-only diff.
+  - **Win-dialog "Average time" line** after ≥3 wins — re-parked
+    from cycles 28–30. Needs persistence of `total_seconds` +
+    divisor. ~40 LOC.
+  - **Stats-dialog row totals** below the 3 difficulty rows — pure
+    presentation aggregation, but adds a second header axis to the
+    table layout.
+- **Risks logged:** none new.
+- **Post-release watch:** [pending]
+- **Next candidates:**
+  - **Loss-dialog "Time since last win" line** when the player has
+    won this difficulty before. Would need a new `last_win_date`
+    field in `Stats::Record` (separate from `bestDate`). ~30 LOC of
+    production + persistence diff + 1 translatable string × 9
+    locales. A psychological nudge for players on a long losing
+    streak.
+  - **Win-dialog "Average time" line** showing the player's average
+    winning time on this difficulty after ≥3 wins. Needs persistence
+    of total seconds + count divisor (or a new `played_won_total_seconds`
+    accumulator field on `Stats::Record`). ~40 LOC.
+  - **Stats-dialog row totals** below the 3 difficulty rows —
+    grand-total played / won / win % across all difficulties. Pure
+    presentation aggregation; no new persistence.
+  - **Win-dialog "🚩 New best flag accuracy on a win!" flair** — but
+    only if a separate `bestFlagAccuracyPercentOnWin` axis is added.
+    Win-path `flagAllMines` auto-flags everything correctly so a raw
+    "win flag accuracy" trivially reads 100% — that's why v1.33 gates
+    `recordLoss`-only and pins it via `testRecordWinDoesNotTouchBestFlagAccuracy`.
+    A meaningful win-side metric would be "flag accuracy at the
+    moment of the last left-click before win" or similar; non-trivial
+    semantics. Park.
+
 ## 2026-04-25 — Cycle 30 — v1.33.0 (autonomous)
 
 - **Chosen problem:** v1.32 surfaced per-loss flag accuracy as a
