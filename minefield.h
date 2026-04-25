@@ -95,6 +95,15 @@ class MineField : public QWidget
     // win dialog.
     [[nodiscard]] int userClicks() const noexcept;
 
+    // Live count of flags currently placed on the board. Reflects user gestures
+    // only while the game is Ready or Playing — the win-path auto-flag pass
+    // (flagAllMines) inflates the count after the state flips to Won, so
+    // callers reading this on a win get the post-celebration total. The loss
+    // path does not auto-flag, so reading this on a loss gives the user's
+    // actual flag count at the moment of explosion. Reset by every newGame /
+    // newGameReplay / setFixedLayout.
+    [[nodiscard]] int flagsPlaced() const noexcept;
+
     // Fraction of safe (non-mine) cells revealed so far, expressed as an integer
     // 0-100. Round-half-up. Useful as an end-of-game progress hint on losses —
     // a player who exploded after revealing 87% of the board sees that they

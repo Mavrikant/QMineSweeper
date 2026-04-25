@@ -227,6 +227,8 @@ int MineField::boardValue() const noexcept { return m_boardValue; }
 
 int MineField::userClicks() const noexcept { return m_userClicks; }
 
+int MineField::flagsPlaced() const noexcept { return m_flagCount; }
+
 int MineField::safePercentCleared() const noexcept
 {
     const std::uint32_t total = m_difficulty.width * m_difficulty.height - m_difficulty.mineCount;

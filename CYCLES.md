@@ -1,5 +1,110 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 21 — v1.24.0 (autonomous)
+
+- **Chosen problem:** The v1.23.0 loss dialog surfaces three player-state
+  metrics — duration, percent-cleared, clicks — but says nothing about
+  flag-placement. A player who flagged eight mines correctly before
+  stepping on the ninth gets the same line as a player who placed zero
+  flags and clicked into a mine immediately. Right-click is half the
+  player's input vocabulary; the loss recap erases that half.
+- **Evidence:** `MainWindow::onGameLost` reads `userClicks` and passes
+  it to `showEndDialog` for the v1.23.0 line, but never queries
+  flag-placement state. `MineField` already tracks `m_flagCount` for
+  `remainingMines()` (the LCD display) — the data exists, the loss
+  dialog just doesn't see it.
+- **Shipped:**
+  - Branch: `feat/loss-dialog-flags-placed`
+  - PR: [#42](https://github.com/Mavrikant/QMineSweeper/pull/42)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.24.0
+- **Code surface:** ~1 line getter on `MineField` + ~6 lines in
+  `mainwindow.cpp` (read flag count, thread parameter, append gated
+  line, telemetry tag) + 5 new `tst_minefield` regression tests + 1 new
+  translatable string × 9 hand-translated locales. Production diff well
+  under 20 LOC; the rest is `.ts` line-renumbering by `lupdate`.
+- **Tests added:**
+  - `testFlagsPlacedZeroBeforeAnyFlag` — sanity baseline.
+  - `testFlagsPlacedIncrementsOnFlag` — `cycleMarker()` None→Flag bumps
+    the count.
+  - `testFlagsPlacedDecrementsOnUnflag` — Flag→Question (the cycle that
+    *removes* the flag) correctly decrements.
+  - `testFlagsPlacedPreservedOnLoss` — the load-bearing regression for
+    the new dialog line: places one flag on a two-mine board, steps on
+    the unflagged mine, asserts `flagsPlaced() == 1` post-`gameLost`.
+    Pins the invariant that the loss path's `revealAllMines()` does not
+    auto-flag (only the win path's `flagAllMines()` does), so any
+    future change that auto-flags on loss would inflate the dialog
+    line and trip this test.
+  - `testFlagsPlacedResetByNewGame` — `newGame()` zeroes the counter.
+  - Verified adversarially by replacing `return m_flagCount` with
+    `return 999` and confirming all five tests fail with the wrong
+    value, then restoring.
+- **Translation cost:** 1 new string × 9 hand-translated locales (TR,
+  ES, FR, DE, RU, PT, ZH, HI, AR). 50/50 finished/unfinished coverage
+  preserved. Each locale read out:
+  - TR `Yerleştirilen bayrak: %1`
+  - ES `Banderas colocadas: %1`
+  - FR `Drapeaux placés : %1`
+  - DE `Platzierte Flaggen: %1`
+  - RU `Установлено флагов: %1`
+  - PT `Bandeiras colocadas: %1`
+  - ZH `已放置旗子：%1`
+  - HI `लगाए गए झंडे: %1`
+  - AR `الأعلام الموضوعة: %1`
+- **Assumptions made:**
+  - **Loss dialog only.** The win path's `flagAllMines()` auto-flags
+    every remaining mine — surfacing the post-celebration count would
+    mislead. Documented in the new `flagsPlaced()` doc and pinned by
+    `testFlagsPlacedPreservedOnLoss` (loss path) — there is no analogue
+    test on the win path because we deliberately do not surface the
+    metric there.
+  - **`flagsPlaced > 0` gating.** Mirrors `userClicks > 0` from v1.23
+    and `boardValue > 0` from v1.14/v1.15. Avoids `Flags placed: 0`
+    noise on the most common loss (first click is a mine, no flags
+    placed yet).
+  - **Single-number rendering, not "X / total mines".** Spoils the mine
+    count for users who don't memorise it (especially on Custom
+    difficulty); also keeps the line shape parallel to `Clicks: %1`.
+  - **Direct `flagsPlaced()` getter, not derived from
+    `remainingMines()`.** Inverting the formula in dialog code would
+    couple presentation to a MineField formula. One-line getter on the
+    underlying counter is cleaner.
+- **Skipped:**
+  - *Showing correct-flag breakdown `Flags: X (Y correct)`.* Doable but
+    requires a board walk on loss (count flags-on-mines vs.
+    flags-on-safe-cells) and a second translatable string. The
+    revealed board already shows wrong-flag overlays via
+    `revealAsWrongFlag`; the count addition would surface the same
+    info textually for a doubled translation cost. Park.
+  - *Adding the line on the win dialog.* Auto-flag inflation makes the
+    metric uninteresting (always == mineCount).
+  - *Flag-rate (flags/sec) analogue of 3BV/s.* Not a recognised
+    Minesweeper community metric, lossy on short runs.
+- **Risks logged:** none. Additive — no QSettings/save-format change,
+  no behavioural change on the win or paused paths, no API surface
+  removed. The new `flagsPlaced()` getter exposes existing state.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* The only failure mode is the loss
+    path one day auto-flagging; the new test pins this.
+  - *Backwards compat?* Additive method; positional parameter added to
+    private `showEndDialog`. No public-API consumers.
+  - *Error paths?* No new error paths.
+  - *Secrets/PII?* `flags` count added to telemetry — same shape as
+    existing `clicks` tag. Anonymous integer.
+  - *Performance?* O(1) read of an int counter; nothing in any hot
+    path.
+  - *Concurrency?* Single-threaded; no new shared state.
+- **Post-release watch:** [filled after release publishes]
+- **Next candidates:**
+  - **3BV: %1 line on the loss dialog** — surfaces the *board's*
+    objective difficulty as a 5th line, complementing the four
+    *player-action* metrics. One translatable string, no new state.
+  - **Question-marks count on the loss dialog** — for users who use
+    `?` as a thinking aid, mirrors flags-placed.
+  - **"Best run" highlight on the loss dialog when this loss beats a
+    previous unfinished-run record** — would need a new persisted
+    record schema; multi-cycle.
+
 ## 2026-04-25 — Cycle 20 — v1.23.0 (autonomous)
 
 - **Chosen problem:** The v1.22.0 loss dialog reads

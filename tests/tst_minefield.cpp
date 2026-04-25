@@ -91,6 +91,11 @@ class TestMineField : public QObject
     void testSafePercentClearedReachesHundredOnWin();
     void testSafePercentClearedMidGame();
     void testSafePercentClearedRoundsHalfUp();
+    void testFlagsPlacedZeroBeforeAnyFlag();
+    void testFlagsPlacedIncrementsOnFlag();
+    void testFlagsPlacedDecrementsOnUnflag();
+    void testFlagsPlacedPreservedOnLoss();
+    void testFlagsPlacedResetByNewGame();
 
   private:
     static void openAllSafe(MineField &field);
@@ -1296,6 +1301,61 @@ void TestMineField::testSafePercentClearedRoundsHalfUp()
     sendMousePress(field.cellAt(0, 2), Qt::LeftButton);
     // 2 of 3 = 66.67%, round-half-up → 67.
     QCOMPARE(field.safePercentCleared(), 67);
+}
+
+void TestMineField::testFlagsPlacedZeroBeforeAnyFlag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    QCOMPARE(field.flagsPlaced(), 0);
+}
+
+void TestMineField::testFlagsPlacedIncrementsOnFlag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(0, 0)->cycleMarker(); // None → Flag
+    QCOMPARE(field.flagsPlaced(), 1);
+    field.cellAt(2, 2)->cycleMarker();
+    QCOMPARE(field.flagsPlaced(), 2);
+}
+
+void TestMineField::testFlagsPlacedDecrementsOnUnflag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(2, 2)->cycleMarker(); // None → Flag
+    QCOMPARE(field.flagsPlaced(), 1);
+    field.cellAt(2, 2)->cycleMarker(); // Flag → Question (flag goes off)
+    QCOMPARE(field.flagsPlaced(), 0);
+}
+
+void TestMineField::testFlagsPlacedPreservedOnLoss()
+{
+    // The loss path's revealAllMines does NOT auto-flag, so the user's flag
+    // count at moment of explosion is what flagsPlaced() returns. Regression
+    // guard for the loss-dialog "Flags placed: %1" line — if a future change
+    // makes the loss path auto-flag remaining mines, this test catches the
+    // resulting count inflation.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {0, 2}});
+    // User flags one of the two mines correctly, then steps on the other.
+    field.cellAt(0, 0)->cycleMarker();
+    QCOMPARE(field.flagsPlaced(), 1);
+    sendMousePress(field.cellAt(0, 2), Qt::LeftButton);
+    QCOMPARE(field.state(), GameState::Lost);
+    // Still 1 — the unflagged mine at (0,0) is not auto-flagged on loss.
+    QCOMPARE(field.flagsPlaced(), 1);
+}
+
+void TestMineField::testFlagsPlacedResetByNewGame()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(0, 0)->cycleMarker();
+    QCOMPARE(field.flagsPlaced(), 1);
+    field.newGame(MineField::Beginner);
+    QCOMPARE(field.flagsPlaced(), 0);
 }
 
 QTEST_MAIN(TestMineField)

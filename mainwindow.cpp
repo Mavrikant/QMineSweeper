@@ -541,7 +541,7 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("streak"), QString::number(outcome.currentStreak)},
                                                            {QStringLiteral("new_best_streak"), outcome.newBestStreak ? QStringLiteral("true") : QStringLiteral("false")},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, outcome.currentStreak, outcome.newBestStreak);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -558,13 +558,15 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
         Stats::recordLoss(diffName);
     }
     const int clicks = ui->mineFieldWidget->userClicks();
+    const int flags = ui->mineFieldWidget->flagsPlaced();
     Telemetry::recordEvent(QStringLiteral("game.lost"), {
                                                             {QStringLiteral("difficulty"), diffName},
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                             {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                             {QStringLiteral("clicks"), QString::number(clicks)},
+                                                            {QStringLiteral("flags"), QString::number(flags)},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, 0, false);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -774,7 +776,7 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(formatElapsedTime(secs));
 }
 
-void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, std::uint32_t currentStreak, bool newBestStreak)
+void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -831,6 +833,17 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (userClicks > 0)
         {
             text += QStringLiteral("\n") + tr("Clicks: %1").arg(userClicks);
+        }
+        // Flag-placement metric — completes the picture of player actions
+        // before death (alongside Clicks). Gated on flagsPlaced > 0 so the
+        // common "no flags" loss (especially fast booms) doesn't render a
+        // noisy "Flags: 0" line. Reads m_flagCount at gameLost emission;
+        // revealAllMines does not auto-flag, so the value is the user's true
+        // count (mirror of the win-path which DOES auto-flag — that's why we
+        // hide the line on wins regardless).
+        if (flagsPlaced > 0)
+        {
+            text += QStringLiteral("\n") + tr("Flags placed: %1").arg(flagsPlaced);
         }
         box.setText(text);
         box.setIcon(QMessageBox::Warning);

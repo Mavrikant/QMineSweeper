@@ -50,7 +50,7 @@ class MainWindow : public QMainWindow
     void setSmileyState(GameState state);
     void setSmileyTension(bool pressing);
     void applySmiley();
-    void showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, std::uint32_t currentStreak, bool newBestStreak);
+    void showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak);
     void maybeAskTelemetryConsent();
     void restartApp();
     void refitWindowToContents();
