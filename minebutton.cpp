@@ -272,8 +272,11 @@ void MineButton::mousePressEvent(QMouseEvent *e)
     switch (e->button())
     {
     case Qt::LeftButton:
-        if (m_marker != CellMarker::Flag)
+        if (m_marker != CellMarker::Flag && !m_isClicked)
         {
+            // Emit before Open() so cascade-driven Open()s don't see the
+            // signal — userClick is gesture-scoped, cellOpened is per-cell.
+            emit userClick();
             Open();
         }
         break;

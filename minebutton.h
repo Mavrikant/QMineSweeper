@@ -68,6 +68,12 @@ class MineButton : public QPushButton
     // MainWindow uses these to drive the classic 😮 "tension" smiley.
     void pressStart();
     void pressEnd();
+    // Mouse-driven user gesture that will reveal this cell. Emitted from
+    // mousePressEvent on a left-click that is committing to a fresh Open()
+    // (cell unopened and not flag-marked); not emitted from flood-fill or
+    // chord-neighbour Open() calls. MineField listens to score the
+    // efficiency-metric click count without overcounting cascades.
+    void userClick();
 
   protected:
     void mousePressEvent(QMouseEvent *e) override;

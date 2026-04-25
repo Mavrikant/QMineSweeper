@@ -49,7 +49,7 @@ class MainWindow : public QMainWindow
     void setSmileyState(GameState state);
     void setSmileyTension(bool pressing);
     void applySmiley();
-    void showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond);
+    void showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct);
     void maybeAskTelemetryConsent();
     void restartApp();
     void refitWindowToContents();

@@ -69,6 +69,21 @@ class TestMineField : public QObject
     void testBoardValueResetByNewGame();
     void testBoardValueComputedAfterFirstClick();
     void testBoardValueReplayPreservesValue();
+    void testUserClicksZeroBeforeAnyClick();
+    void testUserClicksLeftClickIncrementsOnce();
+    void testUserClicksFloodCountsOnce();
+    void testUserClicksLeftClickOnFlaggedDoesNothing();
+    void testUserClicksLeftClickOnOpenedDoesNothing();
+    void testUserClicksRightClickDoesNothing();
+    void testUserClicksKeyboardSpaceCountsOnce();
+    void testUserClicksKeyboardSpaceOnFlaggedDoesNothing();
+    void testUserClicksChordCountsOnceWhenOpens();
+    void testUserClicksChordOnFullySatisfiedDoesNothing();
+    void testUserClicksChordWrongFlagCountsAndExplodes();
+    void testUserClicksKeyboardDChordCountsOnce();
+    void testUserClicksResetByNewGame();
+    void testUserClicksResetByReplay();
+    void testUserClicksResetBySetFixedLayout();
 
   private:
     static void openAllSafe(MineField &field);
@@ -829,12 +844,15 @@ void TestMineField::testAnyFlagPlacedResetByNewGame()
 void TestMineField::testAnyFlagPlacedResetByReplay()
 {
     MineField field;
-    // Trigger first-click flow so a layout exists for replay.
-    field.cellAt(4, 4)->Open();
+    // Deterministic layout — the previous version triggered first-click flow
+    // on a random Beginner board and then flagged (0, 0); when the random
+    // mine layout produced a flood that reached (0, 0), cycleMarker was a
+    // no-op on the now-opened cell and anyFlagPlaced never flipped. Using
+    // setFixedLayout removes the RNG dependency.
+    field.setFixedLayout(5, 5, {{0, 0}});
     QVERIFY(field.canReplay());
 
-    // Use cycleMarker on a different cell so we don't open it.
-    field.cellAt(0, 0)->cycleMarker();
+    field.cellAt(2, 2)->cycleMarker();
     QVERIFY(field.anyFlagPlaced());
 
     QVERIFY(field.newGameReplay());
@@ -966,6 +984,186 @@ void TestMineField::testBoardValueReplayPreservesValue()
     QVERIFY(initialBV >= 1);
     QVERIFY(field.newGameReplay());
     QCOMPARE(field.boardValue(), initialBV);
+}
+
+void TestMineField::testUserClicksZeroBeforeAnyClick()
+{
+    MineField field;
+    QCOMPARE(field.userClicks(), 0);
+    field.setFixedLayout(5, 5, {{0, 0}});
+    QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testUserClicksLeftClickIncrementsOnce()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    // Single user gesture, regardless of how the cell flooded.
+    QCOMPARE(field.userClicks(), 1);
+}
+
+void TestMineField::testUserClicksFloodCountsOnce()
+{
+    MineField field;
+    // Mine in a corner of a 5x5 — clicking the opposite corner triggers a
+    // big flood that opens many cells. Only the user gesture should count.
+    field.setFixedLayout(5, 5, {{0, 0}});
+    sendMousePress(field.cellAt(4, 4), Qt::LeftButton);
+    int openedCount = 0;
+    for (std::uint32_t r = 0; r < 5; ++r)
+    {
+        for (std::uint32_t c = 0; c < 5; ++c)
+        {
+            if (field.cellAt(r, c)->isOpened())
+            {
+                ++openedCount;
+            }
+        }
+    }
+    QVERIFY(openedCount > 1); // flood actually happened
+    QCOMPARE(field.userClicks(), 1);
+}
+
+void TestMineField::testUserClicksLeftClickOnFlaggedDoesNothing()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    target->cycleMarker();
+    QVERIFY(target->isFlagged());
+    sendMousePress(target, Qt::LeftButton);
+    QVERIFY(!target->isOpened());
+    QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testUserClicksLeftClickOnOpenedDoesNothing()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    sendMousePress(target, Qt::LeftButton);
+    QCOMPARE(field.userClicks(), 1);
+    // Second click on already-opened cell should be a no-op for the counter.
+    sendMousePress(target, Qt::LeftButton);
+    QCOMPARE(field.userClicks(), 1);
+}
+
+void TestMineField::testUserClicksRightClickDoesNothing()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    sendMousePress(target, Qt::RightButton);
+    QVERIFY(target->isFlagged());
+    QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testUserClicksKeyboardSpaceCountsOnce()
+{
+    MineField field;
+    field.setFixedLayout(5, 5, {{0, 0}});
+    sendKey(field.cellAt(4, 4), Qt::Key_Space);
+    QVERIFY(field.cellAt(4, 4)->isOpened());
+    QCOMPARE(field.userClicks(), 1);
+}
+
+void TestMineField::testUserClicksKeyboardSpaceOnFlaggedDoesNothing()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    MineButton *target = field.cellAt(2, 2);
+    target->cycleMarker();
+    sendKey(target, Qt::Key_Space);
+    QVERIFY(!target->isOpened());
+    QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testUserClicksChordCountsOnceWhenOpens()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(1, 1)->Open(); // direct test-helper open does NOT count as gesture
+    QCOMPARE(field.userClicks(), 0);
+    field.cellAt(0, 0)->cycleMarker(); // flag the mine
+    // Chord gesture on (1,1) opens (0,1), (1,0), (0,2), (2,0), (2,1), (2,2).
+    sendMousePress(field.cellAt(1, 1), Qt::MiddleButton);
+    QCOMPARE(field.userClicks(), 1);
+}
+
+void TestMineField::testUserClicksChordOnFullySatisfiedDoesNothing()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(1, 1)->Open();
+    field.cellAt(0, 0)->cycleMarker(); // flag mine
+    // Pre-open every safe neighbour by direct calls (does not count).
+    field.cellAt(0, 1)->Open();
+    field.cellAt(1, 0)->Open();
+    field.cellAt(2, 0)->Open();
+    field.cellAt(0, 2)->Open();
+    field.cellAt(2, 1)->Open();
+    field.cellAt(2, 2)->Open();
+    QCOMPARE(field.userClicks(), 0);
+    // Chord on (1,1) is satisfied but every neighbour is already opened or
+    // flagged — the gesture opens nothing and must not count.
+    sendMousePress(field.cellAt(1, 1), Qt::MiddleButton);
+    QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testUserClicksChordWrongFlagCountsAndExplodes()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(1, 1)->Open();
+    // Wrong flag at (0,1) — count satisfies number 1, but it covers the wrong cell.
+    field.cellAt(0, 1)->cycleMarker();
+    sendMousePress(field.cellAt(1, 1), Qt::MiddleButton);
+    QCOMPARE(field.state(), GameState::Lost);
+    // The chord opened the actual mine (a fresh open), so the gesture counts.
+    QCOMPARE(field.userClicks(), 1);
+}
+
+void TestMineField::testUserClicksKeyboardDChordCountsOnce()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(1, 1)->Open();
+    field.cellAt(0, 0)->cycleMarker();
+    QCOMPARE(field.userClicks(), 0);
+    sendKey(field.cellAt(1, 1), Qt::Key_D);
+    QCOMPARE(field.userClicks(), 1);
+    QVERIFY(field.cellAt(2, 2)->isOpened());
+}
+
+void TestMineField::testUserClicksResetByNewGame()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    QCOMPARE(field.userClicks(), 1);
+    field.newGame(MineField::Beginner);
+    QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testUserClicksResetByReplay()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    QCOMPARE(field.userClicks(), 1);
+    QVERIFY(field.newGameReplay());
+    QCOMPARE(field.userClicks(), 0);
+}
+
+void TestMineField::testUserClicksResetBySetFixedLayout()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    sendMousePress(field.cellAt(2, 2), Qt::LeftButton);
+    QCOMPARE(field.userClicks(), 1);
+    field.setFixedLayout(4, 4, {{0, 0}});
+    QCOMPARE(field.userClicks(), 0);
 }
 
 QTEST_MAIN(TestMineField)
