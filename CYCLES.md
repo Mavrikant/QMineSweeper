@@ -1,5 +1,230 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 30 — v1.33.0 (autonomous)
+
+- **Chosen problem:** v1.32 surfaced per-loss flag accuracy as a
+  `Correct flags: X / Y` line on the loss dialog. The cycle's "Next
+  candidates" list explicitly tagged a Stats-dialog "Best flag
+  accuracy" column as the lead next move — same per-loss readout →
+  lifetime persistence thread the project has run twice already
+  (v1.27 → v1.28 partial-3BV → best partial-clear column;
+  v1.30 → v1.31 ⚡ flair → Best 3BV/s column). The lifetime
+  hall-of-fame counterpart was missing — once the dialog closed,
+  the per-game accuracy disappeared.
+- **Evidence:** `MineField::correctFlagsPlaced()` (v1.32) and
+  `flagsPlaced()` (v1.24) already exist; `MainWindow.onGameLost`
+  threads both into the loss dialog via `showEndDialog`. Stats
+  table had 7 columns (Difficulty / Played / Won / Best time /
+  Best (no flag) / Streak / Best 3BV/s); no flag-accuracy axis.
+  `Stats::Record` had no field, `recordLoss` had no parameter, and
+  the Stats dialog had no column. Pure presentation + persistence
+  gap on a metric the player already saw once per loss.
+- **Shipped:**
+  - Branch: `feat/v1.33.0-stats-best-flag-accuracy-column`
+    (squash-merged + deleted)
+  - PR: [#51](https://github.com/Mavrikant/QMineSweeper/pull/51)
+    (squash-merged as `4e5ae90`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.33.0
+  - Release workflow `24939180934` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage 35.9 MB / tar.gz
+    35.6 MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB). Hand-written
+    user-facing release notes installed via `gh release edit` —
+    explains the format, what counts as a record (flagsPlaced > 0,
+    strict-greater-than), the replay/custom exclusion, and the macOS
+    quarantine clear.
+- **Code surface:** ~210 LOC of production diff:
+  - `stats.h`: 12 LOC of doc-comment block on the field + 2 LOC on
+    `Record` (uint percent + QDate); 9 LOC of doc + 1 LOC on
+    `LossOutcome.newBestFlagAccuracyPercent`; 4 LOC of doc + 1 LOC
+    signature change to `recordLoss`. The `operator bool`
+    intentionally still tracks ONLY `newBestSafePercent` so the
+    v1.29.0 🎯 flair gate keeps its pre-1.33 semantics — pinned
+    in `testLossOutcomeBoolStillTracksOnlySafePercent`.
+  - `stats.cpp`: 6 LOC `load` (uint + ISO date), 9 LOC `save`
+    (set or remove pair), 2 LOC `reset` (key wipe), 14 LOC
+    `recordLoss` (gate + clamp + strict-greater-than +
+    LossOutcome population). Mirrors the bestSafePercent block
+    line-for-line.
+  - `mainwindow.cpp`: 2 LOC compute `flagAccuracyPercent =
+    round(100 · correctFlags / flags)` when `flags > 0` (sentinel
+    0 otherwise — no-flag boom or wrong-only-flag loss); thread
+    into `Stats::recordLoss`; 2 LOC new telemetry tags
+    (`flag_accuracy_percent`, `new_best_flag_accuracy`); 2 LOC
+    Stats dialog (column count 7→8, new tr() header, new setItem
+    via `formatFlagAccuracyCell`); 1 LOC new include.
+  - `flag_accuracy_format.h`: NEW. ~20 LOC pure inline helper
+    `formatFlagAccuracyCell(int, const QDate&)`. Out-of-range
+    (negative or >100) collapses to `"—"` rather than rendering
+    nonsense; the persistence layer clamps to [0, 100], so the
+    guard catches only future call-site arithmetic bugs.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 locales).
+  - `tests/CMakeLists.txt`: 1 LOC (register new test target).
+  - `tests/tst_flag_accuracy_format.cpp`: NEW. ~110 LOC, 11 cases.
+  - `tests/tst_stats.cpp`: 16 new test methods + 16 declarations
+    (~210 LOC) + a 22-site sed migration (`recordLoss(name, p, d)`
+    → `recordLoss(name, p, 0, d)` to thread the new positional
+    flag-accuracy slot).
+  - `CMakeLists.txt`: 1 LOC (version bump).
+  - Total real code+test+docs diff: ~470 LOC (1361 inserts /
+    863 deletes counts the 9 `.ts` files getting re-numbered by
+    `lupdate`). Real new code is well under the 400-LOC cycle cap.
+- **Tests added (16 new in `tst_stats.cpp` + 11 new in
+  `tst_flag_accuracy_format.cpp`):**
+  - `testBestFlagAccuracyDefaultsZero` / `…DefaultArgsKeepsZero` —
+    fresh `Record` and default-arg `recordLoss` both leave the
+    field at 0 / invalid date.
+  - `…WithFlagAccuracySetsOnFirstCall` — first positive value
+    transitions 0 → percent, stamps date.
+  - `…HigherFlagAccuracyBeats` / `…LowerKeepsOriginal` /
+    `…EqualKeepsOriginalDate` — strict-greater-than semantics
+    pinned, mirrors bestSafePercent / bestBvPerSecond.
+  - `…WithZeroFlagAccuracyDoesNotMutate` — zero sentinel after a
+    positive seed is a no-op.
+  - `…WithFullFlagAccuracyBoundary` (100% accepted unclamped) /
+    `…WithOverflowFlagAccuracyClampedTo100` (200% → 100% clamp).
+  - `testRecordWinDoesNotTouchBestFlagAccuracy` — pin: a win
+    doesn't pollute the per-loss leaderboard (post-win
+    `flagAllMines` would otherwise force trivial 100%).
+  - `testBestFlagAccuracyIsPerDifficulty` — Beginner / Expert
+    isolation; Intermediate stays untouched.
+  - `testResetWipesBestFlagAccuracy` /
+    `testResetAllWipesBestFlagAccuracy`.
+  - `testLegacyRecordWithoutBestFlagAccuracyLoadsAsZero` — pre-1.33
+    plist (no `best_flag_accuracy_*` keys) loads at 0 / invalid;
+    upgrading user's first 1.33.0 loss seeds the record cleanly.
+  - `testLossOutcomeFlagAccuracyIndependentOfSafePercent` — the
+    independence matrix: a higher safePercent + lower accuracy
+    updates only safePercent; a lower safePercent + higher accuracy
+    updates only the accuracy. Locks the two axes to be unrelated.
+  - `testLossOutcomeBoolStillTracksOnlySafePercent` — the
+    backwards-compat pin: a loss that sets a new flag-accuracy
+    record but NOT a new safe-percent record converts to bool
+    `false`. The v1.29 🎯 flair gate keeps its pre-1.33 semantics.
+  - `tst_flag_accuracy_format.cpp`: zero / negative / >100 →
+    em-dash (3 cases); positive renders `X%`; with date appends
+    locale-formatted short date; 1% / 100% boundaries; invalid date
+    suppresses parens; two-space separator pinned.
+  - **Adversarially verified** by mutating the em-dash sentinel
+    `"—"` → `"XX"`; 3 tests fail. Restored.
+- **Translation cost:** 1 new hand-translated string × 9 non-en
+  locales. 104/104 finished per locale, 0 unfinished — 50/50
+  coverage preserved.
+  - TR `"En iyi bayrak isabeti"`
+  - ES `"Mejor precisión de banderas"`
+  - FR `"Record précision drapeaux"`
+  - DE `"Beste Flaggengenauigkeit"`
+  - RU `"Лучшая точность флагов"`
+  - PT `"Recorde precisão de bandeiras"`
+  - ZH `"最佳标旗准确率"`
+  - HI `"सर्वश्रेष्ठ झंडा सटीकता"`
+  - AR `"أفضل دقة للأعلام"`
+- **Assumptions made:**
+  - **Percent only, not X / Y in the cell.** The lifetime cell shows
+    `42%`; the per-loss dialog still shows `Correct flags: X / Y`.
+    The per-loss `correctFlags` and `flagsPlaced` aren't independently
+    persisted — adding both fields would double the schema for a
+    cell that only ever displays one number. The compressed percent
+    matches the `Best 3BV/s` column's single-value pattern.
+  - **Round to integer percent.** `std::lround(100.0 · correct /
+    flags)` keeps the column narrow and avoids decimals for what is
+    always a small integer ratio. Matches the existing `Clicks: %1
+    · Efficiency: %2%` column convention.
+  - **`flagsPlaced > 0` gate, with `correctFlags == 0` allowed in
+    principle but excluded by the persistence-layer `> 0` gate.** A
+    chaotic-only-wrong-flag run yields 0% which never beats a record;
+    a no-flag boom yields 0 directly. Both cases leave the field
+    untouched, mirroring the bestSafePercent zero-sentinel.
+  - **`LossOutcome::operator bool` deliberately UNCHANGED.** Adding
+    a new field to the struct must not change the bool-conversion
+    contract — the v1.29 🎯 flair gate must keep its pre-1.33
+    semantics. Pinned by `testLossOutcomeBoolStillTracksOnlySafePercent`.
+  - **`recordLoss` parameter inserted between `safePercent` and
+    `onDate`, not appended after.** The natural position alongside
+    `safePercent` (both per-loss percentage axes); the trailing
+    `onDate` stays the trailing test-injection knob. Cost: 22
+    `recordLoss(name, p, date)` test sites get an explicit `0` in
+    the new slot. Pure migration, no semantic change.
+  - **New telemetry tags `flag_accuracy_percent` +
+    `new_best_flag_accuracy`.** Mirror the v1.32 `correct_flags`
+    + the v1.28 `new_best_safe_percent` tags; integers + bools
+    only, no new PII.
+- **Skipped:**
+  - *Loss-dialog flair on a fresh record (e.g. `🎯 New best flag
+    accuracy!`).* The 🎯 already gates safePercent. Adding a second
+    similar-looking emoji creates ambiguity. Defer until the user
+    distribution shows the metric is hit often enough to merit the
+    flair.
+  - *X / Y form in the cell.* Would need to persist both numerator
+    and denominator. Two more fields × 3 difficulties × QSettings
+    plumbing. Not worth it for a value that, by construction, is
+    a small ratio shown once per Stats-dialog open.
+  - *Win-dialog "average flag accuracy" line.* Wins auto-flag every
+    mine post-state-flip, so any read at `gameWon` is trivially
+    100%. Useless.
+  - *Loss-dialog "Time since last win" line.* Re-parked from cycle
+    29's next-candidates. Needs a new `last_win_date` field.
+    ~30 LOC. Defer.
+  - *Win-dialog "Average time" line.* Re-parked from cycle 29.
+    Needs persistence of total seconds. ~40 LOC.
+  - *Stats-dialog row totals* (grand total played / won / win %).
+    Re-parked from cycle 28.
+- **Risks logged:** none. Pure additive change. No schema
+  migration. New `LossOutcome` field is independent of the existing
+  `newBestSafePercent` / `operator bool` contract — pinned by
+  `testLossOutcomeBoolStillTracksOnlySafePercent`. New telemetry
+  tags are integer / bool — same anonymous-tag profile as the
+  existing ones.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* The Stats dialog grows one column.
+    The lookup falls back to source on any locale where the key is
+    missing — verified `0` unfinished outside `en` so this won't
+    trigger. Out-of-range percent values (negative, >100) collapse
+    to `"—"` not a malformed cell.
+  - *Backwards compat?* No schema migration. Pre-1.33 plist with
+    no `best_flag_accuracy_*` keys loads at 0 / invalid. The
+    `LossOutcome::operator bool` keeps its pre-1.33 semantics. The
+    22 explicit-date test sites were migrated by sed to thread an
+    explicit 0 in the new positional slot — caught at compile time
+    if any was missed.
+  - *Error paths?* `formatFlagAccuracyCell` rejects negative and
+    >100 sentinels. `recordLoss` clamps to [0, 100]. `load`
+    falls back to 0 / invalid date when the QSettings keys are
+    absent. Empty board (no cells) reaches `recordLoss` with a
+    zero `flagsPlaced` from `MineField` and the gate skips the
+    update.
+  - *Secrets / PII?* New telemetry tags are integer / bool. No new
+    persistence beyond two QSettings keys (counts + ISO date,
+    same shape as the existing dozen).
+  - *Performance?* `recordLoss` walks no cells. The
+    `correctFlagsPlaced()` helper still runs once per loss (was
+    already there). Stats dialog adds one `setItem` per row — 3
+    extra calls.
+  - *Concurrency?* Single-threaded. No new shared state.
+- **Post-release watch (T+~3min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues
+  in release `qminesweeper@1.33.0` in the last hour returned
+  **zero results**. Expected — telemetry is opt-in and the assets
+  just published with zero downloads. Watch closed.
+- **Next candidates:**
+  - **Loss-dialog `🎯` flair on a fresh `bestFlagAccuracyPercent`
+    record.** The persistence layer already returns the bool;
+    only the dialog needs to consume it. Needs a new emoji /
+    string to disambiguate from the v1.29 `🎯 New best %!` which
+    is for safePercent. Two flairs on the same emoji is the
+    blocker — pick a different emoji (`🎯 → 🏹`?) or a longer
+    distinguishing label.
+  - **Loss-dialog "Time since last win" line** when the player
+    has won this difficulty before. Re-parked from cycle 28+29.
+    Needs a new `last_win_date` field. ~30 LOC + 1 translatable
+    string × 9 locales.
+  - **Win-dialog "Average time" line** showing the player's
+    average winning time after >= 3 wins. Re-parked from cycle
+    28+29. Needs persistence of total seconds. ~40 LOC.
+  - **Stats-dialog row totals** below the 3 difficulty rows —
+    grand-total played / won / win % across all difficulties. Pure
+    presentation aggregation; no new persistence. Re-parked from
+    cycle 28+29.
+
 ## 2026-04-25 — Cycle 29 — v1.32.0 (autonomous)
 
 - **Chosen problem:** The loss dialog already shows total flags
