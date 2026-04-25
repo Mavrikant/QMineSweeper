@@ -56,6 +56,22 @@ struct WinOutcome
     explicit operator bool() const noexcept { return newRecord; }
 };
 
+// Outcome of a recordLoss call. `newBestSafePercent` is true iff the loss's
+// `safePercent` strictly beat the prior `bestSafePercent` for this difficulty
+// (including the very first loss with `safePercent > 0`, when the field
+// transitions 0 → some positive value). Mirrors the WinOutcome.newRecord
+// convention so `MainWindow` can surface a "🎯 New best %!" flair on the loss
+// dialog parallel to the win-side "🏆 New record!".
+struct LossOutcome
+{
+    bool newBestSafePercent{false};
+
+    // Mirror of WinOutcome::operator bool — explicit so accidental assignment
+    // to `bool` still requires `.newBestSafePercent`. Lets future call sites
+    // do `if (Stats::recordLoss(...))` if they want.
+    explicit operator bool() const noexcept { return newBestSafePercent; }
+};
+
 [[nodiscard]] Record load(const QString &difficultyName);
 void save(const QString &difficultyName, const Record &record);
 void reset(const QString &difficultyName);
@@ -68,8 +84,9 @@ void resetAll();
 // stamps `bestSafePercentDate` with `onDate`. Defaults to 0 so existing
 // callers (and tests) are source-compatible — a 0 percent will never set or
 // touch the partial-clear best, mirroring the recordWin sentinel for 0
-// seconds.
-void recordLoss(const QString &difficultyName, int safePercent = 0, const QDate &onDate = QDate::currentDate());
+// seconds. Returns LossOutcome so callers can surface "New best %!" flair
+// on the end-of-game dialog; ignoring the return value is harmless.
+LossOutcome recordLoss(const QString &difficultyName, int safePercent = 0, const QDate &onDate = QDate::currentDate());
 
 // Convenience: increment Played + Won, update bestSeconds if the run was
 // faster (or no prior record), increment currentStreak, and roll bestStreak

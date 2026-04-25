@@ -99,11 +99,12 @@ void resetAll()
     settings.endGroup();
 }
 
-void recordLoss(const QString &difficultyName, int safePercent, const QDate &onDate)
+LossOutcome recordLoss(const QString &difficultyName, int safePercent, const QDate &onDate)
 {
     Record r = load(difficultyName);
     ++r.played;
     r.currentStreak = 0;
+    bool newBestSafePercent = false;
     if (safePercent > 0)
     {
         const std::uint32_t clamped = static_cast<std::uint32_t>(safePercent > 100 ? 100 : safePercent);
@@ -111,9 +112,11 @@ void recordLoss(const QString &difficultyName, int safePercent, const QDate &onD
         {
             r.bestSafePercent = clamped;
             r.bestSafePercentDate = onDate;
+            newBestSafePercent = true;
         }
     }
     save(difficultyName, r);
+    return LossOutcome{newBestSafePercent};
 }
 
 WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate)
