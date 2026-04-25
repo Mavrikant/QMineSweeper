@@ -34,6 +34,7 @@ Record load(const QString &difficultyName)
     r.bestFlagAccuracyPercent = settings.value(key(difficultyName, QStringLiteral("best_flag_accuracy_percent")), 0u).toUInt();
     const QString flagAccDateStr = settings.value(key(difficultyName, QStringLiteral("best_flag_accuracy_date")), QString{}).toString();
     r.bestFlagAccuracyDate = flagAccDateStr.isEmpty() ? QDate{} : QDate::fromString(flagAccDateStr, Qt::ISODate);
+    r.totalSecondsWon = settings.value(key(difficultyName, QStringLiteral("total_seconds_won")), 0.0).toDouble();
     return r;
 }
 
@@ -97,6 +98,7 @@ void save(const QString &difficultyName, const Record &r)
     {
         settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_date")));
     }
+    settings.setValue(key(difficultyName, QStringLiteral("total_seconds_won")), r.totalSecondsWon);
 }
 
 void reset(const QString &difficultyName)
@@ -117,6 +119,7 @@ void reset(const QString &difficultyName)
     settings.remove(key(difficultyName, QStringLiteral("best_bv_per_second_date")));
     settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_percent")));
     settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_date")));
+    settings.remove(key(difficultyName, QStringLiteral("total_seconds_won")));
 }
 
 void resetAll()
@@ -183,8 +186,19 @@ WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate 
         r.bestBvPerSecondDate = onDate;
         newBestBvPerSecond = true;
     }
+    // Lifetime mean-of-winning-times accumulator. Same > 0.0 gate as the
+    // bestSeconds update path so a sub-tick test win never poisons the divisor.
+    if (seconds > 0.0)
+    {
+        r.totalSecondsWon += seconds;
+    }
     save(difficultyName, r);
-    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak, newBestBvPerSecond};
+    // averageSecondsAfter is the post-update mean, computed from the same
+    // numerator (totalSecondsWon) and denominator (won) the next load() will
+    // see. Guarded against 0/0 even though `won` was just incremented — the
+    // accumulator may still be 0.0 if every win so far was sub-tick.
+    const double averageSecondsAfter = (r.won > 0 && r.totalSecondsWon > 0.0) ? (r.totalSecondsWon / r.won) : 0.0;
+    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak, newBestBvPerSecond, r.won, averageSecondsAfter};
 }
 
 bool recordNoflagBest(const QString &difficultyName, double seconds, const QDate &onDate)
