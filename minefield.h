@@ -104,6 +104,18 @@ class MineField : public QWidget
     // newGameReplay / setFixedLayout.
     [[nodiscard]] int flagsPlaced() const noexcept;
 
+    // Live count of `?` markers currently placed on the board. Derived by
+    // walking the live cells (no separate counter) — Question is the third
+    // step in the right-click cycle and has no corresponding signal, so a
+    // counter would have to subscribe to a new transition signal. The walk
+    // is O(rows × cols) ≤ 480 (Expert) and runs only at end-of-game.
+    // The loss path's revealAllMines does not touch m_marker, so a
+    // question-marked cell that turned out to be a mine still counts here
+    // after the loss reveal — semantically correct (the player did mark it
+    // with `?`). Used by MainWindow to surface the loss-dialog
+    // "Question marks: %1" line, mirroring "Flags placed: %1".
+    [[nodiscard]] int questionMarksPlaced() const noexcept;
+
     // Fraction of safe (non-mine) cells revealed so far, expressed as an integer
     // 0-100. Round-half-up. Useful as an end-of-game progress hint on losses —
     // a player who exploded after revealing 87% of the board sees that they
