@@ -127,6 +127,17 @@ class MineField : public QWidget
     // "Question marks: %1" line, mirroring "Flags placed: %1".
     [[nodiscard]] int questionMarksPlaced() const noexcept;
 
+    // Live count of flags currently placed on actual mines. Walks the live
+    // cells (no separate counter) — flag-on-mine has no dedicated transition
+    // signal because flags can be placed before mines are seeded (mine
+    // placement is deferred to the first click), and a counter would have to
+    // re-tally on placeMines. The walk is O(rows × cols) ≤ 480 (Expert) and
+    // runs only at end-of-game. Always ≤ flagsPlaced(); equals flagsPlaced()
+    // when every placed flag is on a mine. Used by MainWindow to surface the
+    // loss-dialog "Correct flags: %1 / %2" line, mirroring "Flags placed: %1"
+    // and giving the player flag-accuracy feedback at the moment of explosion.
+    [[nodiscard]] int correctFlagsPlaced() const noexcept;
+
     // Fraction of safe (non-mine) cells revealed so far, expressed as an integer
     // 0-100. Round-half-up. Useful as an end-of-game progress hint on losses —
     // a player who exploded after revealing 87% of the board sees that they

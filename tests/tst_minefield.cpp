@@ -110,6 +110,13 @@ class TestMineField : public QObject
     void testQuestionMarksPlacedDecrementsOnCycleAway();
     void testQuestionMarksPlacedPreservedOnLoss();
     void testQuestionMarksPlacedResetByNewGame();
+    void testCorrectFlagsPlacedZeroBeforeAnyFlag();
+    void testCorrectFlagsPlacedCountsOnlyFlagsOnMines();
+    void testCorrectFlagsPlacedAllOnMines();
+    void testCorrectFlagsPlacedNoneOnMines();
+    void testCorrectFlagsPlacedQuestionDoesNotCount();
+    void testCorrectFlagsPlacedPreservedOnLoss();
+    void testCorrectFlagsPlacedResetByNewGame();
 
   private:
     static void openAllSafe(MineField &field);
@@ -1553,6 +1560,85 @@ void TestMineField::testQuestionMarksPlacedResetByNewGame()
     QCOMPARE(field.questionMarksPlaced(), 1);
     field.newGame(MineField::Beginner);
     QCOMPARE(field.questionMarksPlaced(), 0);
+}
+
+void TestMineField::testCorrectFlagsPlacedZeroBeforeAnyFlag()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {2, 2}});
+    QCOMPARE(field.correctFlagsPlaced(), 0);
+}
+
+void TestMineField::testCorrectFlagsPlacedCountsOnlyFlagsOnMines()
+{
+    // Mines at (0,0) and (2,2). User flags one mine and one safe cell:
+    // correct flags should be 1 of 2 placed.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {2, 2}});
+    field.cellAt(0, 0)->cycleMarker(); // None → Flag (on mine)
+    field.cellAt(1, 1)->cycleMarker(); // None → Flag (safe)
+    QCOMPARE(field.flagsPlaced(), 2);
+    QCOMPARE(field.correctFlagsPlaced(), 1);
+}
+
+void TestMineField::testCorrectFlagsPlacedAllOnMines()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {2, 2}});
+    field.cellAt(0, 0)->cycleMarker();
+    field.cellAt(2, 2)->cycleMarker();
+    QCOMPARE(field.flagsPlaced(), 2);
+    QCOMPARE(field.correctFlagsPlaced(), 2);
+}
+
+void TestMineField::testCorrectFlagsPlacedNoneOnMines()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {2, 2}});
+    field.cellAt(0, 1)->cycleMarker(); // safe
+    field.cellAt(1, 1)->cycleMarker(); // safe
+    QCOMPARE(field.flagsPlaced(), 2);
+    QCOMPARE(field.correctFlagsPlaced(), 0);
+}
+
+void TestMineField::testCorrectFlagsPlacedQuestionDoesNotCount()
+{
+    // A `?` on a mined cell still has m_isMined == true, but isFlagged() is
+    // false — so it must not be counted as a correct flag. Regression guard:
+    // any future change that conflates marker states here would silently
+    // inflate the loss-dialog "Correct flags" line.
+    MineButton::setQuestionMarksEnabled(true);
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {2, 2}});
+    field.cellAt(0, 0)->cycleMarker(); // None → Flag (correct flag, on mine)
+    field.cellAt(2, 2)->cycleMarker(); // None → Flag
+    field.cellAt(2, 2)->cycleMarker(); // Flag → Question (no longer a flag)
+    QCOMPARE(field.flagsPlaced(), 1);
+    QCOMPARE(field.correctFlagsPlaced(), 1);
+}
+
+void TestMineField::testCorrectFlagsPlacedPreservedOnLoss()
+{
+    // Mirror of testFlagsPlacedPreservedOnLoss / testQuestionMarksPlacedPreservedOnLoss:
+    // the loss path's revealAllMines must not disturb flag state, so a flag
+    // correctly placed on a mine still counts after the loss reveal.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {0, 2}});
+    field.cellAt(0, 0)->cycleMarker(); // Flag a mine.
+    QCOMPARE(field.correctFlagsPlaced(), 1);
+    sendMousePress(field.cellAt(0, 2), Qt::LeftButton); // Step on the other mine.
+    QCOMPARE(field.state(), GameState::Lost);
+    QCOMPARE(field.correctFlagsPlaced(), 1);
+}
+
+void TestMineField::testCorrectFlagsPlacedResetByNewGame()
+{
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}});
+    field.cellAt(0, 0)->cycleMarker();
+    QCOMPARE(field.correctFlagsPlaced(), 1);
+    field.newGame(MineField::Beginner);
+    QCOMPARE(field.correctFlagsPlaced(), 0);
 }
 
 QTEST_MAIN(TestMineField)
