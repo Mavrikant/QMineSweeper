@@ -56,6 +56,22 @@ class TestStats : public QObject
     void testResetAllWipesStreak();
     void testLegacyRecordWithoutStreakLoadsAsZero();
     void testRecordWinReturnsOutcomeFields();
+
+    // best partial-clear (per-difficulty hall of fame for unwon difficulties)
+    void testBestSafePercentDefaultsZero();
+    void testRecordLossDefaultArgsKeepBestSafePercentZero();
+    void testRecordLossWithPercentSetsOnFirstCall();
+    void testRecordLossWithHigherPercentBeats();
+    void testRecordLossWithLowerPercentKeepsOriginal();
+    void testRecordLossWithEqualPercentKeepsOriginalDate();
+    void testRecordLossWithZeroPercentDoesNotMutate();
+    void testRecordLossWithFullClearPercentBoundary();
+    void testRecordLossWithOverflowPercentClampedTo100();
+    void testRecordWinDoesNotTouchBestSafePercent();
+    void testBestSafePercentIsPerDifficulty();
+    void testResetWipesBestSafePercent();
+    void testResetAllWipesBestSafePercent();
+    void testLegacyRecordWithoutBestSafePercentLoadsAsZero();
 };
 
 void TestStats::initTestCase()
@@ -486,6 +502,160 @@ void TestStats::testRecordWinReturnsOutcomeFields()
     QVERIFY(!slower.newRecord);
     QCOMPARE(slower.currentStreak, 2u);
     QVERIFY(slower.newBestStreak);
+}
+
+void TestStats::testBestSafePercentDefaultsZero()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestSafePercent, 0u);
+    QVERIFY(!r.bestSafePercentDate.isValid());
+}
+
+void TestStats::testRecordLossDefaultArgsKeepBestSafePercentZero()
+{
+    // Default-arg recordLoss (no percent supplied) must not touch the
+    // partial-clear best — preserves source-compat for callers that don't
+    // care about the new field (e.g. legacy tests).
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 1u);
+    QCOMPARE(r.bestSafePercent, 0u);
+    QVERIFY(!r.bestSafePercentDate.isValid());
+}
+
+void TestStats::testRecordLossWithPercentSetsOnFirstCall()
+{
+    const QDate d{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Beginner"), 47, d);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 1u);
+    QCOMPARE(r.bestSafePercent, 47u);
+    QCOMPARE(r.bestSafePercentDate, d);
+}
+
+void TestStats::testRecordLossWithHigherPercentBeats()
+{
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Expert"), 30, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 70, d2);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestSafePercent, 70u);
+    QCOMPARE(r.bestSafePercentDate, d2);
+}
+
+void TestStats::testRecordLossWithLowerPercentKeepsOriginal()
+{
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Expert"), 70, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 50, d2);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestSafePercent, 70u);
+    QCOMPARE(r.bestSafePercentDate, d1);
+}
+
+void TestStats::testRecordLossWithEqualPercentKeepsOriginalDate()
+{
+    // Strict greater-than semantics: ties don't bump the date — mirrors the
+    // best-streak date convention in testBestStreakDateStampedOnHighWaterOnly.
+    const QDate d1{2026, 1, 1};
+    const QDate d2{2026, 4, 25};
+    Stats::recordLoss(QStringLiteral("Expert"), 60, d1);
+    Stats::recordLoss(QStringLiteral("Expert"), 60, d2);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestSafePercent, 60u);
+    QCOMPARE(r.bestSafePercentDate, d1);
+}
+
+void TestStats::testRecordLossWithZeroPercentDoesNotMutate()
+{
+    // First seed a non-zero best, then a zero-percent loss must leave it.
+    Stats::recordLoss(QStringLiteral("Expert"), 40, QDate{2026, 1, 1});
+    Stats::recordLoss(QStringLiteral("Expert"), 0, QDate{2026, 4, 25});
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.played, 2u);
+    QCOMPARE(r.bestSafePercent, 40u);
+    QCOMPARE(r.bestSafePercentDate, (QDate{2026, 1, 1}));
+}
+
+void TestStats::testRecordLossWithFullClearPercentBoundary()
+{
+    // 100 is a defensible boundary value: a player who cleared every safe
+    // cell but stepped on a mine on a chord click after the last open. Not
+    // reachable in production (last-cell open triggers win first) but the
+    // recording layer must accept it without clamping.
+    Stats::recordLoss(QStringLiteral("Expert"), 100, QDate{2026, 4, 25});
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestSafePercent, 100u);
+}
+
+void TestStats::testRecordLossWithOverflowPercentClampedTo100()
+{
+    // Defence-in-depth: a future caller that passes an overflowed value
+    // (e.g. 200 from an arithmetic bug) must still produce a sane record.
+    Stats::recordLoss(QStringLiteral("Expert"), 200, QDate{2026, 4, 25});
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestSafePercent, 100u);
+}
+
+void TestStats::testRecordWinDoesNotTouchBestSafePercent()
+{
+    // Seed a partial-clear best, then win — recordWin must not zero or
+    // overwrite the partial-clear field. Persistence semantics: the
+    // partial-clear stays in QSettings; the dialog hides it once a win
+    // exists.
+    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 1, 1});
+    QVERIFY(Stats::recordWin(QStringLiteral("Expert"), 250.0, QDate{2026, 4, 25}));
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestSafePercent, 60u);
+    QCOMPARE(r.bestSafePercentDate, (QDate{2026, 1, 1}));
+    QCOMPARE(r.won, 1u);
+}
+
+void TestStats::testBestSafePercentIsPerDifficulty()
+{
+    Stats::recordLoss(QStringLiteral("Beginner"), 80, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 40, QDate{2026, 4, 25});
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSafePercent, 80u);
+    QCOMPARE(Stats::load(QStringLiteral("Intermediate")).bestSafePercent, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 40u);
+}
+
+void TestStats::testResetWipesBestSafePercent()
+{
+    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    Stats::reset(QStringLiteral("Expert"));
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.bestSafePercent, 0u);
+    QVERIFY(!r.bestSafePercentDate.isValid());
+}
+
+void TestStats::testResetAllWipesBestSafePercent()
+{
+    Stats::recordLoss(QStringLiteral("Beginner"), 80, QDate{2026, 4, 25});
+    Stats::recordLoss(QStringLiteral("Expert"), 60, QDate{2026, 4, 25});
+    Stats::resetAll();
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSafePercent, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 0u);
+}
+
+void TestStats::testLegacyRecordWithoutBestSafePercentLoadsAsZero()
+{
+    // Pre-1.28 record: no best_safe_percent_* keys present — must load as
+    // 0 / invalid date so an upgrading user's first loss after the upgrade
+    // sets the record cleanly.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 42.0);
+    settings.setValue(QStringLiteral("stats/Beginner/best_date"), QStringLiteral("2026-01-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 5u);
+    QCOMPARE(r.bestSafePercent, 0u);
+    QVERIFY(!r.bestSafePercentDate.isValid());
 }
 
 QTEST_MAIN(TestStats)

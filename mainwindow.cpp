@@ -553,9 +553,15 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     setSmileyState(GameState::Lost);
     setWindowTitle(tr("QMineSweeper — Boom"));
     const QString diffName = difficultyName(m_currentDifficulty);
+    const int safePercent = ui->mineFieldWidget->safePercentCleared();
     if (!m_isReplay && !m_isCustom)
     {
-        Stats::recordLoss(diffName);
+        // Pass safePercent so Stats can update the per-difficulty
+        // best-partial-clear hall-of-fame (surfaced in the Stats dialog only
+        // when the user has never won this difficulty). Replays / custom
+        // games are excluded for the same reason wins are: a memorised
+        // board would let the user inflate the lifetime record.
+        Stats::recordLoss(diffName, safePercent);
     }
     const int clicks = ui->mineFieldWidget->userClicks();
     const int flags = ui->mineFieldWidget->flagsPlaced();
@@ -972,6 +978,24 @@ void MainWindow::showStatsDialog()
         }
         return s;
     };
+    // Best-time cell with a partial-clear hall-of-fame fallback for
+    // difficulties the player has never won — shows the highest
+    // safe-percent ever reached on a loss as "— (best 87%, 25.04.2026)"
+    // instead of a bare em-dash. Once a win is recorded the best-time
+    // value supersedes the partial-clear annotation entirely (the
+    // partial-best stays in QSettings but is no longer surfaced).
+    const auto formatBestTimeOrPartial = [this, &formatBest](const Stats::Record &rec)
+    {
+        if (rec.bestSeconds > 0.0)
+        {
+            return formatBest(rec.bestSeconds, rec.bestDate);
+        }
+        if (rec.won == 0 && rec.bestSafePercent > 0 && rec.bestSafePercentDate.isValid())
+        {
+            return tr("— (best %1%, %2)").arg(rec.bestSafePercent).arg(QLocale().toString(rec.bestSafePercentDate, QLocale::ShortFormat));
+        }
+        return QStringLiteral("—");
+    };
     for (int i = 0; i < 3; ++i)
     {
         const Stats::Record rec = Stats::load(QString::fromLatin1(rows[i].key));
@@ -979,7 +1003,7 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 0, new QTableWidgetItem(tr(rows[i].label)));
         table->setItem(i, 1, new QTableWidgetItem(QString::number(rec.played)));
         table->setItem(i, 2, new QTableWidgetItem(QString::number(rec.won) + winRate));
-        table->setItem(i, 3, new QTableWidgetItem(formatBest(rec.bestSeconds, rec.bestDate)));
+        table->setItem(i, 3, new QTableWidgetItem(formatBestTimeOrPartial(rec)));
         table->setItem(i, 4, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
         table->setItem(i, 5, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
     }
