@@ -69,6 +69,7 @@ class TestMineField : public QObject
     void testBoardValueResetByNewGame();
     void testBoardValueComputedAfterFirstClick();
     void testBoardValueReplayPreservesValue();
+    void testBoardValuePreservedOnLoss();
     void testUserClicksZeroBeforeAnyClick();
     void testUserClicksLeftClickIncrementsOnce();
     void testUserClicksFloodCountsOnce();
@@ -995,6 +996,23 @@ void TestMineField::testBoardValueReplayPreservesValue()
     const int initialBV = field.boardValue();
     QVERIFY(initialBV >= 1);
     QVERIFY(field.newGameReplay());
+    QCOMPARE(field.boardValue(), initialBV);
+}
+
+void TestMineField::testBoardValuePreservedOnLoss()
+{
+    // Regression guard for the loss-dialog "Board 3BV: %1" line: at the moment
+    // gameLost fires, boardValue() must already be set (mine placement and
+    // 3BV computation happen synchronously on the first click, well before
+    // any explosion is reachable). If a future refactor defers BV computation
+    // or zeroes it on loss, this test catches the resulting "Board 3BV: 0"
+    // line that the > 0 gate would silently swallow.
+    MineField field;
+    field.setFixedLayout(3, 3, {{0, 0}, {0, 2}});
+    const int initialBV = field.boardValue();
+    QVERIFY(initialBV >= 1);
+    sendMousePress(field.cellAt(0, 2), Qt::LeftButton);
+    QCOMPARE(field.state(), GameState::Lost);
     QCOMPARE(field.boardValue(), initialBV);
 }
 

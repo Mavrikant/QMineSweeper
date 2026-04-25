@@ -50,7 +50,7 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="160"/>
-        <location filename="../mainwindow.cpp" line="770"/>
+        <location filename="../mainwindow.cpp" line="772"/>
         <source>&amp;Pause</source>
         <translation>إي&amp;قاف مؤقت</translation>
     </message>
@@ -160,67 +160,67 @@
         <translation>QMineSweeper — بوم!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="612"/>
+        <location filename="../mainwindow.cpp" line="614"/>
         <source>Language changed</source>
         <translation>تم تغيير اللغة</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="614"/>
+        <location filename="../mainwindow.cpp" line="616"/>
         <source>Language changes take effect after restart.</source>
         <translation>تُطبَّق تغييرات اللغة بعد إعادة التشغيل.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="615"/>
+        <location filename="../mainwindow.cpp" line="617"/>
         <source>Restart QMineSweeper now?</source>
         <translation>هل تعيد تشغيل QMineSweeper الآن؟</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="616"/>
+        <location filename="../mainwindow.cpp" line="618"/>
         <source>Restart now</source>
         <translation>إعادة التشغيل الآن</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="617"/>
+        <location filename="../mainwindow.cpp" line="619"/>
         <source>Later</source>
         <translation>لاحقاً</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="639"/>
+        <location filename="../mainwindow.cpp" line="641"/>
         <source>Help improve QMineSweeper</source>
         <translation>ساعد في تحسين QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="641"/>
+        <location filename="../mainwindow.cpp" line="643"/>
         <source>Would you like to send anonymous crash reports and usage data?</source>
         <translation>هل تريد إرسال تقارير الأعطال وبيانات الاستخدام المجهولة؟</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="642"/>
+        <location filename="../mainwindow.cpp" line="644"/>
         <source>We collect: app crashes, game results (win/loss, duration, difficulty), OS name, CPU architecture, Qt version, and an anonymous install ID.&lt;br/&gt;&lt;br/&gt;We do &lt;b&gt;not&lt;/b&gt; collect: your name, email, IP address, file paths, or any in-game actions.&lt;br/&gt;&lt;br/&gt;You can change this later in &lt;b&gt;Settings&lt;/b&gt;.</source>
         <translation>نجمع: أعطال التطبيق، نتائج المباريات (فوز/خسارة، المدة، الصعوبة)، اسم نظام التشغيل، معمارية المعالج، إصدار Qt، ومعرّف تثبيت مجهول.&lt;br/&gt;&lt;br/&gt;لا نجمع: اسمك، بريدك الإلكتروني، عنوان IP، مسارات الملفات، أو أي إجراءات داخل اللعبة.&lt;br/&gt;&lt;br/&gt;يمكنك تغيير هذا لاحقاً من &lt;b&gt;الإعدادات&lt;/b&gt;.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="650"/>
+        <location filename="../mainwindow.cpp" line="652"/>
         <source>Yes, send</source>
         <translation>نعم، أرسل</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="651"/>
+        <location filename="../mainwindow.cpp" line="653"/>
         <source>No thanks</source>
         <translation>لا، شكراً</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="770"/>
+        <location filename="../mainwindow.cpp" line="772"/>
         <source>&amp;Resume</source>
         <translation>ا&amp;ستئناف</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="782"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>You won!</source>
         <translation>لقد فزت!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="782"/>
+        <location filename="../mainwindow.cpp" line="784"/>
         <source>Boom</source>
         <translation>بوم!</translation>
     </message>
@@ -229,153 +229,158 @@
         <translation type="vanished">نظّفت الحقل في %1 ثانية.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="792"/>
+        <location filename="../mainwindow.cpp" line="794"/>
         <source>3BV: %1 · 3BV/s: %2</source>
         <translation>3BV: %1 · 3BV/ث: %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="799"/>
+        <location filename="../mainwindow.cpp" line="801"/>
         <source>Clicks: %1 · Efficiency: %2%</source>
         <translation>النقرات: %1 · الكفاءة: %2٪</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="803"/>
+        <location filename="../mainwindow.cpp" line="805"/>
         <source>🏃 No-flag run!</source>
         <translation>🏃 جولة بدون أعلام!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="807"/>
+        <location filename="../mainwindow.cpp" line="809"/>
         <source>🏆 New record!</source>
         <translation>🏆 رقم قياسي جديد!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="814"/>
+        <location filename="../mainwindow.cpp" line="816"/>
         <source>🌟 New best streak: %1!</source>
         <translation>🌟 أفضل سلسلة فوز جديدة: %1!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="818"/>
+        <location filename="../mainwindow.cpp" line="820"/>
         <source>🔥 Streak: %1</source>
         <translation>🔥 سلسلة الفوز: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="825"/>
+        <location filename="../mainwindow.cpp" line="827"/>
         <source>You stepped on a mine.</source>
         <translation>لقد دست على لغم.</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="76"/>
-        <location filename="../mainwindow.cpp" line="851"/>
+        <location filename="../mainwindow.cpp" line="866"/>
         <source>New Game</source>
         <translation>لعبة جديدة</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="785"/>
+        <location filename="../mainwindow.cpp" line="787"/>
         <source>You cleared the field in %1.</source>
         <translation>نظّفت الحقل في %1.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="826"/>
+        <location filename="../mainwindow.cpp" line="828"/>
         <source>You survived for %1.</source>
         <translation>صمدت لمدة %1.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="827"/>
+        <location filename="../mainwindow.cpp" line="829"/>
         <source>You cleared %1% of the board.</source>
         <translation>نظّفت %1% من اللوحة.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="835"/>
+        <location filename="../mainwindow.cpp" line="841"/>
+        <source>Board 3BV: %1</source>
+        <translation>3BV اللوحة: %1</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="850"/>
         <source>Clicks: %1</source>
         <translation>النقرات: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="846"/>
+        <location filename="../mainwindow.cpp" line="861"/>
         <source>Flags placed: %1</source>
         <translation>الأعلام الموضوعة: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="852"/>
+        <location filename="../mainwindow.cpp" line="867"/>
         <source>Close</source>
         <translation>إغلاق</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="884"/>
+        <location filename="../mainwindow.cpp" line="899"/>
         <source>Statistics</source>
         <translation>الإحصائيات</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="889"/>
+        <location filename="../mainwindow.cpp" line="904"/>
         <source>Difficulty</source>
         <translation>الصعوبة</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="889"/>
+        <location filename="../mainwindow.cpp" line="904"/>
         <source>Played</source>
         <translation>اللعبات</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="889"/>
+        <location filename="../mainwindow.cpp" line="904"/>
         <source>Won</source>
         <translation>الانتصارات</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="889"/>
+        <location filename="../mainwindow.cpp" line="904"/>
         <source>Best time</source>
         <translation>أفضل وقت</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="889"/>
+        <location filename="../mainwindow.cpp" line="904"/>
         <source>Best (no flag)</source>
         <translation>الأفضل (بدون أعلام)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="889"/>
+        <location filename="../mainwindow.cpp" line="904"/>
         <source>Streak</source>
         <translation>سلسلة الفوز</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="902"/>
+        <location filename="../mainwindow.cpp" line="917"/>
         <source>Beginner</source>
         <translation>مبتدئ</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="903"/>
+        <location filename="../mainwindow.cpp" line="918"/>
         <source>Intermediate</source>
         <translation>متوسط</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="904"/>
+        <location filename="../mainwindow.cpp" line="919"/>
         <source>Expert</source>
         <translation>خبير</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="954"/>
+        <location filename="../mainwindow.cpp" line="969"/>
         <source>Reset all</source>
         <translation>تصفير الكل</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="960"/>
+        <location filename="../mainwindow.cpp" line="975"/>
         <source>Reset statistics?</source>
         <translation>تصفير الإحصائيات؟</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="960"/>
+        <location filename="../mainwindow.cpp" line="975"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>حذف جميع سجلات المباريات / الانتصارات / أفضل الأوقات نهائياً؟</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="980"/>
+        <location filename="../mainwindow.cpp" line="995"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;بُني باستخدام Qt %1 في %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="981"/>
+        <location filename="../mainwindow.cpp" line="996"/>
         <source>About QMineSweeper</source>
         <translation>حول QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="974"/>
+        <location filename="../mainwindow.cpp" line="989"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;لعبة كانسة الألغام مبنية على Qt6.&lt;/p&gt;&lt;p&gt;انقر يسارياً للكشف، يميناً لوضع علم، وبالزر الأوسط على رقم مشبع لفتح الجيران.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>

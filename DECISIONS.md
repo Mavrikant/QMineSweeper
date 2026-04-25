@@ -1,5 +1,113 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: board-3BV line (v1.25.0)
+
+**Chosen:** Append a sixth line to the loss dialog,
+`tr("Board 3BV: %1").arg(boardValue)`, gated by `lossBoardValue > 0`.
+Surfaces the *board's* canonical difficulty (minimum left-clicks to
+clear, no flags or chords) alongside the existing player-action
+metrics. `MainWindow::onGameLost` reads `MineField::boardValue()` (an
+already-public accessor used by the win dialog), threads it through
+`showEndDialog` (new positional int parameter), and includes it as a
+`bv` tag on `game.lost` telemetry.
+
+**Why ship this now:**
+- The cycle-21 next-candidate list led with this exact line: it
+  surfaces the board's *objective difficulty* as a fifth datum,
+  complementing the four player-action lines already shown
+  (duration, percent-cleared, clicks, flags placed). A player who
+  exploded on Beginner with BV=12 sees that the board itself was
+  small; a player on Expert with BV=180 sees they were up against an
+  unusually open layout. Without the line, the player has no read on
+  *what board* they were on — only their own actions.
+- Cycle-shaped: production diff is ~10 lines (`mainwindow.{h,cpp}`),
+  one new translatable string × 9 hand-translated locales, plus one
+  new regression test. No new state, no new MineField surface — the
+  data already exists for the win dialog.
+
+**Why on the loss dialog (and *only* the loss dialog, again):**
+- The win dialog already shows `3BV: %1 · 3BV/s: %2`. The loss
+  dialog showing only the static `Board 3BV: %1` is intentional: a
+  partial-clear `bv / m_lastElapsedSeconds` would imply the user
+  cleared the *whole* board's 3BV at that pace, which is false. The
+  static value is exact; the rate would be misleading.
+- A `Partial 3BV` (3BV of the revealed area only) would let us also
+  surface a defensible per-second rate on losses, but requires a
+  region-walk that mirrors `compute3BV()` limited to opened cells.
+  Cycle-20 already costed it at ~50 LOC — over budget for one cycle
+  and orthogonal to surfacing the static board value. Park.
+
+**Why `lossBoardValue > 0` gating:**
+Mirrors the win-path `boardValue > 0` guard at the existing call site.
+`m_boardValue` is initialised to 0 and set to `compute3BV()` either
+during `placeMines()` (real play, on first click — guaranteed before
+any explosion) or during `setFixedLayout()` (test code path). A loss
+with `boardValue == 0` is unreachable in real play and is asserted by
+the new `testBoardValuePreservedOnLoss` regression test.
+
+**Why a separate `tr("Board 3BV: %1")` key, not reusing
+`tr("3BV: %1 · 3BV/s: %2")` with a stripped suffix:**
+- The existing key has the rate suffix baked in across all 9 locales.
+  Splitting it would invalidate nine hand translations for a
+  cosmetic dedup. Cheaper to ship a fresh key.
+- "Board 3BV" (vs. plain "3BV") explicitly anchors the value to the
+  board, distinguishing it from the win-dialog rate-paired form for
+  any player who reads both dialogs across runs. Translators get a
+  parallel shape (e.g. TR "Tahta 3BV: %1", DE "Spielfeld-3BV: %1",
+  ZH "棋盘 3BV：%1").
+
+**Why a new positional `lossBoardValue` parameter on `showEndDialog`,
+not reusing the existing `boardValue` parameter:**
+The existing `boardValue` parameter feeds the win-only "3BV: %1 ·
+3BV/s: %2" line. Reusing it would couple the loss-side gate to the
+win-side intent — and a future win-side change to suppress the rate
+line on certain runs (say, replays) would unintentionally flip the
+loss-side line off. Parallel positional parameters keep the win and
+loss paths independently controllable. Naming it `lossBoardValue`
+documents at the call site that this is the loss path's view of BV.
+
+**Rejected alternatives:**
+- *Add a partial-3BV line `Partial 3BV: X / Y` (revealed-area BV
+  over total BV).* Most informative loss line conceivable, but needs
+  a new region-walking accessor (cycle-20 estimate ~50 LOC) and a
+  second translatable string. Park; revisit when the marginal value
+  justifies the cost.
+- *Move the `3BV: %1 · 3BV/s: %2` win-line key to a "Board 3BV: %1"
+  + "3BV/s: %2" pair so loss and win share a key.* The same string
+  refactor invalidates 9 hand translations and gains nothing the
+  user sees. Skip.
+- *Show 3BV on the win dialog as `Board 3BV: X · 3BV/s: Y` for
+  symmetry with the loss line.* The win dialog already says `3BV: X
+  · 3BV/s: Y` — reflowing it for symmetry would re-translate every
+  locale for zero player benefit. Leave the win shape alone.
+- *Add a new "🏅 Hard board!" flair when `boardValue` is in some
+  high percentile of the difficulty's expected BV.* Needs a
+  per-difficulty BV distribution (multi-cycle data collection), and
+  the user gets a confidence claim Sentry can't audit. Skip.
+
+**Translation cost:** 1 new string × 9 non-English locales,
+hand-written; 0 unfinished per non-en locale preserved. New string:
+"Board 3BV: %1".
+
+**Diff shape:**
+- `mainwindow.h` — `showEndDialog` signature gains an `int
+  lossBoardValue` parameter.
+- `mainwindow.cpp` — `onGameLost` reads `boardValue()`, adds it to
+  the telemetry tags, threads it; `showEndDialog` appends the gated
+  line on the loss branch with the same comment shape as the
+  flags-placed and clicks lines from prior cycles.
+- `tests/tst_minefield.cpp` — new
+  `testBoardValuePreservedOnLoss`: places two fixed mines on a 3×3,
+  captures `boardValue()` pre-loss, triggers a loss, asserts
+  `boardValue() == initialBV` *and* `initialBV >= 1`. The latter
+  pins the > 0 gate's prerequisite (without it, a future zeroing of
+  `m_boardValue` on loss would silently swallow the line). Verified
+  adversarially by replacing `return m_boardValue` with `return 0`
+  and confirming the test fails on the `initialBV >= 1` assert.
+- `translations/apply_translations.py` — one new key per locale
+  dict, hand-translated.
+- `CMakeLists.txt` — version bumped to 1.25.0.
+
 ## 2026-04-25 — Loss dialog: flags-placed line (v1.24.0)
 
 **Chosen:** Append a fifth line to the loss dialog,
