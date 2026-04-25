@@ -37,6 +37,7 @@ void MineField::newGame(Difficulty diff)
     m_paused = false;
     m_anyFlagPlaced = false;
     m_boardValue = 0;
+    m_userClicks = 0;
     m_lastMinePositions.clear();
 
     clearGrid();
@@ -69,6 +70,7 @@ bool MineField::newGameReplay()
     m_flagCount = 0;
     m_paused = false;
     m_anyFlagPlaced = false;
+    m_userClicks = 0;
     // Mines are already known for this layout — skip first-click placement.
     m_minesPlaced = true;
 
@@ -177,6 +179,7 @@ void MineField::wireButton(MineButton *button)
     connect(button, &MineButton::chordRequested, this, &MineField::onChordRequested);
     connect(button, &MineButton::pressStart, this, &MineField::cellInteractionStarted);
     connect(button, &MineButton::pressEnd, this, &MineField::cellInteractionEnded);
+    connect(button, &MineButton::userClick, this, [this]() { ++m_userClicks; });
     button->installEventFilter(this);
 }
 
@@ -221,6 +224,8 @@ bool MineField::isPaused() const noexcept { return m_paused; }
 bool MineField::anyFlagPlaced() const noexcept { return m_anyFlagPlaced; }
 
 int MineField::boardValue() const noexcept { return m_boardValue; }
+
+int MineField::userClicks() const noexcept { return m_userClicks; }
 
 void MineField::setPaused(bool paused)
 {
@@ -320,6 +325,10 @@ bool MineField::handleCellKey(MineButton *cell, int key)
         }
         else if (!cell->isFlagged())
         {
+            // Mirror MineButton::mousePressEvent's left-click counting: this
+            // is the keyboard equivalent of the gesture, so it is one useful
+            // click regardless of the size of any flood-fill it triggers.
+            ++m_userClicks;
             cell->Open();
         }
         return true;
@@ -564,6 +573,12 @@ void MineField::onChordRequested(std::uint32_t row, std::uint32_t col)
         return;
     }
 
+    // Score the chord as one useful click iff it actually opens at least one
+    // neighbour. A satisfied chord on a number whose unflagged neighbours are
+    // all already opened is a no-op gesture and must not inflate the click
+    // count. A wrong-flag chord that hits a mine *does* open the mine cell —
+    // which still counts as a useful click even though the run ends in loss.
+    bool revealedAny = false;
     for (int dr = -1; dr <= 1; ++dr)
     {
         for (int dc = -1; dc <= 1; ++dc)
@@ -580,9 +595,14 @@ void MineField::onChordRequested(std::uint32_t row, std::uint32_t col)
                 if (!n->isOpened() && !n->isFlagged())
                 {
                     n->Open();
+                    revealedAny = true;
                 }
             }
         }
+    }
+    if (revealedAny)
+    {
+        ++m_userClicks;
     }
 }
 
@@ -655,6 +675,7 @@ void MineField::setFixedLayout(std::uint32_t width, std::uint32_t height, const 
     m_paused = false;
     m_anyFlagPlaced = false;
     m_boardValue = 0;
+    m_userClicks = 0;
     m_minesPlaced = true;
 
     clearGrid();

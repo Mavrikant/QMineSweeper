@@ -83,6 +83,18 @@ class MineField : public QWidget
     // on the win dialog.
     [[nodiscard]] int boardValue() const noexcept;
 
+    // Useful-click count: number of user gestures during the current game
+    // that revealed at least one cell. Counts left-click reveals (one per
+    // gesture, not per cascaded flood-cell), chord clicks that opened ≥1
+    // neighbour, and the keyboard equivalents (Space/Enter on unopened,
+    // Space/Enter/D chord on opened numbered). Right-click flag toggles,
+    // unsatisfied chords, and clicks on already-opened or flagged cells
+    // never count. Reset by every newGame / newGameReplay / setFixedLayout.
+    // MainWindow uses this together with boardValue() to render the
+    // canonical Minesweeper efficiency metric (3BV / clicks · 100) on the
+    // win dialog.
+    [[nodiscard]] int userClicks() const noexcept;
+
     void setMineCountLabel(QLabel *label);
 
     // Sweep the live board and reset any Question-marked cell to None. Used when
@@ -149,6 +161,7 @@ class MineField : public QWidget
     bool m_paused{false};
     bool m_anyFlagPlaced{false};
     int m_boardValue{0};
+    int m_userClicks{0};
     std::vector<std::pair<std::uint32_t, std::uint32_t>> m_lastMinePositions;
 };
 

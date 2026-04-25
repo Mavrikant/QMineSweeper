@@ -1,5 +1,93 @@
 # Cycle decisions
 
+## 2026-04-25 — Click count + Efficiency % metric (v1.15.0)
+
+**Chosen:** Track every user gesture that reveals at least one cell —
+left-click reveal, mouse chord that opens ≥1 neighbour, keyboard
+Space/Enter reveal, keyboard Space/Enter/D chord that opens ≥1
+neighbour — as a single "useful click" on `MineField::m_userClicks`.
+Surface `Clicks` and `Efficiency = 3BV / clicks · 100` on the win
+dialog as a second speedrun-footer line under the existing 3BV/s
+line. Telemetry tags `clicks` and `efficiency` are added to the
+existing `game.won` event. No Stats column, no live ticker, no
+schema break.
+
+**Why this one (cycle 12):** Direct follow-on from v1.14.0's 3BV/s
+— that cycle explicitly parked Efficiency % "for a follow-on cycle if
+a click-count is wanted for other reasons." Click count is a useful
+standalone stat alongside efficiency; chord-heavy play can yield
+>100 % which surprises users in a good way and is a natural reward
+for skill. Display-only addition: zero schema break, zero risk to the
+state machine. The plumbing is small — a new `MineButton::userClick`
+signal for the mouse-left-click path plus inline increments in
+`MineField::handleCellKey` and `onChordRequested`. Diff well under
+400 LOC.
+
+**Rejected alternatives:**
+
+- **Count every left-click + chord, useful or not.** Standard
+  "total clicks" definition. Easier to compute, but harder to
+  interpret — clicks on already-opened cells, on flagged cells, and
+  unsatisfied chords would inflate the denominator and depress
+  efficiency for no skill-related reason. The "useful click"
+  definition matches Minesweeper Online's `3BV / 3BV-clicks` model
+  more closely and rewards what players actually optimise for.
+- **Cap efficiency at 100 %.** Capping discards information; chord
+  gestures legitimately open multiple BV cells in one click and the
+  resulting >100 % is the right answer. Speedrun communities report
+  uncapped efficiency.
+- **Show clicks alongside 3BV on the same line.** Would force the
+  existing `"3BV: %1 · 3BV/s: %2"` format string into a new shape and
+  unfinish all 9 hand-translations. Adding a separate
+  `"Clicks: %1 · Efficiency: %2%"` line keeps the existing string
+  untouched and only costs 9 fresh translations.
+- **Track clicks as a Stats column / per-difficulty best efficiency.**
+  Already 5 columns; another bracket per metric inflates the schema
+  for a per-run-shape number. Display-only on the dialog preserves
+  the metric without the schema cost — same trade as 3BV/s in v1.14.
+- **Increment in `MineButton::Open()` itself.** `Open()` is also
+  called from flood-fill (`onCheckNeighbours`) and chord neighbour
+  loops; counting there would over-count by the size of every flood,
+  not by user gestures. Counting at the gesture entry points
+  (mousePressEvent, handleCellKey, onChordRequested) is the only
+  correct cut.
+- **Count the chord cell itself as part of the gesture.** No — the
+  chord cell is already opened (precondition `cell->isOpened()`). The
+  "useful click" is the *act* of chording, scored once per gesture
+  iff at least one neighbour was actually revealed.
+- **Show efficiency on the loss dialog.** A losing board never reaches
+  full clear, so "efficiency" is meaningless before the run ended;
+  3BV/s is similarly skipped on losses (cycle 11).
+- **Live efficiency ticker during play.** Same reason as 3BV/s in
+  cycle 11: speedrunners measure final figures, not running ones.
+
+**Assumptions documented:**
+
+- **Useful click = gesture that opened ≥1 cell.** Defines the
+  denominator. Right-clicks (flag toggles) never count. A left-click
+  on an already-opened or flagged cell is a no-op and never counts.
+  An unsatisfied chord (flags ≠ number) returns early before opening
+  anything and never counts. A satisfied chord with all neighbours
+  already opened or flagged opens nothing and never counts.
+- **Chord that hits a wrong-flag mine still counts.** It opened a
+  cell (the mine). Even though the run ends in a loss, the gesture
+  was a useful click; counting it is consistent with the definition
+  and only matters in telemetry — the loss dialog doesn't show
+  efficiency.
+- **Flood-fill propagation is one click.** A single left-click that
+  cascades through a 50-cell zero region is 1 useful click, not 50.
+  This is the speedrun-canonical interpretation and what makes BV/s
+  and efficiency meaningful.
+- **Replay and Custom wins get the metric too.** Same rationale as
+  3BV/s in cycle 11: it's a property of the run, not a leaderboard
+  claim. Replay-vs-replay efficiency comparisons on the same layout
+  are genuinely useful for self-coaching.
+- **Suppressed on `clicks == 0`.** Fixed-layout test setups can
+  reach `onGameWon` without any user gesture; the dialog skips the
+  efficiency line when there are no clicks rather than printing
+  "Clicks: 0 · Efficiency: 0%". Mirrors the `bv == 0` guard from
+  cycle 11.
+
 ## 2026-04-25 — 3BV + 3BV/s efficiency metric (v1.14.0)
 
 **Chosen:** Compute the 3BV (Board Value) — the canonical Minesweeper

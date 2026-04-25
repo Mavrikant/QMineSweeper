@@ -27,6 +27,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cmath>
 
 namespace
 {
@@ -508,6 +509,10 @@ void MainWindow::onGameWon()
     // Guard against div-by-zero on a sub-tick win (pathological setFixedLayout
     // case in tests; in real play the timer always advances at least 0.1s).
     const double bvRate = (m_lastElapsedSeconds > 0.05) ? (bv / m_lastElapsedSeconds) : 0.0;
+    const int clicks = ui->mineFieldWidget->userClicks();
+    // Efficiency = 3BV / useful clicks · 100, rounded. Uncapped — chord-heavy
+    // play legitimately yields >100 % and the speedrun community reports it.
+    const int efficiency = (clicks > 0) ? static_cast<int>(std::lround(100.0 * bv / clicks)) : 0;
     Telemetry::recordEvent(QStringLiteral("game.won"), {
                                                            {QStringLiteral("difficulty"), diffName},
                                                            {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
@@ -516,8 +521,10 @@ void MainWindow::onGameWon()
                                                            {QStringLiteral("noflag"), noflagWin ? QStringLiteral("true") : QStringLiteral("false")},
                                                            {QStringLiteral("bv"), QString::number(bv)},
                                                            {QStringLiteral("bv_per_second"), QString::asprintf("%.2f", bvRate)},
+                                                           {QStringLiteral("clicks"), QString::number(clicks)},
+                                                           {QStringLiteral("efficiency"), QString::number(efficiency)},
                                                        });
-    showEndDialog(true, newRecord, noflagWin, bv, bvRate);
+    showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -538,7 +545,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("duration_seconds"), QString::asprintf("%.1f", m_lastElapsedSeconds)},
                                                             {QStringLiteral("replay"), m_isReplay ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0);
+    showEndDialog(false, false, false, 0, 0.0, 0, 0);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -736,7 +743,7 @@ void MainWindow::updateTimerLabel()
     ui->Time->setText(QString::asprintf("%05.1f", secs));
 }
 
-void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond)
+void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -750,6 +757,13 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (boardValue > 0)
         {
             text += QStringLiteral("\n") + tr("3BV: %1 · 3BV/s: %2").arg(boardValue).arg(QString::asprintf("%.2f", bvPerSecond));
+        }
+        // Click count and efficiency = 3BV / clicks · 100. Skipped when the
+        // game was won without a single counted gesture (only reachable from
+        // fixed-layout test setups), mirroring the bv == 0 guard above.
+        if (userClicks > 0)
+        {
+            text += QStringLiteral("\n") + tr("Clicks: %1 · Efficiency: %2%").arg(userClicks).arg(efficiencyPct);
         }
         if (noflagWin)
         {
