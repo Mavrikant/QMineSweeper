@@ -1,5 +1,177 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 23 — v1.26.0 (autonomous)
+
+- **Chosen problem:** The v1.25.0 loss dialog has six lines —
+  `You stepped on a mine.` + duration + percent-cleared + Board 3BV +
+  Clicks + Flags placed — covering every player-action and board
+  metric *except one*. Right-click cycles `None → Flag → Question →
+  None`; v1.24.0 surfaced the user's flag count, but the third step
+  (Question) has no analogue. A player who used `?` as a thinking
+  aid sees nothing about that activity in the loss recap. The
+  cycle-22 log explicitly parked this as the top next candidate
+  ("one translatable string, no new state").
+- **Evidence:** `MainWindow::onGameLost` reads `userClicks`,
+  `flagsPlaced`, `boardValue` from MineField but never queries any
+  question-mark state. `MineField` has no question-mark accessor at
+  all — Question is purely a per-cell `m_marker == CellMarker::Question`
+  state with no aggregate counter (in contrast to `m_flagCount`
+  which is tracked on the `flagToggled` signal).
+- **Shipped:**
+  - Branch: `feat/loss-dialog-question-marks` (squash-merged + deleted)
+  - PR: [#44](https://github.com/Mavrikant/QMineSweeper/pull/44)
+    (squash-merged as `fc3c9a6`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.26.0
+  - Release workflow `24931183127` green; all 5 assets +
+    `SHA256SUMS.txt` published. Hand-written user-facing release
+    notes installed via `gh release edit` — narrates the right-click
+    cycle for new readers and explains the gating behaviour
+    (line hidden when zero `?` placed; never appears when the
+    `?` toggle is off in Settings).
+- **Code surface:** ~30 LOC of production diff across
+  `mainwindow.{h,cpp}` (read `questionMarksPlaced()` on loss, thread
+  to `showEndDialog`, append gated line, telemetry tag) +
+  `minefield.{h,cpp}` (new `questionMarksPlaced()` accessor) + 74
+  LOC of new tests. The 642/465 line-count number is
+  `lupdate`-driven `.ts` line renumbering. Production diff well
+  under 30 LOC, total well under the 400-LOC cycle cap.
+- **Tests added (5 new, all in `tst_minefield.cpp`):**
+  - `testQuestionMarksPlacedZeroBeforeAnyMark` — sanity baseline.
+  - `testQuestionMarksPlacedCountsOnlyQuestionCells` — Flag-marked
+    cells must not count; only Question-cycled cells.
+  - `testQuestionMarksPlacedDecrementsOnCycleAway` — Question →
+    None step decrements the count.
+  - `testQuestionMarksPlacedPreservedOnLoss` — load-bearing
+    regression for the new dialog line. Places `?` on a mined cell
+    (cycling None→Flag→Question), steps on the other mine,
+    asserts `questionMarksPlaced() == 1` after `revealAllMines`.
+    Pins the invariant that `revealAllMines` does not clear
+    `m_marker` — any future change that auto-clears the marker on
+    reveal would silently zero the dialog metric and trip this test.
+  - `testQuestionMarksPlacedResetByNewGame` — newGame() rebuilds
+    the grid and zeroes the count.
+  - Adversarially verified by zeroing the loop body in
+    `questionMarksPlaced()`, rebuilding, and confirming 4 of 5 tests
+    fail with the wrong value (the zero-baseline and reset tests
+    both expect 0, so they pass trivially against the broken
+    implementation — that's a feature, not a bug; it tells me which
+    tests are load-bearing for the value path).
+- **Translation cost:** 1 new string × 9 hand-translated locales
+  (TR, ES, FR, DE, RU, PT, ZH, HI, AR). 0 unfinished per non-en
+  locale preserved. Each locale read out:
+  - TR `Soru işareti: %1`
+  - ES `Signos de interrogación: %1`
+  - FR `Points d'interrogation : %1`
+  - DE `Fragezeichen: %1`
+  - RU `Знаков вопроса: %1`
+  - PT `Pontos de interrogação: %1`
+  - ZH `问号标记：%1`
+  - HI `प्रश्न चिह्न: %1`
+  - AR `علامات الاستفهام: %1`
+- **Assumptions made:**
+  - **Lazy walk over live cells, no separate counter.** Question is
+    the third step of the right-click cycle and has no transition
+    signal — `flagToggled` only fires on Flag-on / Flag-off. Adding a
+    counter would require either a new `questionToggled` signal +
+    subscriber wiring in `MineField::wireButton` (parallel to
+    flagToggled) OR sweeping the live cells. The walk is
+    `O(rows × cols) ≤ 480` (Expert) and runs *exactly once per
+    game* on the loss path; the per-cell isQuestion() lookup is a
+    single enum compare. Cost: zero. Cost of the alternative:
+    +1 signal + 1 slot + new state field + new reset path in three
+    places (newGame, newGameReplay, setFixedLayout) + tests for the
+    counter invariants. The lazy walk is strictly dominant for
+    the access pattern.
+  - **Question-marked cells that turn out to be mines DO count.**
+    `revealAllMines` paints mined cells with the explosion icon but
+    does NOT clear `m_marker` — `isQuestion()` stays true after the
+    reveal. Semantically correct: the player did mark the cell with
+    `?`, they just guessed wrong about whether it was safe.
+    Pinned by `testQuestionMarksPlacedPreservedOnLoss`.
+  - **New positional `lossQuestionMarks` parameter on
+    `showEndDialog`, not reusing `flagsPlaced` or `lossBoardValue`.**
+    Reusing would couple the new gate's semantics to an unrelated
+    metric — a future change to suppress flags on certain runs would
+    unintentionally flip question marks off. Parallel positional
+    parameters keep each metric independently controllable. Direct
+    parallel of the cycle-22 reasoning that justified
+    `lossBoardValue` as its own parameter.
+  - **`> 0` gate on the new line.** Mirrors `flagsPlaced > 0`
+    exactly. A common no-`?` loss (especially fast booms) shouldn't
+    render a noisy `Question marks: 0`. If a player has the `?`
+    toggle off entirely (the `MineButton::questionMarksEnabled`
+    static-state setting), `cycleMarker` skips Question and the
+    count is structurally always 0 — the gate elides the line
+    automatically with no extra branching.
+  - **Telemetry tag `qmarks` (anonymous integer) on `game.lost`.**
+    Parallel to existing `clicks`/`flags`/`bv` tags from cycles
+    20/21/22. Same anonymisation shape; same zero PII risk.
+- **Skipped:**
+  - *Question-mark count on the win dialog.* Win-path's
+    `flagAllMines` does not touch question marks — the count would
+    be the user's true `?` count at the moment of victory. But on
+    a win, every mine is auto-revealed (well, auto-flagged) and any
+    `?` the player still had on the board is irrelevant — they were
+    a thinking aid for play, not a celebration. Surfacing them on
+    wins would reward indecision. Skip.
+  - *Adding the line on the pause overlay.* The pause overlay is
+    not a result dialog; it has no result-recap section. Out of
+    scope.
+  - *`Flags + Question marks: %1 / %2` combined line.* Would save
+    one `\n` but cost a second `tr()` key for a layout change,
+    invalidating nine existing hand translations of `Flags placed:
+    %1`. Net negative. Skip.
+- **Risks logged:** none. Additive — no QSettings/save-format
+  change, no behavioural change on the win or paused paths, no
+  public API surface removed. The `qmarks` telemetry tag is
+  anonymous integer, parallel to the existing `clicks`/`flags`/`bv`
+  tags from cycles 20/21/22.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* Only failure mode is a future
+    refactor that clears `m_marker` during `revealAllMines` — the
+    `testQuestionMarksPlacedPreservedOnLoss` test pins this exact
+    invariant. A second hypothetical: a future `MineField` accessor
+    or signal that mutates `m_buttons` between gameLost emission
+    and the showEndDialog call (the value is read inline, no async
+    gap, so this isn't currently reachable).
+  - *Backwards compat?* Additive method on `MineField`; additive
+    positional parameter on private `MainWindow::showEndDialog`.
+    Both call sites updated. No public-API consumers.
+  - *Error paths?* No new error paths. The `btn != nullptr` guard
+    in the loop is defence-in-depth — `m_buttons` is built by
+    `buildGrid` to be fully populated, but the guard costs nothing
+    and matches the pattern in `clearAllQuestionMarks` /
+    `freezeAllCells`.
+  - *Secrets/PII?* `qmarks` count added to telemetry — anonymous
+    integer in the [0, 480] range. Same shape as existing tags.
+  - *Performance?* `O(rows × cols) ≤ 480` walk fired exactly once
+    per game on the loss path. Nothing in any hot path.
+  - *Concurrency?* Single-threaded; no new shared state.
+- **Post-release watch (T+~5min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.26.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and the assets just
+  published with zero downloads. The signal worth watching for is
+  *any* new group tagged with the 1.26.0 release; none observed.
+  Watch closed.
+- **Next candidates:**
+  - **Partial 3BV on the loss dialog.** Now that the static board
+    3BV (cycle 22) is shipped, the natural next step is the
+    *partial* — `Partial 3BV: X / Y · 3BV/s: Z` so a speedrunner
+    sees their per-second pace at the moment of explosion. Multi-
+    cycle (~50 LOC region-walk for partial 3BV computation) but the
+    most informative loss line we have. Park as the highest-impact
+    next big feature.
+  - **Stats dialog: lifetime "Best %" (partial-clear hall-of-fame).**
+    For never-won difficulties (Expert for new players), surface
+    the best safe-percent ever reached on a loss in place of the
+    `—` in the "Best time" column. ~80-line production cost.
+  - **Loss dialog "🎯 Close call!" flair when `safePercentCleared >=
+    90`.** Pure cosmetic, zero new schema, one new translatable
+    string. Mirrors the win-dialog flair pattern (🏆/🏃/🌟/🔥)
+    but on the loss side. Smallest-of-small candidate, likely a
+    one-cycle filler if the bigger features are blocked.
+
 ## 2026-04-25 — Cycle 22 — v1.25.0 (autonomous)
 
 - **Chosen problem:** The v1.24.0 loss dialog reads

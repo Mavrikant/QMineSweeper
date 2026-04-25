@@ -1,5 +1,87 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: question-marks line (v1.26.0)
+
+**Chosen:** Append a seventh line to the loss dialog,
+`tr("Question marks: %1").arg(lossQuestionMarks)`, gated
+`lossQuestionMarks > 0`. Implement via a new
+`MineField::questionMarksPlaced()` accessor that walks the live
+`m_buttons` grid counting `isQuestion()`, threaded through a new
+positional `lossQuestionMarks` parameter on
+`MainWindow::showEndDialog`. Telemetry gains an anonymous integer
+`qmarks` tag on `game.lost`.
+
+**Why this and not something else:**
+- The cycle-22 log explicitly parked this as the top next candidate
+  ("one translatable string, no new state") — the smallest-budget
+  high-confidence win on the candidate list.
+- It completes the player-action recap. Right-click cycles `None →
+  Flag → Question → None`; v1.24 surfaced the Flag step (`Flags
+  placed`); leaving the Question step unrepresented makes the recap
+  structurally incomplete.
+- The other parked candidates (partial 3BV, lifetime "Best %") are
+  both substantially larger (~50–80 LOC of new logic) and would
+  push the cycle past the 400-LOC cap.
+
+**Why a lazy walk and not a tracked counter:**
+- Question is the third step of the right-click cycle; only
+  `Flag-on` / `Flag-off` transitions emit `flagToggled`. A counter
+  would need either a new `questionToggled` signal subscribed by
+  `MineField`, or post-hoc bookkeeping inside `cycleMarker`'s
+  Flag→Question and Question→None branches plus a parallel slot.
+- The accessor is read *exactly once per game* on the loss path. The
+  walk is `O(rows × cols) ≤ 480` (Expert), single enum compare per
+  cell. Cost: zero. Cost of the alternative: +1 signal + 1 slot +
+  new state field + reset path in three places (newGame,
+  newGameReplay, setFixedLayout) + tests for the counter
+  invariants.
+- Lazy walks for end-of-game-only metrics is the same pattern that
+  would justify `safePercentCleared` being computed on read rather
+  than tracked — both are one-shot read paths with no hot-path
+  consumer.
+
+**Why count cells that turned out to be mines:**
+- `revealAllMines` paints mined cells with the explosion icon and
+  flips `m_isClicked = true`, but does NOT clear `m_marker`.
+  `isQuestion()` stays true after the reveal.
+- Semantically, the count is "how many cells the player marked with
+  `?`", not "how many `?` survived to the end unrevealed". A `?` on
+  a mine still represents the player's act of marking — they marked
+  it suspicious, then guessed wrong about which one to step on.
+- Pinned by `testQuestionMarksPlacedPreservedOnLoss`, the
+  load-bearing test for the new dialog line.
+
+**Why a separate positional parameter, not reusing `flagsPlaced`:**
+- Reusing would couple the new gate's semantics to an unrelated
+  metric. A future change to `flagsPlaced`'s gating (e.g. suppress
+  on replays) would unintentionally flip question marks on/off.
+- Parallel positional parameters are the same pattern cycle 22
+  established for `lossBoardValue` (own param, not piggy-backed on
+  `boardValue`) for the same reason.
+
+**Why `> 0` gating:**
+- A common no-`?` loss (especially fast booms) shouldn't render a
+  noisy `Question marks: 0`.
+- If the user has the question-marks toggle off entirely
+  (`MineButton::questionMarksEnabled = false`), `cycleMarker` skips
+  Question and the count is structurally always 0 — the gate elides
+  the line automatically with no extra branching for that case.
+
+**Skipped:**
+- *Question-mark count on the win dialog.* Win-path's `flagAllMines`
+  doesn't touch question marks, so the count would be the user's
+  true `?` count at victory. But on a win, every mine is
+  auto-flagged and any leftover `?` is irrelevant — they were a
+  thinking aid for play, not a celebration. Surfacing them on wins
+  would reward indecision.
+- *Combined `Flags + Question marks: %1 / %2` line.* Saves one `\n`
+  but invalidates nine existing hand translations of `Flags placed:
+  %1`. Net negative.
+
+**Risk:** None new. Additive — no QSettings/save-format change, no
+behavioural change on the win or paused paths, no public API
+surface removed.
+
 ## 2026-04-25 — Loss dialog: board-3BV line (v1.25.0)
 
 **Chosen:** Append a sixth line to the loss dialog,
