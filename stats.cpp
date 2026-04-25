@@ -25,6 +25,9 @@ Record load(const QString &difficultyName)
     r.bestStreak = settings.value(key(difficultyName, QStringLiteral("streak_best")), 0u).toUInt();
     const QString streakDateStr = settings.value(key(difficultyName, QStringLiteral("streak_best_date")), QString{}).toString();
     r.bestStreakDate = streakDateStr.isEmpty() ? QDate{} : QDate::fromString(streakDateStr, Qt::ISODate);
+    r.bestSafePercent = settings.value(key(difficultyName, QStringLiteral("best_safe_percent")), 0u).toUInt();
+    const QString safePercentDateStr = settings.value(key(difficultyName, QStringLiteral("best_safe_percent_date")), QString{}).toString();
+    r.bestSafePercentDate = safePercentDateStr.isEmpty() ? QDate{} : QDate::fromString(safePercentDateStr, Qt::ISODate);
     return r;
 }
 
@@ -61,6 +64,15 @@ void save(const QString &difficultyName, const Record &r)
     {
         settings.remove(key(difficultyName, QStringLiteral("streak_best_date")));
     }
+    settings.setValue(key(difficultyName, QStringLiteral("best_safe_percent")), r.bestSafePercent);
+    if (r.bestSafePercentDate.isValid())
+    {
+        settings.setValue(key(difficultyName, QStringLiteral("best_safe_percent_date")), r.bestSafePercentDate.toString(Qt::ISODate));
+    }
+    else
+    {
+        settings.remove(key(difficultyName, QStringLiteral("best_safe_percent_date")));
+    }
 }
 
 void reset(const QString &difficultyName)
@@ -75,6 +87,8 @@ void reset(const QString &difficultyName)
     settings.remove(key(difficultyName, QStringLiteral("streak_current")));
     settings.remove(key(difficultyName, QStringLiteral("streak_best")));
     settings.remove(key(difficultyName, QStringLiteral("streak_best_date")));
+    settings.remove(key(difficultyName, QStringLiteral("best_safe_percent")));
+    settings.remove(key(difficultyName, QStringLiteral("best_safe_percent_date")));
 }
 
 void resetAll()
@@ -85,11 +99,20 @@ void resetAll()
     settings.endGroup();
 }
 
-void recordLoss(const QString &difficultyName)
+void recordLoss(const QString &difficultyName, int safePercent, const QDate &onDate)
 {
     Record r = load(difficultyName);
     ++r.played;
     r.currentStreak = 0;
+    if (safePercent > 0)
+    {
+        const std::uint32_t clamped = static_cast<std::uint32_t>(safePercent > 100 ? 100 : safePercent);
+        if (clamped > r.bestSafePercent)
+        {
+            r.bestSafePercent = clamped;
+            r.bestSafePercentDate = onDate;
+        }
+    }
     save(difficultyName, r);
 }
 

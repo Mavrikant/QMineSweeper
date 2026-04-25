@@ -9,15 +9,20 @@
 // Per-difficulty lifetime statistics, persisted in QSettings under the
 // stats/<DifficultyName>/{played,won,best_seconds,best_date,
 // best_noflag_seconds,best_noflag_date,streak_current,streak_best,
-// streak_best_date} tree. Best-time is stored as seconds (double); 0 means
-// "no win recorded yet". Best-date is the calendar date (ISO 8601) on which
-// the current best-time run was completed; invalid/empty when no win has been
-// recorded. The no-flag pair tracks the fastest win in which the user did not
-// place a single flag — a separate speedrun bracket for advanced players who
+// streak_best_date,best_safe_percent,best_safe_percent_date} tree.
+// Best-time is stored as seconds (double); 0 means "no win recorded yet".
+// Best-date is the calendar date (ISO 8601) on which the current best-time
+// run was completed; invalid/empty when no win has been recorded. The
+// no-flag pair tracks the fastest win in which the user did not place a
+// single flag — a separate speedrun bracket for advanced players who
 // memorise/calculate mine positions instead. Streak is the per-difficulty
 // consecutive-wins counter: `currentStreak` resets to 0 on every loss,
-// `bestStreak` is the lifetime high-water mark with `bestStreakDate` the day
-// the high-water mark was set or last extended.
+// `bestStreak` is the lifetime high-water mark with `bestStreakDate` the
+// day the high-water mark was set or last extended. The
+// best-safe-percent pair is the highest percentage of the board ever
+// cleared on a *loss* in this difficulty — surfaced in the Stats dialog
+// only when no win has been recorded yet, as a "partial-clear hall of
+// fame" anchor for players still working towards their first win.
 namespace Stats
 {
 struct Record
@@ -30,7 +35,9 @@ struct Record
     QDate bestNoflagDate{};        // invalid when no no-flag record yet
     std::uint32_t currentStreak{0};
     std::uint32_t bestStreak{0};
-    QDate bestStreakDate{}; // invalid when no streak recorded yet
+    QDate bestStreakDate{};           // invalid when no streak recorded yet
+    std::uint32_t bestSafePercent{0}; // [0, 100]; 0 == no partial-clear record yet
+    QDate bestSafePercentDate{};      // invalid when no partial-clear record yet
 };
 
 // Outcome of a recordWin call. `newRecord` matches the prior boolean return:
@@ -55,8 +62,14 @@ void reset(const QString &difficultyName);
 void resetAll();
 
 // Convenience: increment Played (never mutates bestSeconds) and zero
-// currentStreak. Used on loss.
-void recordLoss(const QString &difficultyName);
+// currentStreak. Used on loss. `safePercent` is the percentage of the board
+// the player cleared at the moment of the loss (0..100); when strictly
+// greater than the current `bestSafePercent`, it overwrites that field and
+// stamps `bestSafePercentDate` with `onDate`. Defaults to 0 so existing
+// callers (and tests) are source-compatible — a 0 percent will never set or
+// touch the partial-clear best, mirroring the recordWin sentinel for 0
+// seconds.
+void recordLoss(const QString &difficultyName, int safePercent = 0, const QDate &onDate = QDate::currentDate());
 
 // Convenience: increment Played + Won, update bestSeconds if the run was
 // faster (or no prior record), increment currentStreak, and roll bestStreak
