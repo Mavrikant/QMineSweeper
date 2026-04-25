@@ -1,5 +1,196 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 24 — v1.27.0 (autonomous)
+
+- **Chosen problem:** Cycle 23 explicitly parked partial 3BV on the
+  loss dialog as the highest-impact next big feature: "Now that the
+  static board 3BV (cycle 22) is shipped, the natural next step is
+  the *partial* — `Partial 3BV: X / Y · 3BV/s: Z` so a speedrunner
+  sees their per-second pace at the moment of explosion." The
+  v1.25.0 line told the player how hard the board *was* but said
+  nothing about how far *they* got through it.
+- **Evidence:** `MainWindow::onGameLost` reads `boardValue()` from
+  MineField but throws away the player's progress against it. No
+  partial-bv accessor existed. The win path already renders
+  `3BV: %1 · 3BV/s: %2` (cycle 14); the loss path had no equivalent.
+- **Shipped:**
+  - Branch: `feat/loss-dialog-partial-3bv` (squash-merged + deleted)
+  - PR: [#45](https://github.com/Mavrikant/QMineSweeper/pull/45)
+    (squash-merged as `eb07497`)
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.27.0
+  - Release workflow `24932359517` green; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage 35.9 MB / tar.gz
+    35.6 MB, macOS .dmg 23.2 MB, Windows .zip 44.1 MB, parallel
+    to v1.26.0). Hand-written user-facing release notes installed
+    via `gh release edit` — explains the three numbers
+    (Partial / Total / 3BV/s) for new readers, names the
+    Minesweeper-Arbiter "Cleared 3BV" convention, and notes that
+    the line replaces (not adds to) v1.25's static board-3BV line.
+- **Code surface:** ~150 LOC of production diff across
+  `mainwindow.{h,cpp}` (read `partialBoardValue()` on loss + sub-tick
+  guard for bvPerSecond, thread to `showEndDialog`, replace gated
+  line, telemetry tags) + `minefield.{h,cpp}` (new
+  `partialBoardValue()` accessor that re-walks compute3BV()'s
+  region/isolated-cell partition counting only opened units) + 105
+  LOC of new tests. The 765/507 line-count number is `lupdate`-
+  driven `.ts` line renumbering (auto-regenerated). Production diff
+  well under the 400-LOC cycle cap.
+- **Tests added (8 new, all in `tst_minefield.cpp`):**
+  - `testPartialBoardValueZeroBeforeMinesPlaced` — sanity baseline.
+  - `testPartialBoardValueZeroBeforeAnyOpen` — placed-but-not-touched.
+  - `testPartialBoardValueRegionCountedWhenAnyCellOpened` — opening
+    partition: any cell of an opening counts the whole region as +1.
+  - `testPartialBoardValueIsolatedNumberedCellsCountedIndividually`
+    — isolated-cell partition: each opened cell is +1.
+  - `testPartialBoardValueTwoSeparateOpenings` — multi-region
+    accounting via the existing 3x7-with-mine-wall layout.
+  - `testPartialBoardValueEqualsBoardValueOnWin` — anchor
+    postcondition: partialBV == boardValue() at the win endpoint.
+    Pins the canonical-3BV definition; would catch a regression to
+    per-cell counting semantics.
+  - `testPartialBoardValuePreservedOnLoss` — load-bearing for the
+    new dialog line. Pins that revealAllMines does not zero the
+    partial-bv value (any future change that resets opened-state on
+    loss reveal would silently zero the dialog metric).
+  - `testPartialBoardValueResetByNewGame` — newGame zeroes the
+    count.
+  - Adversarially verified by zeroing the function body and
+    rebuilding — 6 of 8 tests fail with the wrong value (the 2
+    zero-baseline tests pass trivially because they expect 0; that's
+    how to identify which tests are load-bearing for the value
+    path).
+- **Translation cost:** Old key `"Board 3BV: %1"` removed (with its
+  9 hand translations); new key `"Partial 3BV: %1 / %2 · 3BV/s: %3"`
+  added with 9 fresh hand translations modelled on the existing
+  `"3BV: %1 · 3BV/s: %2"` win-dialog conventions for the per-locale
+  `/s` suffix:
+  - TR `Kısmi 3BV: %1 / %2 · 3BV/sn: %3`
+  - ES `3BV parcial: %1 / %2 · 3BV/s: %3`
+  - FR `3BV partiel : %1 / %2 · 3BV/s : %3`
+  - DE `Teil-3BV: %1 / %2 · 3BV/s: %3`
+  - RU `Частичный 3BV: %1 / %2 · 3BV/с: %3`
+  - PT `3BV parcial: %1 / %2 · 3BV/s: %3`
+  - ZH `部分 3BV：%1 / %2 · 3BV/秒：%3`
+  - HI `आंशिक 3BV: %1 / %2 · 3BV/s: %3`
+  - AR `3BV الجزئي: %1 / %2 · 3BV/ث: %3`
+
+  All 9 non-en locales 98 finished / 0 unfinished after `lupdate`.
+- **Assumptions made:**
+  - **Replace, don't append.** The new line's Y subsumes the cycle-
+    22 line's value — keeping both would render `Board 3BV: 87 \n
+    Partial 3BV: 23 / 87 · 3BV/s: 1.84` with the first line
+    redundant. Cost: 9 hand translations of the cycle-22 string
+    obsoleted; benefit: loss dialog stays at 6-7 lines instead of
+    7-8.
+  - **"Cleared 3BV" semantics — Minesweeper-Arbiter convention.** A
+    region counts as +1 iff *any* of its cells (zeros or fringe-
+    numbered) is opened. Matches the canonical speedrun definition;
+    pinned by `testPartialBoardValueRegionCountedWhenAnyCellOpened`
+    + `testPartialBoardValueEqualsBoardValueOnWin`.
+  - **3BV/s on a loss = partial / elapsed, not total / elapsed.** A
+    rate against the whole board's 3BV would imply the player
+    cleared the full board at that pace — false. Partial / elapsed
+    is the player's actual instantaneous pace; if held to the end
+    it linearly extrapolates to the speedrunner's "would finish in"
+    estimate.
+  - **Sub-tick guard mirroring the win path.** A loss with
+    `m_lastElapsedSeconds <= 0.05` would otherwise divide by zero.
+    The win path's guard is adopted verbatim
+    (`(secs > 0.05) ? (bv / secs) : 0.0`), so a sub-tick boom
+    renders `0.00` rather than `inf`/NaN.
+  - **Lazy walk over live cells, no incremental tracking.** The
+    walk is `O(rows × cols) ≤ 480` (Expert), single isOpened()
+    enum compare per cell, runs *exactly once per game* on the
+    loss path (or as a postcondition assertion in tests). Cost:
+    zero. Cost of incremental tracking: pre-computed `m_cellRegion`
+    state + reset paths in three places + risk a future refactor
+    of `onCellOpened` desyncs the counter. Same pattern as cycle
+    23's `questionMarksPlaced()`.
+  - **Two new positional parameters on showEndDialog.** Direct
+    parallel of cycles 22/23 reasoning: each independent metric
+    gets its own positional parameter so future suppression of one
+    doesn't leak into another. Trailing-only addition keeps
+    existing call-site argument order stable.
+  - **Telemetry tags `partial_bv` (anonymous integer) +
+    `partial_bv_per_second` (2-decimal float) on `game.lost`.**
+    Parallel to the win-side `bv` / `bv_per_second` tags from
+    cycle 14. Same anonymisation shape; same zero PII risk.
+- **Skipped:**
+  - *Partial-efficiency on the loss dialog.* Efficiency = bv /
+    clicks · 100 needs the *full* bv to be meaningful (it's a
+    measure of how optimally the player would clear the *whole*
+    board). On a partial clear, partial_bv / clicks could be
+    misleading because the click count includes any unsatisfied/
+    wrong chord clicks. Not comparable to anything the player would
+    recognise. Skip — would invite confusion.
+  - *Win-dialog parity.* The win dialog already shows
+    `3BV: %1 · 3BV/s: %2` (cycle 14). At the win endpoint partialBV
+    == boardValue() (anchored by the postcondition test), so a
+    partial form on wins would be semantically identical and
+    visually noisy. Skip.
+  - *Region-aware progress bar / "X of Y openings cleared"
+    breakdown.* Two numbers (openings cleared vs isolated cells
+    cleared) instead of one — interesting telemetry but not
+    actionable for the player. Skip; out of dialog scope.
+- **Risks logged:** none. Additive accessor on MineField, additive
+  trailing parameters on private `MainWindow::showEndDialog`, the
+  `Board 3BV` ↔ `Partial 3BV` swap is a translatable-string
+  refactor with both old hand translations being 2 cycles young.
+  No QSettings/save-format change, no behavioural change on the
+  win or paused paths.
+- **Self-review (adversarial pass):**
+  - *What breaks in production?* Only failure mode is a future
+    refactor that zeroes opened-state on revealAllMines —
+    `testPartialBoardValuePreservedOnLoss` pins this exact
+    invariant. A second hypothetical: a future change to
+    `MineField::cellAt()` returning a clone instead of the live
+    button would zero `isOpened()` checks; the test layout walks
+    the live grid and would catch this.
+  - *Backwards compat?* Additive `MineField` accessor; additive
+    trailing positional parameters on private `MainWindow::
+    showEndDialog`. Both call sites updated. No public-API
+    consumers. The `Board 3BV` → `Partial 3BV` translation swap
+    obsoletes 9 fresh strings (all from cycle 22) — no long-
+    tenured translations are thrown away.
+  - *Error paths?* No new error paths. Sub-tick guard on
+    bvPerSecond mirrors the win path's. The `n != nullptr` checks
+    in the walk are defence-in-depth (m_buttons is fully populated
+    by buildGrid).
+  - *Secrets/PII?* `partial_bv` (int [0, 480]) +
+    `partial_bv_per_second` (2-decimal float, typically 0–10)
+    added to telemetry. Same shape as existing tags.
+  - *Performance?* O(rows × cols) ≤ 480 walk on the loss path
+    only. Nothing in any hot path; not invoked during
+    cell-painting or input handling.
+  - *Concurrency?* Single-threaded; no new shared state.
+- **Post-release watch (T+~5min):** Sentry
+  `karaman/qminesweeper` — `search_issues` for unresolved issues in
+  release `qminesweeper@1.27.0` in the last hour returned **zero
+  results**. Expected — telemetry is opt-in and the assets just
+  published with zero downloads. The signal worth watching for is
+  *any* new group tagged with the 1.27.0 release; none observed.
+  Watch closed.
+- **Next candidates:**
+  - **Stats dialog: lifetime "Best %" (partial-clear hall-of-fame)
+    for never-won difficulties.** Now that partial-bv is in place,
+    a natural next is the *lifetime* counterpart — for difficulties
+    a player has never won (Expert for new players, where the
+    "Best time" column shows `—` forever), surface the highest
+    `safePercentCleared` ever reached on a loss in that slot.
+    ~80-line production cost: new Stats methods, Stats fixture
+    test, dialog-render branch. Re-parked from cycle 23 and now
+    the highest-value remaining feature.
+  - **Loss dialog "🎯 Close call!" flair when
+    `safePercentCleared >= 90`.** Pure cosmetic, zero new schema,
+    one translatable string. Mirrors the win-dialog flair pattern
+    (🏆/🏃/🌟/🔥) on the loss side. One-cycle filler.
+  - **Win-dialog "Personal best 3BV/s" flair when the run beats the
+    per-difficulty best 3BV/s ever recorded.** Parallel to the
+    "🏆 New record!" flair (which gates on best-time), but for
+    the canonical efficiency metric. Needs a new
+    `Stats::recordBestBvPerSecond` accessor + lifetime persistence
+    in `~/Library/Preferences/com.mavrikant.QMineSweeper.plist`.
+
 ## 2026-04-25 — Cycle 23 — v1.26.0 (autonomous)
 
 - **Chosen problem:** The v1.25.0 loss dialog has six lines —

@@ -1,5 +1,133 @@
 # Cycle decisions
 
+## 2026-04-25 — Loss dialog: partial-3BV line (v1.27.0)
+
+**Chosen:** Replace v1.25.0's static `Board 3BV: %1` line on the loss
+dialog with the speedrun-canonical `Partial 3BV: X / Y · 3BV/s: Z` —
+strict superset where X is how many of the board's 3BV "clicks" the
+player effectively cleared at the moment of explosion, Y is the total
+board 3BV (= the old line's value), Z is X / elapsed = the player's
+per-second clearing pace at death. Implement via a new
+`MineField::partialBoardValue()` accessor that re-walks
+`compute3BV()`'s region/isolated-cell partition counting only opened
+units, threaded through two new positional parameters
+(`lossPartialBoardValue`, `lossBvPerSecond`) on
+`MainWindow::showEndDialog`. Telemetry gains anonymous
+`partial_bv` + `partial_bv_per_second` tags on `game.lost`.
+
+**Why this and not something else:**
+- The cycle-23 (v1.26.0) log explicitly parked this as the
+  highest-impact next big feature: "Now that the static board 3BV
+  (cycle 22) is shipped, the natural next step is the *partial* —
+  `Partial 3BV: X / Y · 3BV/s: Z` so a speedrunner sees their
+  per-second pace at the moment of explosion."
+- The v1.25.0 line told the player how hard the board *was* but said
+  nothing about how far *they* got. The partial form is what
+  Minesweeper-Arbiter / Minesweeper Online have surfaced for years —
+  it's the canonical speedrun progress metric, recognised by every
+  player who's looked up "what is 3BV/s".
+- The other parked candidates (lifetime "Best %" hall-of-fame for
+  never-won Expert, "🎯 Close call!" flair) are smaller-impact
+  cosmetic options that can fill future cycles. Partial 3BV is the
+  natural progression of the cycle 22 → 23 thread.
+
+**Why replace the cycle-22 line, not append:**
+- The new line's Y subsumes the cycle-22 line's value (Y is just
+  `boardValue()`). Keeping both would render `Board 3BV: 87 \n
+  Partial 3BV: 23 / 87 · 3BV/s: 1.84` — the first line becomes
+  redundant noise.
+- Cost: 9 hand translations of `Board 3BV: %1` are obsoleted and
+  replaced. Benefit: the loss dialog stays at 6 lines (or 7 with
+  question marks), no growth past v1.26.0's footprint.
+- The cost is acceptable because all 9 translations were freshly
+  written 2 cycles ago — no long-tenured strings are being thrown
+  away. The replacement strings model on the existing
+  `3BV: %1 · 3BV/s: %2` win-dialog conventions for the per-locale
+  `/s` suffix (`sn` for TR, `с` for RU, `秒` for ZH, `ث` for AR,
+  plain `s` elsewhere), so translators have a consistent house style
+  to follow.
+
+**Why a fresh walk, not incremental tracking:**
+- A counter would need bookkeeping in `onCellOpened` *plus* knowledge
+  of which cells belong to which region — i.e., it would have to
+  pre-compute the `compute3BV()` partition at mine-placement time
+  and store it as `m_cellRegion[r][c]`. That's persistent state that
+  has to be reset by `newGame` / `newGameReplay` / `setFixedLayout`
+  (three places) and tested for invariants.
+- The walk is `O(rows × cols) ≤ 480` (Expert), single isOpened()
+  enum compare per cell, runs *exactly once per game* on the loss
+  path (or on win, but only as a postcondition assertion in tests).
+  Cost: zero. Cost of incremental tracking: a 2D `int` table sized
+  with the grid + reset paths + tests + new state field + risk that
+  a future refactor of `onCellOpened` desyncs the counter.
+- This is the same lazy-walk pattern used by `questionMarksPlaced()`
+  in cycle 23 and would justify `safePercentCleared` being computed
+  on read rather than tracked — all are one-shot end-of-game reads
+  with no hot-path consumer.
+
+**Why "Cleared 3BV" (Minesweeper-Arbiter) semantics, not per-cell:**
+- A region (zero-flood opening) counts as +1 iff *any* cell in it
+  (zero or fringe-numbered) is opened, regardless of how many cells
+  are opened within it. Matches the canonical speedrun definition
+  used by every external tool the player might compare against.
+- The alternative — counting per-cell — would diverge from the
+  source-of-truth definition and confuse anyone who knows what 3BV
+  is. It would also undermine the postcondition
+  `partialBV == boardValue()` at the win endpoint, which anchors
+  the test suite.
+
+**Why 3BV/s = partial / elapsed, not total / elapsed:**
+- A partial-clear rate against the whole board's 3BV would imply the
+  player cleared the full board at that pace, which is false — they
+  only cleared X of Y. Partial / elapsed is the player's *actual*
+  instantaneous pace at the moment of death.
+- If the player's pace was held to the end, partial/elapsed = total
+  Y / projected total time — it linearly extrapolates to a "would
+  finish in" estimate, which is exactly what speedrunners compare
+  against their PBs.
+
+**Why a sub-tick guard mirroring the win path:**
+- A loss with `m_lastElapsedSeconds <= 0.05` would otherwise divide
+  by zero. The win path's `bvRate` already uses this exact guard
+  (`(m_lastElapsedSeconds > 0.05) ? (bv / m_lastElapsedSeconds) :
+  0.0`); the loss path adopts it verbatim so the line shows `0.00`
+  for a sub-tick boom rather than `inf` or NaN.
+- Sub-tick losses are reachable in tests (setFixedLayout + immediate
+  click on a mine) and theoretically reachable in real play (an
+  instant first-click loss before mine-safe placement runs — though
+  first-click safety prevents this in normal play).
+
+**Why two new positional parameters on showEndDialog, not packaging:**
+- Direct parallel of the cycle-22 reasoning that justified
+  `lossBoardValue` and the cycle-23 reasoning that justified
+  `lossQuestionMarks` as their own positional parameters. Reusing
+  any existing parameter would couple unrelated metric semantics.
+- Trailing-only addition keeps existing call-site argument order
+  stable. The win-path call site adds `0, 0.0` at the end (the
+  partial-bv values are unused on the win path because the dialog
+  doesn't render them on wins).
+
+**Why no partial-efficiency line:**
+- Efficiency = bv / clicks · 100 needs the *full* bv to be
+  meaningful (it's a measure of how optimally the player would
+  clear the *whole* board with their click discipline). On a
+  partial clear, partial_bv / clicks could be misleading because
+  the click count includes any unsatisfied/wrong chord clicks the
+  player made trying to recover from confusion. The metric isn't
+  comparable to anything the player would recognise. Skip.
+
+**Why no win-dialog parity:**
+- The win dialog already shows `3BV: %1 · 3BV/s: %2` (cycle 14). At
+  the win endpoint partialBV == boardValue() (anchored by
+  `testPartialBoardValueEqualsBoardValueOnWin`), so a partial form
+  on wins would be semantically identical and visually noisy.
+
+**Adversarial test verification:** 8 new tests in `tst_minefield.cpp`.
+Verified by zeroing the `partialBoardValue()` body and rebuilding —
+6 of 8 tests fail (2 baseline tests pass trivially because they
+expect 0; that's how to identify which tests are load-bearing for
+the value path, not a flaw).
+
 ## 2026-04-25 — Loss dialog: question-marks line (v1.26.0)
 
 **Chosen:** Append a seventh line to the loss dialog,
