@@ -1,5 +1,108 @@
 # Autonomous cycles log
 
+## 2026-04-25 — Cycle 15 — v1.18.0 (autonomous)
+
+- **Chosen problem:** The toolbar clock label rendered as a
+  fixed-width `%05.1f` (`000.0`–`999.9`). Past 999.9 s the
+  format spilled to six characters (`1234.5`), nudging the
+  toolbar layout, and the player had to mentally divide by 60
+  to reason about the elapsed run. With pause/resume in v1.12.0
+  and per-difficulty stats already shipped, "how long was that
+  run" is a real signal — it just needed a clock-shaped
+  display. The MM:SS format was on the Next-candidates list of
+  v1.16.0 and v1.17.0 explicitly tagged "small polish, zero
+  new translatable strings if the format is composed at
+  runtime."
+- **Evidence:** `MainWindow::updateTimerLabel()` and
+  `MainWindow::resetTimerUi()` both used `%05.1f`. No
+  duration-aware formatter anywhere in the tree.
+- **Shipped:**
+  - Branch: `feat/timer-mm-ss-format` (squash-merged + deleted)
+  - PR: [#36](https://github.com/Mavrikant/QMineSweeper/pull/36)
+  - Squash commit: `c7f3a00`
+  - Tag: `v1.18.0`
+  - Release: [v1.18.0](https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.18.0)
+- **Diff shape:** 6 files, +242/-3 LOC — productive slice
+  ~150 LOC (`time_format.h` 49, `tst_time_format.cpp` 118 with
+  14 test cases, `mainwindow.cpp` -2/+2, `tests/CMakeLists.txt`
+  +1, `CMakeLists.txt` version + source list +2). Plus
+  `DECISIONS.md` +69. Well under the 400-LOC cycle cap.
+- **Translation cost:** zero. The label is composed entirely
+  with `QString::asprintf` — no `tr()` strings touched, so
+  every locale stays at 90/90 finished.
+- **Format chosen:**
+  - `< 60 s` → `S.S` (e.g. `5.7`, `45.0`)
+  - `60..3600 s` → `M:SS.S` (e.g. `1:30.5`, `12:34.5`)
+  - `≥ 1 h` → `H:MM:SS.S` (e.g. `1:00:00.0`)
+  - Negative / NaN / inf → `0.0` (defensive)
+- **Assumptions made:**
+  - **Tenths preserved.** The whole speedrun trio (3BV, 3BV/s,
+    efficiency) shipped in v1.14–v1.15 already; surrendering
+    sub-second precision on the live counter would un-do that
+    direction.
+  - **Round-then-bucket order.** Format-tenths first, then
+    decompose into H/M/S — otherwise `59.97 s` displays as
+    `59.9` while still bucketing to "< 60", and the bookkeeping
+    drifts. Tests pin `9.97 → 10.0`, `59.97 → 1:00.0`,
+    `1:59.97 → 2:00.0`, `59:59.97 → 1:00:00.0`.
+  - **Stored values unchanged.** `bestSeconds`,
+    `bestNoflagSeconds`, telemetry `duration_seconds`, and the
+    win-dialog "you cleared the field in N seconds" line all
+    keep decimal-seconds form. No schema migration; legacy
+    QSettings load identically.
+  - **Stats best-time column unchanged.** It currently pairs
+    `42.7 s` with a unit; switching to `1:30.5` removes the
+    unit. Defer to a future cycle once the live format has
+    aged in production.
+  - **Header-only formatter.** Pure inline `QString
+    formatElapsedTime(double)` in `time_format.h`. Test file
+    needs only the include — no library link change.
+- **Skipped:**
+  - *Reformat the win-dialog seconds string.* Would touch the
+    existing translated string and burn 9 hand-translations on
+    a cosmetic change.
+  - *Reformat the stats best-time column.* Strips the `s` unit;
+    deferred for a "consistency polish" cycle later.
+  - *Hard cap at `999.9`-style classic Windows Minesweeper.*
+    Hides truth from the player.
+  - *Localised `1m 30.5s`-style format.* Adds tr() strings ×
+    9 locales for no extra information value over a colon clock.
+- **Risks logged:** none new. No persistence change, no
+  signal/slot wiring, no public API change. Worst case is a
+  format regression in the live label; all 14 boundaries are
+  pinned by deterministic unit tests.
+- **UI smoke:** Deferred. Cron-launched task context lacks
+  display capture permissions. The change is a one-line
+  swap of the format-string call; the formatter is exhaustively
+  unit-tested.
+- **Post-release watch (T+~3min):** Release workflow
+  [run 24921768411](https://github.com/Mavrikant/QMineSweeper/actions/runs/24921768411)
+  green across all three platforms; five assets published
+  (Linux AppImage 35.9 MiB, Linux tar.gz 35.6 MiB, macOS
+  universal DMG 23.2 MiB, Windows x64 ZIP 44.1 MiB, plus
+  `SHA256SUMS.txt`). Sentry `karaman/qminesweeper` —
+  `search_issues` for release `qminesweeper@1.18.0` in the
+  last hour returned **zero results**. Expected — opt-in
+  telemetry, assets just published, no install has had a
+  chance to fire a session yet. GitHub release body rewritten
+  from the auto-generated stub to user-facing prose covering
+  the new format ranges, per-platform downloads, and the macOS
+  quarantine note. Watch closed.
+- **Next candidates:**
+  - Save-and-resume games across launches (still parked —
+    board-state + marker-state + timer-offset serialization +
+    QSettings schema bump).
+  - Per-layout best-time leaderboard (mine-position hash + new
+    persistence schema).
+  - Hint button (limited per-game, exposes 1 safe cell at a
+    cost) — needs a small deterministic solver.
+  - Daily-streak / "games played today" mini-counter on the
+    win dialog — derived from QSettings + QDate, smaller than
+    save-and-resume.
+  - Stats-dialog best-time column also adopting MM:SS for runs
+    ≥ 60 s, with a unit-pairing refresh — natural follow-up to
+    this cycle's live-label switch.
+
 ## 2026-04-25 — Cycle 14 — v1.17.0 (autonomous)
 
 - **Chosen problem:** The classic Minesweeper 1–8 digit palette
