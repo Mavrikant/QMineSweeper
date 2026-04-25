@@ -778,7 +778,7 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
     if (won)
     {
-        QString text = tr("You cleared the field in %1 seconds.").arg(QString::asprintf("%.1f", m_lastElapsedSeconds));
+        QString text = tr("You cleared the field in %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
         // Speedrun efficiency footer — 3BV is the canonical Minesweeper board
         // value (minimum left-clicks to clear); 3BV/s is the per-second rate.
         // Always shown on wins regardless of replay/custom — it's a property
