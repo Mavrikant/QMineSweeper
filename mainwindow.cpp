@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 
 #include "./ui_mainwindow.h"
+#include "average_time_format.h"
 #include "bv_per_second_format.h"
 #include "flag_accuracy_format.h"
 #include "language.h"
@@ -1061,8 +1062,8 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(4, 9, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best flag accuracy"), tr("Last win")});
+    auto *table = new QTableWidget(4, 10, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Average"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best flag accuracy"), tr("Last win")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -1153,20 +1154,24 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 1, new QTableWidgetItem(QString::number(rec.played)));
         table->setItem(i, 2, new QTableWidgetItem(QString::number(rec.won) + winRate));
         table->setItem(i, 3, new QTableWidgetItem(formatBestTimeOrPartial(rec)));
-        table->setItem(i, 4, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
-        table->setItem(i, 5, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
-        table->setItem(i, 6, new QTableWidgetItem(formatBvPerSecondCell(rec.bestBvPerSecond, rec.bestBvPerSecondDate)));
-        table->setItem(i, 7, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
-        table->setItem(i, 8, new QTableWidgetItem(formatLastWin(rec.lastWinDate)));
+        table->setItem(i, 4, new QTableWidgetItem(formatAverageCell(rec.totalSecondsWon, rec.won)));
+        table->setItem(i, 5, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
+        table->setItem(i, 6, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
+        table->setItem(i, 7, new QTableWidgetItem(formatBvPerSecondCell(rec.bestBvPerSecond, rec.bestBvPerSecondDate)));
+        table->setItem(i, 8, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
+        table->setItem(i, 9, new QTableWidgetItem(formatLastWin(rec.lastWinDate)));
         totalPlayed += rec.played;
         totalWon += rec.won;
     }
     // "Total" row aggregates Played and Won across all three difficulties.
-    // Best-time / best-streak / best-3BV/s / best-flag-accuracy / last-win
-    // columns collapse to em-dash because per-difficulty bests don't sum or
-    // average meaningfully across difficulties of different sizes (and
-    // "last win across any difficulty" would just shadow whichever per-row
-    // date is most recent — duplicate signal, not new information).
+    // Best-time / average / best-streak / best-3BV/s / best-flag-accuracy /
+    // last-win columns collapse to em-dash because per-difficulty bests
+    // don't sum or average meaningfully across difficulties of different
+    // sizes (the global lifetime mean `sum(totalSecondsWon)/sum(won)` is
+    // mathematically defined but mostly reflects whichever difficulty the
+    // player plays most — noise, not signal). And "last win across any
+    // difficulty" would just shadow whichever per-row date is most recent —
+    // duplicate signal, not new information.
     const QString totalWinRate = totalPlayed > 0 ? QStringLiteral(" (%1%)").arg(100 * totalWon / totalPlayed) : QString{};
     QFont totalFont = table->font();
     totalFont.setBold(true);
@@ -1185,6 +1190,7 @@ void MainWindow::showStatsDialog()
     table->setItem(3, 6, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 7, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 8, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 9, makeTotalItem(QStringLiteral("—")));
     table->resizeColumnsToContents();
 
     layout->addWidget(table);
