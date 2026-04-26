@@ -1,5 +1,88 @@
 # Cycle decisions
 
+## 2026-04-26 — Loss dialog "💔 Streak ended at %1" line (v1.39.0)
+
+**Chosen:** Add a recap line `💔 Streak ended at %1` to the loss
+dialog, surfaced when this loss broke an active winning streak of 2 or
+more on this difficulty. The streak length is captured by
+`Stats::recordLoss` *before* it zeros `currentStreak` and returned via
+the existing `LossOutcome` struct as a new `priorStreak` field.
+
+**Why:**
+- v1.38.0 cycle log explicitly listed alternation pattern continuing
+  with a loss-dialog beat. Loss-side has been getting recap lines and
+  flairs since v1.22 but never surfaced *what just got broken* —
+  the win-side has had `🔥 Streak: %1` and `🌟 New best streak: %1!`
+  since v1.18, but losing on a 5-streak silently zeroed the field with
+  no acknowledgement.
+- Player-visible new information. Reframes the loss as the cost of a
+  fall, not a baseline state. Pairs with the v1.37.0 `Last win: %1`
+  line to give a two-beat closing arc on the loss dialog: "💔 Streak
+  ended at 5" (you had momentum) followed by "Last win: 25.04.2026"
+  (and you've done this before).
+- Schema-zero. `currentStreak` already exists and is already loaded /
+  saved / tested for the Stats dialog "Streak" column. No new persisted
+  field, no migration, no QSettings key.
+- Single new translatable string × 9 non-en locales — within budget.
+
+**Rejected alternatives from the v1.38.0 candidate list:**
+- *Loss-dialog "X days ago" follow-up to v1.37 Last win.* Same blocker
+  as the v1.37 cycle: requires per-locale plural rules (Arabic has 6
+  plural forms, Russian 3) which `apply_translations.py` doesn't yet
+  template. Would expand the tooling, not just add a string. Park.
+- *Win % column broken out from Won.* Pure rearrangement, adds zero new
+  *information* — Won column already renders `5 (50%)` inline. Park.
+- *Win-dialog "Wins so far" tail on Average line.* Same plurals
+  blocker. Park.
+- *Stats-dialog "Best across all" footer cell.* Cell mixes a difficulty
+  name and a time; estimated 3 new translatable strings plus a
+  tie-break policy decision. Higher cost than this cycle's budget; the
+  loss-side beat is more user-visible at the same surface area.
+
+**Implementation choices:**
+
+1. **Capture in `recordLoss`, return via `LossOutcome`.** Mirrors how
+   `WinOutcome.currentStreak` / `newBestStreak` are returned to the
+   win-side caller. Avoids the alternative of double-loading the record
+   in `MainWindow::onGameLost` — one `Stats::load(diffName)` already
+   happens for `priorLastWinDate`, and slipping a second load just for
+   the streak would be needless I/O on the same QSettings tree.
+
+2. **Gate `>= 2` on display, not on the field.** The field always
+   reports the raw value so future callers (telemetry, tests, or a
+   sortable Stats-dialog column) can read it without a separate code
+   path. The dialog gate `>= 2` matches the existing win-side
+   `🔥 Streak: %1` gate for symmetry: a single win that just got
+   broken isn't a streak worth mourning.
+
+3. **Recap line, not a flair prepend.** The loss dialog already has
+   two flair prepends (`🎯 New best %!`, `🚩 New best flag accuracy!`)
+   — both *positive* hall-of-fame achievements. Putting a *negative*
+   "Streak ended" alongside them as a flair would jar visually.
+   Instead, place it as a recap line between "Question marks: %1" and
+   "Last win: %1" so the loss narrative reads top-to-bottom with the
+   broken-streak fact alongside the other recap lines, then closes on
+   the historical anchor.
+
+4. **Replays / customs hide the line.** They don't call
+   `Stats::recordLoss`, so `lossOutcome.priorStreak` stays at the
+   default-constructed `0` and the gate hides the line. By design — a
+   custom-board loss doesn't actually break the standard-difficulty
+   streak (and a replay loss is a re-run of an already-counted layout).
+
+5. **Translation strategy.** New lupdate key
+   `"💔 Streak ended at %1"`. All 9 non-English locales hand-translated
+   reusing the existing `🔥 Streak: %1` / `🌟 New best streak: %1!`
+   noun stems (Seri / Racha / Série / Serie / Серия / Sequência /
+   连胜 / लगातार जीत / سلسلة الفوز) for cross-line consistency. No
+   churn on existing keys — `lupdate` reports `1 new and 109 already
+   existing` per locale, confirming zero accidental drift.
+
+**Backwards-compat behaviour:** entirely additive. Pre-1.39 plists
+read as before; existing `streak_current` field is the only thing
+read, and it's been persisted since v1.18. No new QSettings key, no
+migration, no regression risk on legacy data.
+
 ## 2026-04-26 — Stats dialog "Last win" column (v1.38.0)
 
 **Chosen:** Add a 9th column "Last win" to the Statistics dialog,

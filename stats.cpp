@@ -145,6 +145,11 @@ LossOutcome recordLoss(const QString &difficultyName, int safePercent, int flagA
 {
     Record r = load(difficultyName);
     ++r.played;
+    // Capture the streak *before* zeroing so the loss dialog can surface a
+    // "💔 Streak ended at %1" line for streaks of 2+. The line itself is gated
+    // on >=2 in the dialog; the field is reported regardless so callers /
+    // tests can read the raw value.
+    const std::uint32_t priorStreak = r.currentStreak;
     r.currentStreak = 0;
     bool newBestSafePercent = false;
     if (safePercent > 0)
@@ -169,7 +174,7 @@ LossOutcome recordLoss(const QString &difficultyName, int safePercent, int flagA
         }
     }
     save(difficultyName, r);
-    return LossOutcome{newBestSafePercent, newBestFlagAccuracyPercent};
+    return LossOutcome{newBestSafePercent, newBestFlagAccuracyPercent, priorStreak};
 }
 
 WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate, double bvPerSecond)

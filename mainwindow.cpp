@@ -556,7 +556,7 @@ void MainWindow::onGameWon()
     // so the outcome is the default-constructed WinOutcome with zeroed
     // wins/average; threshold-gating in the dialog handles the rest.
     showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0, false,
-                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{});
+                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -623,7 +623,8 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("new_best_safe_percent"), lossOutcome.newBestSafePercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                             {QStringLiteral("new_best_flag_accuracy"), lossOutcome.newBestFlagAccuracyPercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
-    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags, lossOutcome.newBestFlagAccuracyPercent, 0.0, priorLastWinDate);
+    showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags, lossOutcome.newBestFlagAccuracyPercent, 0.0, priorLastWinDate,
+                  lossOutcome.priorStreak);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -835,7 +836,7 @@ void MainWindow::updateTimerLabel()
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
                                int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds,
-                               const QDate &lossLastWinDate)
+                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -961,6 +962,23 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (lossQuestionMarks > 0)
         {
             text += QStringLiteral("\n") + tr("Question marks: %1").arg(lossQuestionMarks);
+        }
+        // "💔 Streak ended at %1" — surfaced when this loss broke an active
+        // winning streak of 2 or more on this difficulty. Mirrors the
+        // win-side `🔥 Streak: %1` gate (currentStreak >= 2): a single-win
+        // streak is not a streak worth mourning, and 0 means the previous
+        // game was already a loss (no streak to break). Replays / custom
+        // games never call `Stats::recordLoss`, so `lossPriorStreak` stays
+        // at the default-constructed `LossOutcome{}.priorStreak == 0` and
+        // the line stays hidden — by design, since those losses don't
+        // actually break the standard-difficulty streak. Recap-line styling
+        // (no `prepend`) places it in the loss narrative right before
+        // "Last win: …", giving the player a two-beat closing arc:
+        // momentum lost (Streak ended), but you've done this before
+        // (Last win).
+        if (lossPriorStreak >= 2)
+        {
+            text += QStringLiteral("\n") + tr("💔 Streak ended at %1").arg(lossPriorStreak);
         }
         // Most-recent-win timestamp for this difficulty — psychological nudge
         // anchoring the loss to the player's broader history ("you've done this

@@ -53,7 +53,7 @@ class MainWindow : public QMainWindow
     void applySmiley();
     void showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
                        int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds,
-                       const QDate &lossLastWinDate);
+                       const QDate &lossLastWinDate, std::uint32_t lossPriorStreak);
     void maybeAskTelemetryConsent();
     void restartApp();
     void refitWindowToContents();
