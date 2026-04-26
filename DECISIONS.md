@@ -1,5 +1,105 @@
 # Cycle decisions
 
+## 2026-04-26 — Loss-dialog "🌟 Best loss yet!" combo flair (v1.44.0)
+
+**Chosen:** On the loss dialog, when a single loss earns BOTH a fresh
+best partial-clear (`lossOutcome.newBestSafePercent`) AND a fresh best
+flag accuracy (`lossOutcome.newBestFlagAccuracyPercent`), swap both
+individual flairs (`🎯 New best %!` from v1.29 and `🚩 New best flag
+accuracy!` from v1.34) for a single celebratory `🌟 Best loss yet!`
+prepend. Mutually exclusive with the individual flairs via an outer
+`else`. One new translatable string, hand-translated into all 9
+non-English locales. Zero schema changes — the gate consumes the same
+two `LossOutcome` bools the individual flairs already consume.
+
+**Why:**
+- v1.43.0 cycle log's second listed next candidate, verbatim: "Loss-
+  dialog combo flair when a single loss is the player's best partial-
+  clear *and* best flag accuracy on a single run ('🌟 Best loss
+  yet!'). Compound flair gated on both `lossOutcome.newBestSafePercent`
+  AND `lossOutcome.newBestFlagAccuracyPercent` firing on the same
+  run. Pure flair, one new translatable string. Mirror of the win-
+  side compound flair pattern. Natural next loss-side beat."
+- Alternation pattern: v1.41 win → v1.42 loss → v1.43 win → **v1.44 loss**.
+- The two individual flairs already prepend independently (since v1.34),
+  so a both-fire loss currently shows the stack
+  `🚩 New best flag accuracy!  🎯 New best %!  Boom!...` — reading
+  the dialog twice celebrates the same achievement-tier moment.
+  The combo flair compresses that into a single tier-up beat,
+  matching the streak-slot mutual-exclusion shape (`🌟 New best
+  streak!` swaps for `🔥 Streak: %1` rather than stacking on top).
+- Schema-zero, signature-zero. The two bools are already passed
+  into `showEndDialog` as `lossNewBestSafePercent` /
+  `lossNewBestFlagAccuracy` (since v1.29 / v1.34); the combo gate
+  is a single `&&` at the call site.
+- 1 new translatable string × 9 non-en locales — within the cycle
+  cap. Each locale uses its existing "best" + "loss/defeat" lexicon
+  for cross-line consistency with the Stats-dialog "Best time"
+  column header and the v1.42 `Last win` line.
+
+**Rejected alternatives from the v1.43.0 candidate list:**
+- *Stats-dialog "Slowest win" column.* Schema bump (new
+  `slowestSeconds` accumulator, optional `slowestDate` companion).
+  Multi-cycle. Also breaks alternation — this cycle is owed a
+  loss-side beat.
+- *Loss-dialog "🐌 Slower than your usual loss" partial-clear-vs-
+  average-partial-clear.* Needs a new persisted
+  `totalPartialBvOnLoss` accumulator. Schema bump. Multi-cycle.
+- *Stats-dialog "Median win time" column.* Outlier-resistant
+  statistic but needs persisting every counted winning duration.
+  Schema bump. Multi-cycle.
+
+**Rejected naming alternatives:**
+- *`"🌟 Double best!"`.* Concise but cryptic — "double best of
+  what?" reads as an in-joke rather than a moment of celebration.
+- *`"🌟 Personal best loss!"`.* Reads cleanly in English but
+  "personal best" is a colloquialism that doesn't translate cleanly
+  across the 9 non-en locales (Russian / Chinese / Hindi / Arabic
+  all need a longer rephrase). "Best loss yet" is shorter and the
+  "yet" softens the framing without leaning on idiom.
+- *`"🌟 Two new bests on one loss!"`.* Most informative but verbose;
+  the dialog already shows the proof (the two individual records
+  are baked into the underlying gate). Flair is celebration, not
+  recap.
+- *Mutual-exclusion via prepending all three flairs.* Considered:
+  prepend `🌟 Best loss yet!` on top of the two individual flairs.
+  Rejected — three celebratory flairs in a single dialog reads as
+  noise, and it duplicates the achievement signal three ways. The
+  swap-not-stack pattern matches the streak slot.
+
+**Implementation choices:**
+
+1. **Mutual exclusion via outer `else`.** The combo flair fires
+   alone when both bools are true; otherwise the existing two
+   individual `if (lossNewBestSafePercent)` / `if (lossNewBestFlagAccuracy)`
+   prepends fire as before. Same shape as the streak slot (`🌟 New
+   best streak!` vs `🔥 Streak: %1`) and the v1.43 average slot
+   (`🏆 New record!` vs `✨ Beat your average!`): the strict-
+   superset signal wins, the weaker signals stay independent.
+2. **No new `showEndDialog` parameter.** The combo gate is computed
+   from `lossNewBestSafePercent && lossNewBestFlagAccuracy` — both
+   already passed in. Adding a `lossComboFlair` bool would duplicate
+   state already exposed and force `onGameWon` to thread a third
+   `false` argument for symmetry.
+3. **No new `LossOutcome` field.** Considered: a returned
+   `LossOutcome::comboFlair` bool baked at the stats layer.
+   Rejected because (a) the `&&` at the call site is one term,
+   (b) the rendering decision (swap-not-stack) lives in MainWindow
+   anyway, and (c) keeping the stats layer agnostic of dialog
+   layout means the data contract stays clean.
+4. **Tests pin the data contract, not the dialog text.** Seven new
+   `tst_stats` tests pin the `Stats::recordLoss` outcome bools the
+   combo gate consumes: both-bests-fire (clean record), only-safe-
+   fires (seeded high accuracy), only-accuracy-fires (seeded high
+   safe-percent), neither-fires (seeded both high then tied),
+   first-ever-loss-with-both-metrics (clean QSettings transitions
+   both 0 → positive), replay-skipped (default-constructed
+   `LossOutcome` carries both false), zero-flags-loss
+   (`flagAccuracyPercent == 0` skips the flag-accuracy update).
+   Each test asserts both individual bools and the gate
+   conjunction explicitly so a future refactor that returns the
+   same fields under different names can't silently flip the gate.
+
 ## 2026-04-26 — Win-dialog "✨ Beat your average!" flair (v1.43.0)
 
 **Chosen:** On the win dialog, when the just-finished run was strictly

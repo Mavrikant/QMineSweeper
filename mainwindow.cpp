@@ -1061,31 +1061,48 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
                 text += QStringLiteral(" ") + tr("(best %1)").arg(formatElapsedTime(lossBestSeconds));
             }
         }
-        // Mirror of the win-side `🏆 New record!` prepend: a fresh per-difficulty
-        // partial-clear hall-of-fame entry deserves a celebratory flair on the
-        // loss dialog too. `lossNewBestSafePercent` is true iff `Stats::recordLoss`
-        // strictly beat the prior `bestSafePercent` for this difficulty (only
-        // possible on standard, non-replay difficulties — same gate as the
-        // recorded-loss path itself), so a first-click boom (0% cleared) and a
-        // replay loss never flair.
-        if (lossNewBestSafePercent)
+        // Combo flair: when the same loss earns a fresh best partial-clear
+        // AND a fresh best flag accuracy, swap both individual flairs for a
+        // single celebratory line. Avoids the triple-prepend stack of
+        // 🚩 + 🎯 + base text and gives the rare both-fire moment its own
+        // beat. Mutually exclusive with the individual 🎯 / 🚩 flairs via
+        // the outer `else` — same shape as the win-side `🌟 New best
+        // streak!` vs `🔥 Streak: %1` slot and the v1.43 `🏆 New record!`
+        // vs `✨ Beat your average!` arrangement. 🌟 was picked over a
+        // third loss-side glyph to mirror the win-side compound-celebration
+        // convention (🌟 already reads as a "tier-up" beat there).
+        if (lossNewBestSafePercent && lossNewBestFlagAccuracy)
         {
-            text.prepend(tr("🎯 New best %!") + QStringLiteral("  "));
+            text.prepend(tr("🌟 Best loss yet!") + QStringLiteral("  "));
         }
-        // Mirror of the win-side `⚡ New best 3BV/s!` flair: a fresh per-difficulty
-        // best-flag-accuracy hall-of-fame entry deserves a celebratory flair on the
-        // loss dialog parallel to the v1.29 🎯 safe-percent flair. Independent of
-        // `lossNewBestSafePercent` because the two records track different axes
-        // (board coverage vs. flag-placement accuracy) and can co-fire on a single
-        // loss; prepended last so 🚩 ends up leftmost when both fire — matches
-        // the win-side convention of putting the newer flair leftmost. 🚩 was
-        // chosen to map to the in-game flag mechanic and to stay visually
-        // distinct from the existing 🎯. Gate is `lossOutcome.newBestFlagAccuracyPercent`,
-        // which is false on replays / custom games (recordLoss is skipped) and on
-        // any loss where flagsPlaced == 0 (recordLoss's no-flag sentinel).
-        if (lossNewBestFlagAccuracy)
+        else
         {
-            text.prepend(tr("🚩 New best flag accuracy!") + QStringLiteral("  "));
+            // Mirror of the win-side `🏆 New record!` prepend: a fresh per-difficulty
+            // partial-clear hall-of-fame entry deserves a celebratory flair on the
+            // loss dialog too. `lossNewBestSafePercent` is true iff `Stats::recordLoss`
+            // strictly beat the prior `bestSafePercent` for this difficulty (only
+            // possible on standard, non-replay difficulties — same gate as the
+            // recorded-loss path itself), so a first-click boom (0% cleared) and a
+            // replay loss never flair.
+            if (lossNewBestSafePercent)
+            {
+                text.prepend(tr("🎯 New best %!") + QStringLiteral("  "));
+            }
+            // Mirror of the win-side `⚡ New best 3BV/s!` flair: a fresh per-difficulty
+            // best-flag-accuracy hall-of-fame entry deserves a celebratory flair on the
+            // loss dialog parallel to the v1.29 🎯 safe-percent flair. Independent of
+            // `lossNewBestSafePercent` because the two records track different axes
+            // (board coverage vs. flag-placement accuracy) and can co-fire on a single
+            // loss; prepended last so 🚩 ends up leftmost when both fire — matches
+            // the win-side convention of putting the newer flair leftmost. 🚩 was
+            // chosen to map to the in-game flag mechanic and to stay visually
+            // distinct from the existing 🎯. Gate is `lossOutcome.newBestFlagAccuracyPercent`,
+            // which is false on replays / custom games (recordLoss is skipped) and on
+            // any loss where flagsPlaced == 0 (recordLoss's no-flag sentinel).
+            if (lossNewBestFlagAccuracy)
+            {
+                text.prepend(tr("🚩 New best flag accuracy!") + QStringLiteral("  "));
+            }
         }
         box.setText(text);
         box.setIcon(QMessageBox::Warning);
