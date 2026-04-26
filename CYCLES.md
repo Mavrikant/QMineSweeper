@@ -1,5 +1,240 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 45 — v1.48.0 (autonomous)
+
+- **Chosen problem:** The win dialog's `🏆 New record!` flair (since
+  v1.0) reads as a bare boolean — the player knows they set a record
+  but not by how much. The just-played time is on the immediately
+  following line ("You cleared the field in 12.3."), but the value
+  being beaten — the prior best — is invisible. Previous cycles paired
+  the just-played value against the lifetime best on three other
+  end-of-game lines (v1.41 win-side `Average: %1 (best %2)`, v1.42
+  loss-side mirror, v1.47 loss-side `(best %1%)`); the `🏆 New record!`
+  flair itself was the gap. Last cycle (v1.47) shipped the loss-side
+  half of the just-played-vs-lifetime-best pairing on the partial-
+  clear axis; this cycle ships the win-side half on the time axis,
+  closing the symmetry.
+- **Evidence:** `MainWindow::showEndDialog` (mainwindow.cpp:875 pre-
+  cycle) renders `tr("You cleared the field in %1.").arg(...)` and
+  immediately moves on; the `🏆 New record!` prepend (mainwindow.cpp:928
+  pre-cycle) carries no value, only the boolean. `WinOutcome` carried
+  `bestSecondsAfter` (post-update best, == just-played time on a new
+  record) but no pre-update snapshot, so the prior best was
+  unreachable from `MainWindow` without a second `Stats::load` round-
+  trip.
+- **Shipped:**
+  - Branch: `feat/v1.48.0-win-dialog-prev-companion` (squash-merged +
+    deleted)
+  - PR: [#66](https://github.com/Mavrikant/QMineSweeper/pull/66)
+  - Squash commit: `f9117cd`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.48.0
+  - Release workflow `24954043660` succeeded on the first run; all 5
+    jobs (Resolve tag → Linux/macOS/Windows builds → Publish Release)
+    green in ~2m. All 5 assets + `SHA256SUMS.txt` published. Hand-
+    written user-facing release notes installed via
+    `gh release edit --notes` covering the new companion line, the
+    when-it-shows-up matrix (new-record-with-prior / first-ever-win /
+    non-record / 💎 combo / replay-or-custom), the per-locale
+    translation list, the per-platform install path (incl. macOS
+    quarantine clear), and SHA256SUMS verification.
+- **Code surface:** ~25 LOC of production diff in
+  `mainwindow.cpp/h` (one new param on `showEndDialog`, one new
+  if-gated line in the win branch, two updated call sites) +
+  ~12 LOC `stats.h/cpp` (one new field on `WinOutcome`, one local
+  capture before mutation in `recordWin`, struct-init update) +
+  ~95 LOC `tests/tst_stats.cpp` (5 new tests + the 5 declarations) +
+  121 LOC `DECISIONS.md` + 1 LOC `CMakeLists.txt` version bump +
+  9 LOC `apply_translations.py` (1 new key × 9 non-English locales)
+  + 10 lupdate-managed `.ts` location-only updates (1 new source
+  string per locale). Real code+tests diff well under the 400-LOC
+  cycle cap.
+  - `stats.h`: `WinOutcome` gains a trailing
+    `double priorBestSeconds{0.0}` field with a multi-line comment
+    explaining its role (pre-update best, drives the new companion).
+  - `stats.cpp` `recordWin`: `const double priorBestSeconds = r.bestSeconds;`
+    captured at function entry before the played/won increments and
+    the newBestTime check; returned in the trailing slot of the
+    `WinOutcome` aggregate initializer.
+  - `mainwindow.h` / `mainwindow.cpp`: `showEndDialog` gains a 25th
+    `double winPriorBestSeconds` parameter (trailing, additive).
+    `onGameWon` passes `outcome.priorBestSeconds`; `onGameLost`
+    passes `0.0`. Win branch appends
+    `tr("(prev %1)").arg(formatElapsedTime(winPriorBestSeconds))`
+    separated by a single space when
+    `newRecord && winPriorBestSeconds > 0.0`, on the same logical
+    line as `tr("You cleared the field in %1.")`. Mirrors the v1.47
+    loss-side composition exactly.
+  - `tests/tst_stats.cpp`: 5 new tests under "WinOutcome.priorBestSeconds":
+    - `testWinOutcomePriorBestSecondsFirstWinIsZero` — pins
+      `newRecord=true, priorBestSeconds=0.0` on first-ever win
+      (critical for the combined dialog gate)
+    - `testWinOutcomePriorBestSecondsCapturesPreMutationValue` —
+      pins `priorBestSeconds == prior, bestSecondsAfter == new`
+      after a faster second win
+    - `testWinOutcomePriorBestSecondsUnchangedAcrossSlowerWins` —
+      non-record win still reports the unchanged best
+    - `testWinOutcomePriorBestSecondsIndependentOfSubTickWin` —
+      sub-tick win after a real prior, AND first-ever sub-tick
+    - `testWinOutcomePriorBestSecondsIsPerDifficulty` — Beginner
+      vs. Expert isolation
+  - `CMakeLists.txt`: version bump 1.47.0 → 1.48.0.
+  - `apply_translations.py`: `"(prev %1)"` added to all 9 non-English
+    locale dicts adjacent to the existing `"(best %1)"` /
+    `"(best %1%)"` keys.
+  - `.ts` files: lupdate adds the new key (116 → 117 source texts,
+    1 new + 116 existing) across all 10 locales; apply_translations
+    fills 114 keys per non-English locale (up from 113 last cycle —
+    the +1 matches the 1-new-string cycle budget exactly).
+- **Tests added:** 5 (extension to `tst_stats`). 10 test binaries,
+  all pass. Total tst_stats test count: 160 → 165.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (114 translations applied per
+  non-en locale). Hand translations:
+  - TR `"(önceki %1)"` ·
+    ES `"(anterior %1)"` ·
+    FR `"(préc. %1)"` (abbreviated to keep parenthetical compact) ·
+    DE `"(zuvor %1)"` (lexically distinct from `"(Bestzeit %1)"`) ·
+    RU `"(было %1)"` ("was X" — idiomatic Russian for "previously") ·
+    PT `"(anterior %1)"` ·
+    ZH `"（原 %1）"` (full-width parens; "原" = "original/prior") ·
+    HI `"(पिछला %1)"` ·
+    AR `"(السابق %1)"`.
+  Each picks a "previous"/"prior" lexeme distinct from the locale's
+  existing "best" word, since the two carry different semantics in
+  this context — a key reason for not reusing the v1.41 `(best %1)`
+  key.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports "Found
+    117 source text(s) (1 new and 116 already existing)" across all
+    10 locales — confirms exactly one net-new tr() string.
+  - `python3 translations/apply_translations.py` reports "114
+    translations applied" per non-English locale (up from 113 last
+    cycle).
+  - `cmake --build build` clean (no warnings); all 10 locales
+    generate `117 finished and 0 unfinished` `.qm` files.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 10/10
+    pass.
+  - `tst_stats` 165 passed / 0 failed (was 160).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+- **Adversarial self-review:**
+  - **What breaks this in production?**
+    - First-ever win (`newRecord=true, priorBestSeconds=0.0`) →
+      `priorBestSeconds > 0.0` gate fails → line suppressed ✓
+      (pinned by `testWinOutcomePriorBestSecondsFirstWinIsZero`).
+    - Subsequent improvement → renders `(prev X)` ✓ (pinned by
+      `testWinOutcomePriorBestSecondsCapturesPreMutationValue`).
+    - Non-record win → `newRecord=false` → gate suppresses; v1.41
+      line still shows lifetime context via the unchanged best ✓.
+    - Sub-tick win (`seconds == 0.0`) after a real prior →
+      `priorBestSeconds` flows through unchanged; `newRecord=false`
+      because the sub-tick gate in `recordWin` short-circuits the
+      newBestTime path → suppresses ✓ (pinned by
+      `testWinOutcomePriorBestSecondsIndependentOfSubTickWin`).
+    - First-ever sub-tick win → `priorBestSeconds=0.0` AND
+      `newRecord=true` (the very-first-win clause `r.bestSeconds <= 0.0`
+      fires) BUT the post-update mutation is gated on
+      `seconds > 0.0`, so `bestSeconds` stays at 0.0 — the dialog
+      gate's `priorBestSeconds > 0.0` check correctly suppresses ✓
+      (the same test pins this).
+    - Replay / Custom → `m_isReplay`/`m_isCustom` skip `recordWin`
+      entirely → `outcome` is default-constructed with
+      `priorBestSeconds=0.0, newRecord=false` → suppresses ✓.
+    - 💎 combo case (newRecord && newBestBvPerSecond) → the bottom
+      🏆 prepend is suppressed by the v1.45 outer-if-skip but
+      `newRecord` itself remains true, so the `(prev %1)` companion
+      fires alongside the 💎 prepend ✓ (intentional — the
+      magnitude-of-improvement context applies to any new record).
+  - **Backwards-compat?** Pure presentation. QSettings schema
+    unchanged. `WinOutcome` gains a trailing field; both call sites
+    (`onGameWon`, `onGameLost`) updated atomically in the same
+    commit. No public-API consumer outside `MainWindow`.
+  - **Error paths?** None. Render gate is two boolean checks; the
+    `arg()` call is on `formatElapsedTime(double)` which has shipped
+    since v1.0.
+  - **Secrets / PII?** None. No telemetry change.
+  - **Performance?** O(1) per win — one local capture in `recordWin`,
+    one ternary at the dialog gate, one `tr()` lookup, one QString
+    concat. No I/O.
+  - **Concurrency?** None — single-threaded UI; the new field is
+    populated on the same thread that constructs the outcome.
+  - **Visual regression?** Win dialog grows by a single suffix on
+    one line when the gate fires. The v1.41 `Average: %1 (best %2)`
+    composition has shipped the same suffix-on-same-line idiom on
+    the same dialog for seven cycles without complaint.
+- **Assumptions made:**
+  - **Distinct translation key from v1.41's `"(best %1)"`** —
+    Russian and German lexically distinguish "previous" (RU
+    `было`, DE `zuvor`) from "best" (RU `лучшее`, DE `Bestzeit`).
+    Reusing the v1.41 key would force translators into a generic
+    fallback. Documented in DECISIONS.md.
+  - **Gate on `newRecord` not just on `priorBestSeconds > 0`** —
+    non-record wins already get the lifetime anchor via the v1.41
+    line; a `(prev …)` on a non-record win would either duplicate
+    `(best …)` (if the new run was slower so the best is unchanged)
+    or be stale-named ("prev" implies "the one just beaten").
+  - **Capture pre-mutation in `recordWin` rather than via a
+    second `Stats::load` at the call site.** Symmetric to the v1.39
+    `priorStreak` capture in `recordLoss`. The pre-update value is
+    only knowable inside `recordWin` (atomically with the mutation);
+    a post-call `Stats::load` would read the post-update value, and
+    a pre-call load at the call site would force every caller to
+    pre-load (the win-side has historically NOT pre-loaded — only
+    the loss-side has, since v1.42).
+  - **Co-fire with 💎 combo flair.** The combo (newRecord &&
+    newBestBvPerSecond) implies newRecord, so the combined dialog
+    gate evaluates true. Reading order on a 💎 + (prev X) win:
+    `💎 Two new bests!  You cleared the field in 12.3.  (prev 14.5)` —
+    one prepend, one companion suffix, no double-celebration of the
+    same axis.
+- **Skipped:**
+  - *Loss-dialog `🎯 New best %!` flair message refresh.* Pure copy
+    update on an existing flair — minor signal-to-noise improvement
+    but breaks the win/loss/stats alternation we're owed this cycle
+    (last cycle was loss-side; this one wants win-side). Park.
+  - *Stats-dialog "Best partial date" inline-anchor cell.* Already
+    shipped in v1.46 — `formatSafePercentCell(int, QDate)` already
+    accepts and renders the date; my v1.47 cycle's "next candidate"
+    list incorrectly listed it as outstanding. Removed from the
+    rotation.
+  - *Live UI smoke test via computer-use.* Same trade-off as the
+    past five cycles' "Local verification" pattern — the unit tests
+    pin the persistence-layer invariant the dialog reads, the
+    composition mirrors three existing companion-line patterns
+    (v1.41/v1.42/v1.47) that ship working today, and the offscreen
+    startup smoke confirmed the binary loads.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.48.0` in the last hour returned **zero results**.
+  No new crashes, no spike on prior groups attributable to the 1.48.0
+  cut. Telemetry is opt-in and the release just shipped, so the
+  expected baseline volume is low; the signal worth watching for is
+  *any* new group tagged with the 1.48.0 release. None observed.
+  Watch closed.
+- **Next candidates:**
+  - **Loss-dialog `🎯 New best %!` flair message refresh.** With the
+    v1.47 `(best X%)` companion now showing the actual percent on the
+    same dialog, the flair text could be tightened (e.g. "🎯 Personal
+    best!") for parallelism with the win-side "🏆 New record!"
+    wording. One new translatable string, mutex with the existing
+    `🎯` flair via `else if`. Pure flair beat — fits the loss-side
+    alternation slot owed after this win-side cycle.
+  - **Stats-dialog "Last loss" column.** Locale-formatted date of the
+    most-recent recorded loss for each difficulty, parallel to the
+    v1.38 "Last win" column. Schema-light: needs a new `lastLossDate`
+    QSettings key and one new translation string for the column
+    header. Mirror of the v1.38 cycle's exact shape on the loss axis.
+    Stats-dialog beat — natural alternation slot two cycles out.
+  - **Win-dialog `(prev %1)` companion to `⚡ New best 3BV/s!`
+    flair.** Mirror of this cycle's pattern on the 3BV/s axis: when
+    the player sets a new 3BV/s best on a difficulty where they had
+    a prior recorded 3BV/s, the `3BV: %1 · 3BV/s: %2` line could
+    gain a `(prev %3)` suffix. Needs a new
+    `WinOutcome.priorBvPerSecond` field (parallel to this cycle's
+    `priorBestSeconds`). Same translation key reusable from v1.45's
+    `formatBvPerSecondCell` neighborhood — investigate.
+
 ## 2026-04-26 — Cycle 44 — v1.47.0 (autonomous)
 
 - **Chosen problem:** The v1.29 `bestSafePercent` field — per-difficulty
