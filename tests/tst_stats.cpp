@@ -191,6 +191,18 @@ class TestStats : public QObject
     void testWinThenLossThenWinThenLossPriorStreakResets();
     void testPriorStreakIsPerDifficulty();
     void testRecordLossZerosCurrentStreakRegardlessOfPriorValue();
+
+    // Loss-dialog "🌟 Best loss yet!" combo flair gate — fires when the same
+    // loss earns BOTH `newBestSafePercent` AND `newBestFlagAccuracyPercent`.
+    // Mutually exclusive at the dialog with the individual 🎯 / 🚩 flairs;
+    // these tests pin the data-side contract that drives the gate.
+    void testComboFlairBothBestsFireOnSingleLoss();
+    void testComboFlairOnlySafePercentDoesNotFireBoth();
+    void testComboFlairOnlyFlagAccuracyDoesNotFireBoth();
+    void testComboFlairNeitherBestDoesNotFireBoth();
+    void testComboFlairFirstEverLossWithBothMetricsFires();
+    void testComboFlairReplaySkippedDoesNotFireBoth();
+    void testComboFlairZeroFlagsLossDoesNotFireBoth();
 };
 
 void TestStats::initTestCase()
@@ -1919,6 +1931,105 @@ void TestStats::testRecordLossZerosCurrentStreakRegardlessOfPriorValue()
     }
     Stats::recordLoss(QStringLiteral("Intermediate"));
     QCOMPARE(Stats::load(QStringLiteral("Intermediate")).currentStreak, 0u);
+}
+
+// Loss-dialog "🌟 Best loss yet!" combo flair gate — pin the data-side
+// contract `MainWindow::showEndDialog` consumes. The flair fires iff
+//   `lossNewBestSafePercent && lossNewBestFlagAccuracy`,
+// where both bools come from the `Stats::LossOutcome` returned by
+// `Stats::recordLoss`. Mutually exclusive at the dialog with the individual
+// 🎯 / 🚩 flairs (caller-side outer `else`); these tests pin the underlying
+// arithmetic without instantiating MainWindow.
+
+void TestStats::testComboFlairBothBestsFireOnSingleLoss()
+{
+    // First loss with both safePercent > 0 AND flagAccuracyPercent > 0
+    // → both bests transition 0 → positive → both bools true → combo fires.
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 47, 80, QDate{2026, 4, 26});
+    QVERIFY(out.newBestSafePercent);
+    QVERIFY(out.newBestFlagAccuracyPercent);
+    // The dialog gate is the AND of the two bools; pin it explicitly so a
+    // future refactor that returns the same fields under different names
+    // can't silently flip the gate.
+    QVERIFY(out.newBestSafePercent && out.newBestFlagAccuracyPercent);
+}
+
+void TestStats::testComboFlairOnlySafePercentDoesNotFireBoth()
+{
+    // Seed a high flag-accuracy record, then beat only the safe-percent
+    // record on the next loss. The flag-accuracy bool stays false because
+    // 50 < 80, so the combo gate (AND) is false → the individual 🎯 flair
+    // shows instead.
+    Stats::recordLoss(QStringLiteral("Beginner"), 30, 80, QDate{2026, 4, 25});
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 60, 50, QDate{2026, 4, 26});
+    QVERIFY(out.newBestSafePercent);
+    QVERIFY(!out.newBestFlagAccuracyPercent);
+    QVERIFY(!(out.newBestSafePercent && out.newBestFlagAccuracyPercent));
+}
+
+void TestStats::testComboFlairOnlyFlagAccuracyDoesNotFireBoth()
+{
+    // Symmetric: seed a high safe-percent record, then beat only the
+    // flag-accuracy record on the next loss. Combo gate stays false → the
+    // individual 🚩 flair shows instead.
+    Stats::recordLoss(QStringLiteral("Beginner"), 80, 30, QDate{2026, 4, 25});
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 50, 60, QDate{2026, 4, 26});
+    QVERIFY(!out.newBestSafePercent);
+    QVERIFY(out.newBestFlagAccuracyPercent);
+    QVERIFY(!(out.newBestSafePercent && out.newBestFlagAccuracyPercent));
+}
+
+void TestStats::testComboFlairNeitherBestDoesNotFireBoth()
+{
+    // Seed both records high, then a loss that ties or undershoots both.
+    // Strict-greater semantics (`> r.bestSafePercent`, `> r.bestFlagAccuracyPercent`)
+    // mean equal-to-prior leaves both bools false → combo gate false → no flair.
+    Stats::recordLoss(QStringLiteral("Beginner"), 80, 90, QDate{2026, 4, 25});
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 80, 90, QDate{2026, 4, 26});
+    QVERIFY(!out.newBestSafePercent);
+    QVERIFY(!out.newBestFlagAccuracyPercent);
+    QVERIFY(!(out.newBestSafePercent && out.newBestFlagAccuracyPercent));
+}
+
+void TestStats::testComboFlairFirstEverLossWithBothMetricsFires()
+{
+    // Tightest gate path: the very first recorded loss on a difficulty with
+    // both metrics positive transitions both 0 → positive simultaneously.
+    // Pin both the persistence side and the returned outcome so the dialog
+    // gate sees the exact bools it expects on a clean QSettings.
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestFlagAccuracyPercent, 0u);
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"), 1, 1, QDate{2026, 4, 26});
+    QVERIFY(out.newBestSafePercent);
+    QVERIFY(out.newBestFlagAccuracyPercent);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 1u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestFlagAccuracyPercent, 1u);
+}
+
+void TestStats::testComboFlairReplaySkippedDoesNotFireBoth()
+{
+    // `MainWindow::onGameLost` skips `Stats::recordLoss` on replay/custom
+    // games and threads a default-constructed `LossOutcome{}` into the
+    // dialog. Both bools default to false → combo gate false → no flair.
+    // Pinned via the struct-default contract so a future struct refactor
+    // can't accidentally default either field to true.
+    Stats::LossOutcome out{};
+    QVERIFY(!out.newBestSafePercent);
+    QVERIFY(!out.newBestFlagAccuracyPercent);
+    QVERIFY(!(out.newBestSafePercent && out.newBestFlagAccuracyPercent));
+}
+
+void TestStats::testComboFlairZeroFlagsLossDoesNotFireBoth()
+{
+    // A loss with at least one cell cleared but zero flags placed →
+    // `safePercent > 0`, `flagAccuracyPercent == 0` → recordLoss skips the
+    // flag-accuracy update entirely (the `if (flagAccuracyPercent > 0)` gate
+    // in stats.cpp). On a clean record the safe-percent bool fires alone →
+    // combo gate false → individual 🎯 flair only.
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 47, 0, QDate{2026, 4, 26});
+    QVERIFY(out.newBestSafePercent);
+    QVERIFY(!out.newBestFlagAccuracyPercent);
+    QVERIFY(!(out.newBestSafePercent && out.newBestFlagAccuracyPercent));
 }
 
 QTEST_MAIN(TestStats)
