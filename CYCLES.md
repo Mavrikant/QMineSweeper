@@ -1,5 +1,229 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 37 — v1.40.0 (autonomous)
+
+- **Chosen problem:** Stats dialog (Game → Statistics…) renders 9
+  columns of per-difficulty metrics — Played, Won, Best time, Best
+  (no flag), Streak, Best 3BV/s, Best flag accuracy, Last win — but
+  does not surface the **lifetime average winning time** for each
+  difficulty. The data has been persisted since v1.36
+  (`Stats::Record::totalSecondsWon` ÷ `won`) to power the win-dialog
+  `Average: %1` line, but that line is only ever visible right after
+  a win, on the difficulty just won. A player who wants to compare
+  their average across all three difficulties at one glance has no
+  way to do it. v1.39.0 cycle log called for the next stats-dialog
+  beat in the alternation pattern (v1.32 loss → v1.33 stats → v1.34
+  loss → v1.35 stats → v1.36 win → v1.37 loss → v1.38 stats →
+  v1.39 loss → **v1.40 stats**).
+- **Evidence:** `Stats::Record::totalSecondsWon` already exists, is
+  loaded/saved, and is fully unit-tested (`tst_stats`
+  `testTotalSecondsWonDefaultsZero`,
+  `testRecordWinAccumulatesTotalSeconds`,
+  `testMultipleWinsAccumulateTotalSeconds`,
+  `testRecordWinZeroSecondsDoesNotAccumulate`,
+  `testWinOutcomeAverageSecondsAfterEqualsMean`,
+  `testTotalSecondsWonIsPerDifficulty`,
+  `testLegacyRecordWithoutTotalSecondsWonLoadsAsZero`). The Stats
+  dialog (`MainWindow::showStatsDialog`, mainwindow.cpp:1057) reads
+  every Stats::Record field except this one — pure presentation gap.
+- **Shipped:**
+  - Branch: `feat/v1.40.0-stats-dialog-average-column` (squash-merged + deleted)
+  - PR: [#58](https://github.com/Mavrikant/QMineSweeper/pull/58)
+  - Squash commit: `3d74594`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.40.0
+  - Release workflow `24946668247` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage / tar.gz, macOS .dmg,
+    Windows .zip). Hand-written user-facing release notes installed
+    via `gh release edit --notes` covering the new column, em-dash
+    behaviour for empty difficulties, Total-row em-dash policy, and
+    the macOS quarantine clear.
+- **Code surface:** ~30 LOC of production diff in `mainwindow.cpp` +
+  +36 LOC standalone formatter header + +127 LOC tests + 9 LOC
+  translation dict + 10 lupdate-managed `.ts` files + 1 LOC test
+  CMake wiring + version bump. Real code+tests diff well under the
+  400-LOC cycle cap.
+  - `average_time_format.h` (new): `formatAverageCell(totalSecondsWon,
+    won)` — em-dash gates on `won == 0 || totalSecondsWon <= 0.0`,
+    delegates to `formatElapsedTime` otherwise. No date suffix
+    (Average is a lifetime mean — pinning to a single date would
+    mislead). Same standalone-header pattern as
+    `bv_per_second_format.h` / `flag_accuracy_format.h`.
+  - `mainwindow.cpp`: column count 9 → 10; header label list gains
+    `tr("Average")` at index 4; per-row cell insert at column 4; all
+    subsequent column indices (5..9) shift by +1; Total row gains an
+    extra em-dash cell. Comment on the Total-row em-dash block updated
+    to call out why average doesn't aggregate across mixed difficulties.
+  - `tests/tst_average_time_format.cpp` (new, 12 tests): em-dash on
+    `won=0` (with `total=0` and `total=42`); em-dash on
+    `total=0/won>0`; em-dash on negative total (defensive); n=1 mean;
+    n=3 canonical mean (60/3 → "20.0"); minute-boundary delegation
+    (150/2 → "1:15.0"); hour-boundary delegation (9000/2 →
+    "1:15:00.0"); sub-second mean (1.0/2 → "0.5"); large-denominator
+    non-overflow (123450/10000 → "12.3"); fractional rounding to
+    tenths (45.7/3 → "15.2", 45.8/3 → "15.3"); fresh-slate pin (both
+    fields zero → em-dash); defensive guard ordering pin (huge `won`
+    with `total=0` → em-dash).
+  - `tests/CMakeLists.txt`: 1 line, `qms_add_test(tst_average_time_format)`.
+  - `CMakeLists.txt`: version bump 1.39.0 → 1.40.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English locales).
+  - `.ts` files: lupdate adds the new key (110 → 111) across all 10
+    locales; apply_translations fills 9 of them; English stays
+    unfinished as designed.
+- **Tests added:** 12 (new binary `tst_average_time_format`). Total
+  test binaries: 8 → 9. All pass.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (`111 finished, 0 unfinished` per
+  non-en locale; en stays at 108 unfinished by design — Qt falls back
+  to source).
+  - TR `"Ortalama"` ·
+    ES `"Promedio"` ·
+    FR `"Moyenne"` ·
+    DE `"Durchschnitt"` ·
+    RU `"Среднее"` ·
+    PT `"Média"` ·
+    ZH `"平均"` ·
+    HI `"औसत"` ·
+    AR `"المتوسط"`.
+  - Each translation reuses the noun stem from its existing
+    `"Average: %1"` translation (the win-dialog Average line) for
+    cross-line consistency — a player who reads "Ortalama: 1:15.0"
+    on the win dialog and then "Ortalama" as a column header in
+    Statistics sees the same word for the same concept.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "1 new and 110 already existing" across all 10 locales —
+    confirms exactly one new tr() string, zero accidental drift.
+  - `python3 translations/apply_translations.py` reports
+    "108 translations applied" per non-English locale (was 107
+    pre-cycle).
+  - Per-locale grep confirms `<source>Average</source>` →
+    `<translation>…</translation>` (not `unfinished`) in all 9
+    non-en files.
+  - `cmake --build build` clean.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 9/9 pass
+    (was 8/8 pre-cycle — `tst_average_time_format` is the new 9th
+    binary).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+  - All 7 PR CI checks green (3× build/test, coverage, formatting,
+    Code Review Doctor, CodeFactor); Codacy ACTION_REQUIRED
+    advisory matches every prior cycle and is historically not
+    blocking.
+- **Adversarial self-review:**
+  - **What breaks this in production?** Player with `won=0` on a
+    difficulty → `formatAverageCell(0.0, 0u)` → "—" ✓.
+    Sub-tick-only wins (every win was 0.0s) → `total=0.0, won>0`
+    → "—" ✓. Three normal wins (10/20/30) → mean 20.0 rendered
+    via `formatElapsedTime` → "20.0" ✓. Pre-1.36 plist with
+    `won>0` but no `total_seconds_won` key → loads as 0.0 → "—"
+    until next win ✓ (`testLegacyRecordWithoutTotalSecondsWonLoadsAsZero`
+    pins this). Negative accumulator → "—" (defensive, unreachable
+    in production) ✓.
+  - **Backwards-compat?** Pure addition. No new QSettings key.
+    `total_seconds_won` has been persisted since v1.36; legacy
+    plists carry no value and the column shows "—" until next win
+    — same clean-slate behaviour as v1.36 / v1.37 / v1.38.
+  - **Error paths?** Two em-dash gates ordered to short-circuit on
+    the cheap check (`won == 0`) before the divide. Both
+    unreachable in production but defensively covered with tests.
+    `tr(...)` not used inside the formatter (the `"—"` is a
+    `QStringLiteral` U+2014 — same character used by every other
+    Stats cell formatter in this dialog).
+  - **Secrets / PII?** None. Lifetime mean only.
+  - **Performance?** O(1) per cell. Three cells per dialog open.
+    The dialog is opened on user demand. No new I/O — the same
+    `Stats::load` already happens to populate the row.
+  - **Concurrency?** None — single-threaded UI, dialog reads
+    QSettings synchronously on open.
+  - **Visual regression?** One new column, narrow numeric content,
+    inserted in a logical position (between Best time and Best
+    (no flag)). `resizeColumnsToContents` handles widths; existing
+    columns' rendered widths are unaffected. Total row gains one
+    extra em-dash cell; rest of the row byte-identical.
+- **Assumptions made:**
+  - **Insert at column 4** (between Best time and Best (no flag))
+    so the three time-summary metrics sit adjacent. Alternative
+    positions (after Won; after Last win) considered and rejected
+    — the chosen ordering reads top-to-bottom most naturally for
+    time-related cells.
+  - **No date suffix on the Average cell.** Best-time / Best-3BV/s /
+    Streak / Last-win cells all anchor to a specific run; Average
+    is a lifetime mean — pinning to a date would mislead.
+  - **Total row em-dash for Average.** Mathematically defined as
+    `sum(totalSecondsWon)/sum(won)`, but mixes difficulties of
+    different sizes and would mostly reflect whichever difficulty
+    the player plays most. Em-dash matches the existing precedent
+    for Best-time / Best-(no flag) / Streak / Best-3BV/s /
+    Best-flag-accuracy / Last-win on the Total row.
+  - **Translation strategy:** new `"Average"` lupdate key is
+    distinct from existing `"Average: %1"`; reuses the noun stem
+    of each locale's `Average: %1` translation for cross-line
+    consistency.
+  - **Standalone formatter header, not a fourth in-place lambda
+    in `showStatsDialog`.** `showStatsDialog` already defines
+    `formatBest`, `formatStreak`, `formatLastWin`,
+    `formatBestTimeOrPartial` inline; adding a fifth would push
+    the function past its readability budget and offer no
+    unit-test surface for the new arithmetic. The new helper
+    matches the pattern set by `bv_per_second_format.h` /
+    `flag_accuracy_format.h`.
+- **Skipped:**
+  - **Win-dialog "Wins so far" tail on Average line, e.g.
+    `Average: 1:18.9 (n=12)`.** Same plurals blocker as v1.37: the
+    parenthetical wants per-locale pluralisation rules (Russian 3
+    forms, Arabic 6) which `apply_translations.py` doesn't yet
+    template. Park.
+  - **Stats-dialog "Best across all" footer cell** for the Best
+    time column. Cell mixes a difficulty name and a time;
+    estimated 3 new translatable strings plus a tie-break policy
+    decision. Higher cost than this cycle's budget.
+  - **Win % column** broken out from Won. Pure rearrangement;
+    adds zero new *information* — Won column already renders
+    `5 (50%)` inline.
+  - **Date suffix on the Average cell.** Considered: append the
+    date of the player's most-recent counted win (which would
+    duplicate the Last-win column anyway). Rejected — Average is
+    a lifetime mean, no single anchor date applies.
+  - **End-to-end visual sanity check on the live app.** This is
+    an autonomous scheduled-task cycle with no user present to
+    approve computer-use access (`request_access` timed out as
+    expected). Relied on unit tests + the small, surgical wiring
+    change. The wiring is symmetric with the v1.38 "Last win"
+    column shipped two cycles ago, which followed the same path
+    and shipped clean.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.40.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads at
+  watch time and telemetry is opt-in. No new crash group attributable
+  to the 1.40.0 cut. Hand-written user-facing release notes installed
+  via `gh release edit --notes` (covers the new column, em-dash
+  behaviour for empty difficulties, Total-row em-dash policy, and
+  the macOS quarantine clear). All 5 assets + `SHA256SUMS.txt`
+  published. Watch closed.
+- **Next candidates:**
+  - **Win-dialog "Average: %1 (best %2)"** companion line — surface
+    the player's best time alongside the average so a slow win
+    immediately sees the gap. ~1 new translatable string ("(best
+    %2)") with the same plurals-free shape as the existing line;
+    smallest informative win-dialog beat.
+  - **Stats-dialog "Wins per day" or "Average sessions/day"
+    column.** Would need a new persisted accumulator (date of first
+    win for a difficulty + total active days) and a new QSettings
+    schema. Multi-cycle.
+  - **Win-dialog "Average: %1 — %2 vs your best"** — render the
+    delta from average to best inline (e.g., "Average: 1:18.9 —
+    +25.0s vs your best"). Same shape as the candidate above but
+    derives the comparison rather than adding a new field.
+  - **Stats-dialog "Total" row gains an "Average" footer cell** —
+    aggregate `sum(totalSecondsWon)/sum(won)` across all
+    difficulties. Mathematically defined; intentionally em-dashed
+    in this cycle for consistency with other Best columns. Would
+    revisit only if a concrete user-facing motivator surfaces (a
+    "global mean playtime per win" feels like noise across
+    difficulties of different lengths).
+
 ## 2026-04-26 — Cycle 36 — v1.39.0 (autonomous)
 
 - **Chosen problem:** Loss dialog has been getting recap lines and
