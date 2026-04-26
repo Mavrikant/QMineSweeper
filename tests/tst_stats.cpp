@@ -144,6 +144,16 @@ class TestStats : public QObject
     void testResetAllWipesLastWinDate();
     void testLegacyRecordWithoutLastWinDateLoadsAsInvalid();
     void testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid();
+
+    // LossOutcome.priorStreak — drives the loss-dialog "💔 Streak ended at %1" line
+    void testLossOutcomeDefaultPriorStreakIsZero();
+    void testFirstEverLossPriorStreakIsZero();
+    void testLossAfterOneWinPriorStreakIsOne();
+    void testLossAfterFiveWinsPriorStreakIsFive();
+    void testTwoConsecutiveLossesSecondPriorStreakIsZero();
+    void testWinThenLossThenWinThenLossPriorStreakResets();
+    void testPriorStreakIsPerDifficulty();
+    void testRecordLossZerosCurrentStreakRegardlessOfPriorValue();
 };
 
 void TestStats::initTestCase()
@@ -1476,6 +1486,106 @@ void TestStats::testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid()
     QCOMPARE(r.won, 50u);
     QCOMPARE(r.bestDate, QDate(2025, 6, 1));
     QVERIFY(!r.lastWinDate.isValid()); // not back-filled
+}
+
+void TestStats::testLossOutcomeDefaultPriorStreakIsZero()
+{
+    // A default-constructed LossOutcome (e.g. the replay/custom branch in
+    // MainWindow::onGameLost that skips recordLoss) must report priorStreak=0
+    // so the loss dialog's `>= 2` gate cleanly hides the line.
+    Stats::LossOutcome out{};
+    QCOMPARE(out.priorStreak, 0u);
+}
+
+void TestStats::testFirstEverLossPriorStreakIsZero()
+{
+    // No prior wins → currentStreak was 0 at recordLoss time → priorStreak is 0.
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"));
+    QCOMPARE(out.priorStreak, 0u);
+    // Sanity: the underlying record is still in the no-streak state.
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).currentStreak, 0u);
+}
+
+void TestStats::testLossAfterOneWinPriorStreakIsOne()
+{
+    // A single win followed by a loss reports priorStreak=1. The dialog's
+    // `>= 2` gate hides the line for this case (one isn't a streak), but the
+    // underlying field carries the raw value so future callers / telemetry
+    // can read it without re-loading the record.
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"));
+    QCOMPARE(out.priorStreak, 1u);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).currentStreak, 0u);
+}
+
+void TestStats::testLossAfterFiveWinsPriorStreakIsFive()
+{
+    // Five consecutive wins, then a loss. priorStreak captures the value at
+    // recordLoss time, before the reset. Dialog gate `>= 2` is satisfied so
+    // the line "💔 Streak ended at 5" surfaces.
+    for (int i = 0; i < 5; ++i)
+    {
+        Stats::recordWin(QStringLiteral("Expert"), 100.0 - i);
+    }
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).currentStreak, 5u);
+    const auto out = Stats::recordLoss(QStringLiteral("Expert"));
+    QCOMPARE(out.priorStreak, 5u);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).currentStreak, 0u);
+}
+
+void TestStats::testTwoConsecutiveLossesSecondPriorStreakIsZero()
+{
+    // After the first loss, currentStreak is already 0. A second loss
+    // immediately afterwards must report priorStreak=0 — there's no streak
+    // left to break.
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 9.0);
+    const auto firstLoss = Stats::recordLoss(QStringLiteral("Beginner"));
+    QCOMPARE(firstLoss.priorStreak, 2u);
+    const auto secondLoss = Stats::recordLoss(QStringLiteral("Beginner"));
+    QCOMPARE(secondLoss.priorStreak, 0u);
+}
+
+void TestStats::testWinThenLossThenWinThenLossPriorStreakResets()
+{
+    // win-loss-win-loss exercises the "current resets to 0 on loss, then
+    // climbs again" path: each loss should report exactly the streak length
+    // built up since the previous loss.
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 11.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 12.0);
+    const auto firstLoss = Stats::recordLoss(QStringLiteral("Beginner"));
+    QCOMPARE(firstLoss.priorStreak, 3u);
+
+    Stats::recordWin(QStringLiteral("Beginner"), 13.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 14.0);
+    const auto secondLoss = Stats::recordLoss(QStringLiteral("Beginner"));
+    QCOMPARE(secondLoss.priorStreak, 2u);
+}
+
+void TestStats::testPriorStreakIsPerDifficulty()
+{
+    // Win twice on Beginner, lose on Expert. Expert had no prior wins so
+    // its priorStreak must be 0; Beginner's streak stays at 2 (untouched
+    // by the Expert loss).
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 11.0);
+    const auto expertLoss = Stats::recordLoss(QStringLiteral("Expert"));
+    QCOMPARE(expertLoss.priorStreak, 0u);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).currentStreak, 2u);
+}
+
+void TestStats::testRecordLossZerosCurrentStreakRegardlessOfPriorValue()
+{
+    // The post-loss `currentStreak` is always 0, no matter what `priorStreak`
+    // reports. Defensive — guards against a future refactor that might leak
+    // priorStreak into the persisted record.
+    for (int i = 0; i < 7; ++i)
+    {
+        Stats::recordWin(QStringLiteral("Intermediate"), 50.0 - i);
+    }
+    Stats::recordLoss(QStringLiteral("Intermediate"));
+    QCOMPARE(Stats::load(QStringLiteral("Intermediate")).currentStreak, 0u);
 }
 
 QTEST_MAIN(TestStats)

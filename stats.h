@@ -127,6 +127,15 @@ struct LossOutcome
     // `new_best_safe_percent` tag so flag-accuracy distributions can be
     // analysed.
     bool newBestFlagAccuracyPercent{false};
+    // Value of `currentStreak` immediately before this `recordLoss` call zeroed
+    // it. Used by the loss dialog to surface a "💔 Streak ended at %1" line
+    // when the broken streak was at least 2 (mirrors the win-side
+    // `🔥 Streak: %1` gate at currentStreak >= 2). 0 == no streak was running
+    // at loss time (first-ever loss, or previous game was already a loss).
+    // Replays / custom games do not call `recordLoss`, so a default-constructed
+    // LossOutcome carries 0 and the loss dialog hides the line — by design,
+    // since those losses don't actually break the standard-difficulty streak.
+    std::uint32_t priorStreak{0};
 
     // Mirror of WinOutcome::operator bool — explicit so accidental assignment
     // to `bool` still requires `.newBestSafePercent`. Lets future call sites
