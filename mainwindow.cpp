@@ -558,7 +558,7 @@ void MainWindow::onGameWon()
     // so the outcome is the default-constructed WinOutcome with zeroed
     // wins/average; threshold-gating in the dialog handles the rest.
     showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0, false,
-                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u, (outcome.winsAfter >= 3) ? outcome.bestSecondsAfter : 0.0, 0.0, 0.0, 0u);
+                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u, (outcome.winsAfter >= 3) ? outcome.bestSecondsAfter : 0.0, 0.0, 0.0, 0u, outcome.priorBestSeconds);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -654,7 +654,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("new_best_flag_accuracy"), lossOutcome.newBestFlagAccuracyPercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
     showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags, lossOutcome.newBestFlagAccuracyPercent, 0.0, priorLastWinDate,
-                  lossOutcome.priorStreak, 0.0, lossAverageSeconds, lossBestSeconds, lossBestSafePercent);
+                  lossOutcome.priorStreak, 0.0, lossAverageSeconds, lossBestSeconds, lossBestSafePercent, 0.0);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -866,13 +866,31 @@ void MainWindow::updateTimerLabel()
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
                                int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds,
-                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak, double winBestSeconds, double lossAverageSeconds, double lossBestSeconds, std::uint32_t lossBestSafePercent)
+                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak, double winBestSeconds, double lossAverageSeconds, double lossBestSeconds, std::uint32_t lossBestSafePercent, double winPriorBestSeconds)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
     if (won)
     {
         QString text = tr("You cleared the field in %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
+        // Companion suffix anchoring the new-record run against the value being
+        // beaten. Mirror of the v1.47 loss-side `(best %1%)` arrangement:
+        // suffix lives on the same logical line as its anchor, separated by a
+        // single space. Combined gate `newRecord && winPriorBestSeconds > 0.0`
+        // keeps the line out of (a) non-record wins (where the v1.41
+        // `Average: %1 (best %2)` line already supplies lifetime context, with
+        // `(best …)` rendering the post-update best) and (b) first-ever wins
+        // (where "previous record" has no referent — the pre-update best is
+        // the 0.0 sentinel). Defensive `> 0.0` guard also catches the
+        // pathological all-sub-tick prior-wins case where `bestSeconds` may
+        // have stayed at 0.0 even with `won > 0`. Co-fires with the v1.45
+        // `💎 Two new bests!` combo (which implies newRecord) — the
+        // magnitude-of-improvement context applies regardless of which
+        // prepended flair celebrates the record.
+        if (newRecord && winPriorBestSeconds > 0.0)
+        {
+            text += QStringLiteral(" ") + tr("(prev %1)").arg(formatElapsedTime(winPriorBestSeconds));
+        }
         // Lifetime average winning time on the current difficulty — surfaced
         // only when winsAfter >= 3 (the caller already encoded the gate by
         // passing 0.0 for fewer wins). Reuses formatElapsedTime so the

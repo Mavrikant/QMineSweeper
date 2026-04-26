@@ -151,6 +151,17 @@ class TestStats : public QObject
     void testWinOutcomeBestSecondsAfterFirstWinSubTickStaysZero();
     void testWinOutcomeBestSecondsAfterMatchesPersisted();
 
+    // WinOutcome.priorBestSeconds — drives the win-dialog
+    // "🏆 New record!  …  (prev %1)" companion suffix (v1.48). The pre-update
+    // value of bestSeconds, captured before recordWin's mutation. Distinct
+    // from bestSecondsAfter (which equals the just-played time on a new
+    // record) and from m_lastElapsedSeconds (the just-played duration).
+    void testWinOutcomePriorBestSecondsFirstWinIsZero();
+    void testWinOutcomePriorBestSecondsCapturesPreMutationValue();
+    void testWinOutcomePriorBestSecondsUnchangedAcrossSlowerWins();
+    void testWinOutcomePriorBestSecondsIndependentOfSubTickWin();
+    void testWinOutcomePriorBestSecondsIsPerDifficulty();
+
     // last_win_date — drives the loss-dialog "Last win: %1" line
     void testLastWinDateDefaultsInvalid();
     void testFirstWinStampsLastWinDate();
@@ -1590,6 +1601,83 @@ void TestStats::testWinOutcomeBestSecondsAfterMatchesPersisted()
     const auto r = Stats::load(QStringLiteral("Expert"));
     QCOMPARE(out.bestSecondsAfter, r.bestSeconds);
     QCOMPARE(out.bestSecondsAfter, 200.0);
+}
+
+void TestStats::testWinOutcomePriorBestSecondsFirstWinIsZero()
+{
+    // First-ever win on a difficulty: there is no prior best to anchor a
+    // (prev …) suffix against. priorBestSeconds returns the 0.0 sentinel,
+    // which the dialog's `winPriorBestSeconds > 0.0` gate uses to suppress
+    // the line. Note: newRecord IS true here (first win == new best by
+    // design), so the gate must be on priorBestSeconds, NOT on newRecord
+    // alone — pinning that distinction matters for the dialog's combined
+    // gate `newRecord && winPriorBestSeconds > 0.0`.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    QVERIFY(out.newRecord);
+    QCOMPARE(out.priorBestSeconds, 0.0);
+}
+
+void TestStats::testWinOutcomePriorBestSecondsCapturesPreMutationValue()
+{
+    // The whole point of the field: on a new-record win, priorBestSeconds
+    // must be the value being beaten — distinct from bestSecondsAfter
+    // (which is the just-played time on a new record) and from the
+    // just-played duration. Pin both axes in the same test.
+    Stats::recordWin(QStringLiteral("Expert"), 250.0);
+    const auto out = Stats::recordWin(QStringLiteral("Expert"), 200.0);
+    QVERIFY(out.newRecord);
+    QCOMPARE(out.priorBestSeconds, 250.0);
+    QCOMPARE(out.bestSecondsAfter, 200.0);
+    // The dialog renders `🏆 New record!  You cleared the field in 200.0.  (prev 250.0)`.
+    QVERIFY(out.priorBestSeconds != out.bestSecondsAfter);
+}
+
+void TestStats::testWinOutcomePriorBestSecondsUnchangedAcrossSlowerWins()
+{
+    // A non-record win (slower than the current best) does NOT mutate
+    // bestSeconds, so priorBestSeconds equals the unchanged best. The
+    // dialog's gate `newRecord` is false here so the (prev …) line is
+    // suppressed regardless of priorBestSeconds — this test pins that the
+    // field still reports the correct underlying value (a refactor that
+    // only populated priorBestSeconds on new-record wins would silently
+    // pass at the dialog gate but break any future call site that wants
+    // the prior best on every win).
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 45.0);
+    QVERIFY(!out.newRecord);
+    QCOMPARE(out.priorBestSeconds, 30.0);
+    QCOMPARE(out.bestSecondsAfter, 30.0);
+}
+
+void TestStats::testWinOutcomePriorBestSecondsIndependentOfSubTickWin()
+{
+    // Sub-tick win (seconds == 0.0) does not mutate bestSeconds (the
+    // `seconds > 0.0` gate in recordWin), but also does not zero
+    // priorBestSeconds — the prior value flows through unchanged. Mirror
+    // of testWinOutcomeBestSecondsAfterSubTickWinKeepsPrior on the
+    // pre-update axis.
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    QCOMPARE(out.priorBestSeconds, 30.0);
+    // First-ever sub-tick win: prior is 0.0 (no prior win), and the field
+    // stays at 0.0 (sub-tick doesn't promote). Pinned separately to cover
+    // the all-sub-tick degenerate case the dialog gate also defends against.
+    const auto first = Stats::recordWin(QStringLiteral("Intermediate"), 0.0);
+    QCOMPARE(first.priorBestSeconds, 0.0);
+}
+
+void TestStats::testWinOutcomePriorBestSecondsIsPerDifficulty()
+{
+    // priorBestSeconds reads the difficulty-keyed Record, so a Beginner
+    // win must not surface Expert's prior best (and vice versa). Same
+    // per-difficulty isolation invariant the rest of the per-difficulty
+    // fields have.
+    Stats::recordWin(QStringLiteral("Beginner"), 12.0);
+    Stats::recordWin(QStringLiteral("Expert"), 250.0);
+    const auto outBeg = Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    const auto outExp = Stats::recordWin(QStringLiteral("Expert"), 200.0);
+    QCOMPARE(outBeg.priorBestSeconds, 12.0);
+    QCOMPARE(outExp.priorBestSeconds, 250.0);
 }
 
 void TestStats::testLastWinDateDefaultsInvalid()

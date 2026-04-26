@@ -180,6 +180,13 @@ LossOutcome recordLoss(const QString &difficultyName, int safePercent, int flagA
 WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate &onDate, double bvPerSecond)
 {
     Record r = load(difficultyName);
+    // Capture the pre-mutation best so the win dialog can render the
+    // `🏆 New record!  …  (prev %1)` companion with the value being beaten.
+    // Mirror of the v1.39 `priorStreak` capture in `recordLoss`: snapshot
+    // before any field is touched, return both pre- and post- values in the
+    // outcome. For a player with no prior win this stays at the 0.0 sentinel,
+    // which the dialog uses as a "no previous record to anchor against" gate.
+    const double priorBestSeconds = r.bestSeconds;
     ++r.played;
     ++r.won;
     const bool newBestTime = (r.bestSeconds <= 0.0) || (seconds > 0.0 && seconds < r.bestSeconds);
@@ -221,7 +228,7 @@ WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate 
     // bestSecondsAfter mirrors r.bestSeconds post-newBestTime mutation. Same
     // value the next Stats::load() will see; the call site reads it for the
     // win-dialog `Average: %1 (best %2)` companion line.
-    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak, newBestBvPerSecond, r.won, averageSecondsAfter, r.bestSeconds};
+    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak, newBestBvPerSecond, r.won, averageSecondsAfter, r.bestSeconds, priorBestSeconds};
 }
 
 bool recordNoflagBest(const QString &difficultyName, double seconds, const QDate &onDate)

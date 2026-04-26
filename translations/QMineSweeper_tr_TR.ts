@@ -50,7 +50,7 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="165"/>
-        <location filename="../mainwindow.cpp" line="860"/>
+        <location filename="../mainwindow.cpp" line="858"/>
         <source>&amp;Pause</source>
         <translation>&amp;Duraklat</translation>
     </message>
@@ -160,104 +160,109 @@
         <translation>QMineSweeper — Bom!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="702"/>
+        <location filename="../mainwindow.cpp" line="700"/>
         <source>Language changed</source>
         <translation>Dil değiştirildi</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="704"/>
+        <location filename="../mainwindow.cpp" line="702"/>
         <source>Language changes take effect after restart.</source>
         <translation>Dil değişiklikleri yeniden başlatıldıktan sonra geçerli olur.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="705"/>
+        <location filename="../mainwindow.cpp" line="703"/>
         <source>Restart QMineSweeper now?</source>
         <translation>QMineSweeper şimdi yeniden başlatılsın mı?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="706"/>
+        <location filename="../mainwindow.cpp" line="704"/>
         <source>Restart now</source>
         <translation>Şimdi yeniden başlat</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="707"/>
+        <location filename="../mainwindow.cpp" line="705"/>
         <source>Later</source>
         <translation>Sonra</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="729"/>
+        <location filename="../mainwindow.cpp" line="727"/>
         <source>Help improve QMineSweeper</source>
         <translation>QMineSweeper’ı iyileştirmeye yardımcı olun</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="731"/>
+        <location filename="../mainwindow.cpp" line="729"/>
         <source>Would you like to send anonymous crash reports and usage data?</source>
         <translation>Anonim çökme raporları ve kullanım verisi göndermek ister misiniz?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="732"/>
+        <location filename="../mainwindow.cpp" line="730"/>
         <source>We collect: app crashes, game results (win/loss, duration, difficulty), OS name, CPU architecture, Qt version, and an anonymous install ID.&lt;br/&gt;&lt;br/&gt;We do &lt;b&gt;not&lt;/b&gt; collect: your name, email, IP address, file paths, or any in-game actions.&lt;br/&gt;&lt;br/&gt;You can change this later in &lt;b&gt;Settings&lt;/b&gt;.</source>
         <translation>Topladıklarımız: uygulama çökmeleri, oyun sonuçları (galibiyet/mağlubiyet, süre, zorluk), işletim sistemi adı, CPU mimarisi, Qt sürümü ve anonim bir yükleme kimliği.&lt;br/&gt;&lt;br/&gt;&lt;b&gt;Toplamadıklarımız:&lt;/b&gt; adınız, e-posta adresiniz, IP adresiniz, dosya yolları veya oyun içi hareketler.&lt;br/&gt;&lt;br/&gt;Bu tercihi daha sonra &lt;b&gt;Ayarlar&lt;/b&gt;’dan değiştirebilirsiniz.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="740"/>
+        <location filename="../mainwindow.cpp" line="738"/>
         <source>Yes, send</source>
         <translation>Evet, gönder</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="741"/>
+        <location filename="../mainwindow.cpp" line="739"/>
         <source>No thanks</source>
         <translation>Hayır, teşekkürler</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="860"/>
+        <location filename="../mainwindow.cpp" line="858"/>
         <source>&amp;Resume</source>
         <translation>&amp;Sürdür</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="874"/>
+        <location filename="../mainwindow.cpp" line="872"/>
         <source>You won!</source>
         <translation>Kazandınız!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="874"/>
+        <location filename="../mainwindow.cpp" line="872"/>
         <source>Boom</source>
         <translation>Bom!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="887"/>
-        <location filename="../mainwindow.cpp" line="1119"/>
+        <location filename="../mainwindow.cpp" line="892"/>
+        <source>(prev %1)</source>
+        <translation>(önceki %1)</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="903"/>
+        <location filename="../mainwindow.cpp" line="1135"/>
         <source>Average: %1</source>
         <translation>Ortalama: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="898"/>
-        <location filename="../mainwindow.cpp" line="1122"/>
+        <location filename="../mainwindow.cpp" line="914"/>
+        <location filename="../mainwindow.cpp" line="1138"/>
         <source>(best %1)</source>
         <translation>(en iyi %1)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="961"/>
+        <location filename="../mainwindow.cpp" line="977"/>
         <source>✨ Beat your average!</source>
         <translation>✨ Ortalamanı geçtin!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="986"/>
+        <location filename="../mainwindow.cpp" line="1002"/>
         <source>💎 Two new bests!</source>
         <translation>💎 İki yeni rekor!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1006"/>
         <source>⚡ New best 3BV/s!</source>
         <translation>⚡ Yeni en iyi 3BV/sn!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1017"/>
+        <location filename="../mainwindow.cpp" line="1033"/>
         <source>(best %1%)</source>
         <translation>(en iyi %1%)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1031"/>
+        <location filename="../mainwindow.cpp" line="1047"/>
         <source>Partial 3BV: %1 / %2 · 3BV/s: %3</source>
         <translation>Kısmi 3BV: %1 / %2 · 3BV/sn: %3</translation>
     </message>
@@ -266,58 +271,58 @@
         <translation type="vanished">Alanı %1 saniyede temizlediniz.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="907"/>
+        <location filename="../mainwindow.cpp" line="923"/>
         <source>3BV: %1 · 3BV/s: %2</source>
         <translation>3BV: %1 · 3BV/sn: %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="914"/>
+        <location filename="../mainwindow.cpp" line="930"/>
         <source>Clicks: %1 · Efficiency: %2%</source>
         <translation>Tıklama: %1 · Verim: %2%</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="918"/>
+        <location filename="../mainwindow.cpp" line="934"/>
         <source>🏃 No-flag run!</source>
         <translation>🏃 Bayraksız tur!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="942"/>
+        <location filename="../mainwindow.cpp" line="958"/>
         <source>🏆 New record!</source>
         <translation>🏆 Yeni rekor!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="969"/>
+        <location filename="../mainwindow.cpp" line="985"/>
         <source>🌟 New best streak: %1!</source>
         <translation>🌟 Yeni en iyi seri: %1!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="973"/>
+        <location filename="../mainwindow.cpp" line="989"/>
         <source>🔥 Streak: %1</source>
         <translation>🔥 Seri: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="997"/>
+        <location filename="../mainwindow.cpp" line="1013"/>
         <source>You stepped on a mine.</source>
         <translation>Bir mayına bastınız.</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="81"/>
-        <location filename="../mainwindow.cpp" line="1171"/>
+        <location filename="../mainwindow.cpp" line="1187"/>
         <source>New Game</source>
         <translation>Yeni Oyun</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="877"/>
+        <location filename="../mainwindow.cpp" line="875"/>
         <source>You cleared the field in %1.</source>
         <translation>Alanı %1 içinde temizlediniz.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="998"/>
+        <location filename="../mainwindow.cpp" line="1014"/>
         <source>You survived for %1.</source>
         <translation>%1 boyunca hayatta kaldınız.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="999"/>
+        <location filename="../mainwindow.cpp" line="1015"/>
         <source>You cleared %1% of the board.</source>
         <translation>Tahtanın %1%'ini temizlediniz.</translation>
     </message>
@@ -326,127 +331,127 @@
         <translation type="vanished">Tahta 3BV: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1040"/>
+        <location filename="../mainwindow.cpp" line="1056"/>
         <source>Clicks: %1</source>
         <translation>Tıklama: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1051"/>
+        <location filename="../mainwindow.cpp" line="1067"/>
         <source>Flags placed: %1</source>
         <translation>Yerleştirilen bayrak: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1061"/>
+        <location filename="../mainwindow.cpp" line="1077"/>
         <source>Correct flags: %1 / %2</source>
         <translation>Doğru bayrak: %1 / %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1073"/>
+        <location filename="../mainwindow.cpp" line="1089"/>
         <source>Question marks: %1</source>
         <translation>Soru işareti: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1090"/>
+        <location filename="../mainwindow.cpp" line="1106"/>
         <source>💔 Streak ended at %1</source>
         <translation>💔 Seri sona erdi: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1105"/>
+        <location filename="../mainwindow.cpp" line="1121"/>
         <source>Last win: %1</source>
         <translation>Son galibiyet: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1137"/>
+        <location filename="../mainwindow.cpp" line="1153"/>
         <source>🌟 Best loss yet!</source>
         <translation>🌟 En iyi yenilgin!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1150"/>
+        <location filename="../mainwindow.cpp" line="1166"/>
         <source>🎯 New best %!</source>
         <translation>🎯 Yeni en iyi %!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1165"/>
+        <location filename="../mainwindow.cpp" line="1181"/>
         <source>🚩 New best flag accuracy!</source>
         <translation>🚩 Yeni en iyi bayrak isabeti!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1172"/>
+        <location filename="../mainwindow.cpp" line="1188"/>
         <source>Close</source>
         <translation>Kapat</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1204"/>
+        <location filename="../mainwindow.cpp" line="1220"/>
         <source>Statistics</source>
         <translation>İstatistikler</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Difficulty</source>
         <translation>Zorluk</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Played</source>
         <translation>Oynanan</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Won</source>
         <translation>Kazanılan</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Best time</source>
         <translation>En iyi süre</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Best (no flag)</source>
         <translation>En iyi (bayraksız)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Streak</source>
         <translation>Seri</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Best 3BV/s</source>
         <translation>En iyi 3BV/sn</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Best flag accuracy</source>
         <translation>En iyi bayrak isabeti</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Last win</source>
         <translation>Son galibiyet</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Average</source>
         <translation>Ortalama</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1209"/>
+        <location filename="../mainwindow.cpp" line="1225"/>
         <source>Best partial</source>
         <translation>En iyi kısmi</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1222"/>
+        <location filename="../mainwindow.cpp" line="1238"/>
         <source>Beginner</source>
         <translation>Başlangıç</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1223"/>
+        <location filename="../mainwindow.cpp" line="1239"/>
         <source>Intermediate</source>
         <translation>Orta</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1224"/>
+        <location filename="../mainwindow.cpp" line="1240"/>
         <source>Expert</source>
         <translation>Uzman</translation>
     </message>
@@ -455,37 +460,37 @@
         <translation type="vanished">— (en iyi %1%, %2)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1317"/>
+        <location filename="../mainwindow.cpp" line="1333"/>
         <source>Total</source>
         <translation>Toplam</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1333"/>
+        <location filename="../mainwindow.cpp" line="1349"/>
         <source>Reset all</source>
         <translation>Tümünü sıfırla</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1339"/>
+        <location filename="../mainwindow.cpp" line="1355"/>
         <source>Reset statistics?</source>
         <translation>İstatistikler sıfırlansın mı?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1339"/>
+        <location filename="../mainwindow.cpp" line="1355"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>Tüm oynanmış / kazanılmış / en iyi süre kayıtları kalıcı olarak silinsin mi?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1359"/>
+        <location filename="../mainwindow.cpp" line="1375"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;Qt %1 ile %2 tarihinde derlendi&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1360"/>
+        <location filename="../mainwindow.cpp" line="1376"/>
         <source>About QMineSweeper</source>
         <translation>QMineSweeper Hakkında</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1353"/>
+        <location filename="../mainwindow.cpp" line="1369"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Qt6 tabanlı bir Mayın Tarlası oyunu.&lt;/p&gt;&lt;p&gt;Açmak için sol tık, bayraklamak için sağ tık, sayıyı tamamlayan bayrakların komşularını açmak için orta tık.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>
