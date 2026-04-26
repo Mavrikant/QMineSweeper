@@ -1,5 +1,233 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 39 — v1.42.0 (autonomous)
+
+- **Chosen problem:** The win dialog has carried the lifetime
+  `Average: %1 (best %2)` companion line since v1.36 / v1.41, but the
+  loss dialog still doesn't show the same lifetime-context anchor —
+  even though all three underlying fields (`won`, `totalSecondsWon`,
+  `bestSeconds`) are loaded on the loss path already (the v1.37 `Last
+  win:` line uses the same `Stats::load(diff)` call). v1.41.0 cycle
+  log called this out as the first "next candidate" and the natural
+  next beat in the alternation pattern (v1.36 win → v1.37 loss →
+  v1.38 stats → v1.39 loss → v1.40 stats → v1.41 win → **v1.42 loss**).
+- **Evidence:** `MainWindow::onGameLost` (mainwindow.cpp:563)
+  already calls `Stats::load(diffName).lastWinDate` for the v1.37
+  `Last win:` line. The loaded record carries `won`,
+  `totalSecondsWon`, and `bestSeconds` for free in the same load —
+  pure presentation gap. The same `Average: %1` and `(best %1)` tr
+  keys that the win dialog uses are present in every locale and
+  translated by hand in 9 of 10 (English source-fallback by design).
+- **Shipped:**
+  - Branch: `feat/v1.42.0-loss-dialog-average-companion` (squash-merged + deleted)
+  - PR: [#60](https://github.com/Mavrikant/QMineSweeper/pull/60)
+  - Squash commit: `e1f24ff`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.42.0
+  - Release workflow `24948508794` succeeded (after one macOS rerun
+    for a transient `hdiutil: Resource busy` flake — not a code
+    issue; first run's Linux + Windows builds were green and stayed
+    cached for the rerun). All 5 assets + `SHA256SUMS.txt` published
+    (Linux AppImage / tar.gz, macOS .dmg, Windows .zip).
+    Hand-written user-facing release notes installed via
+    `gh release edit --notes` covering the new line, the >= 3-wins
+    gate, the macOS quarantine clear, and the per-platform install
+    path.
+- **Code surface:** ~56 LOC of production diff in `mainwindow.cpp` +
+  2 LOC `mainwindow.h` signature + 120 LOC tests + 92 LOC
+  `DECISIONS.md` + 1 LOC `CMakeLists.txt` version bump + 10
+  lupdate-managed `.ts` location-only updates. Real code+tests diff
+  ~180 LOC, well under the 400-LOC cycle cap. **Zero new
+  translatable strings** — both `tr()` keys reused from v1.36 / v1.41.
+  - `mainwindow.h`: `showEndDialog` gains two trailing
+    `double lossAverageSeconds, double lossBestSeconds` params
+    (mirror of v1.41's `winBestSeconds`).
+  - `mainwindow.cpp` (`onGameLost`): consolidates the existing
+    one-off `Stats::load(diff).lastWinDate` read into a single
+    `priorRecord` load, then derives the gated `lossAverageSeconds`
+    and `lossBestSeconds` at the call site. `won >= 3 &&
+    totalSecondsWon > 0.0` compound gate (mirrors win-side
+    `winsAfter >= 3` plus the defensive divisor guard).
+  - `mainwindow.cpp` (`showEndDialog` loss branch): renders
+    `tr("Average: %1")` line right after the `Last win:` line, with
+    the `tr("(best %1)")` companion suffix gated on
+    `lossBestSeconds > 0.0`. Both keys are reused verbatim from
+    prior cycles — Qt's `MainWindow`-context lookup serves the same
+    translation across both dialogs.
+  - `mainwindow.cpp` (`onGameWon`): trailing args become `, 0.0, 0.0`
+    (the new dialog gates are `> 0.0`, so the loss-side render
+    code path is dead on the win path).
+  - `tests/tst_stats.cpp`: 6 new tests under "Loss-dialog Average
+    line": `testLoadAfterThreeWinsExposesAverageForLossDialog`,
+    `testLoadAfterThreeWinsExposesBestForLossDialog`,
+    `testLoadAfterTwoWinsBelowLossDialogGate`,
+    `testLoadAfterAllSubTickWinsLeavesLossDialogGateClosed`,
+    `testLoadAfterMixedSubTickAndRealWinsForLossDialog`,
+    `testLoadAfterLossDoesNotDisturbAverageForLossDialog`.
+  - `CMakeLists.txt`: version bump 1.41.0 → 1.42.0.
+  - **No new format helper.** The two render lines reuse
+    `formatElapsedTime` directly — one-line
+    `tr("…").arg(formatElapsedTime(…))` calls don't earn a new
+    standalone header (unlike `average_time_format.h` for the v1.40
+    Stats column, which needed an em-dash compound).
+  - **No new `LossOutcome` field.** `recordLoss` does NOT mutate
+    `won` / `totalSecondsWon` / `bestSeconds`, so a returned
+    snapshot would be pure ceremony. Compute at the call site from
+    `priorRecord` instead.
+- **Tests added:** 6 (extension to `tst_stats`). 9 test binaries,
+  all pass. Total tst_stats test count: 130 → 136.
+- **Translation cost:** **0 new hand-translated strings**. Both
+  `"Average: %1"` (added in v1.36) and `"(best %1)"` (added in v1.41)
+  keys are reused via Qt's automatic `MainWindow`-context lookup —
+  the loss-side render path lands the same translation a player
+  already sees in the win dialog. lupdate output: "0 new and 112
+  already existing" across all 10 locales. The `.ts` file diffs are
+  pure line-number drift (call-site moved by ~16 lines from the new
+  `mainwindow.cpp` block).
+  - 50/50 coverage preserved (109 translations applied per non-en
+    locale — same as v1.41.0; no delta).
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "0 new and 112 already existing" across all 10 locales —
+    confirms zero net-new tr() strings, only line-number drift.
+  - `cmake --build build` clean (no warnings).
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 9/9 pass.
+    All 6 new tests PASS standalone:
+    `testLoadAfterThreeWinsExposesAverageForLossDialog`,
+    `testLoadAfterThreeWinsExposesBestForLossDialog`,
+    `testLoadAfterTwoWinsBelowLossDialogGate`,
+    `testLoadAfterAllSubTickWinsLeavesLossDialogGateClosed`,
+    `testLoadAfterMixedSubTickAndRealWinsForLossDialog`,
+    `testLoadAfterLossDoesNotDisturbAverageForLossDialog`.
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+  - All 7 PR CI checks green (3× build/test, coverage, formatting,
+    Code Review Doctor, CodeFactor, Codacy).
+- **Adversarial self-review:**
+  - **What breaks this in production?** All-sub-tick wins (3 wins
+    all 0.0s) → `won == 3` but `totalSecondsWon == 0.0` →
+    compound `> 0.0` gate hides BOTH lines ✓. Mixed sub-tick + real
+    wins (e.g. 12.0/0.0/18.0): divisor stays at total `won`,
+    numerator excludes sub-ticks (matching `recordWin`'s gated
+    accumulator) → mean reads `30/3 = 10.0` and `(best 12.0)`
+    anchors to the fastest non-sub-tick ✓. Pre-1.36 plist with `won
+    > 0` but no `total_seconds_won` → loads as 0.0 → gate hidden
+    until next 1.36+ win seeds the accumulator (legacy-record
+    behaviour pinned in v1.36 tests) ✓. Replays / custom games:
+    `priorRecord = Stats::load(diff)` returns the per-difficulty
+    record (`won == 0` for first-ever Custom on a never-played
+    name); the gate hides cleanly. The `Last win:` and Average
+    blocks behave identically — both reflect per-difficulty
+    history, not whether *this* loss was counted ✓. Three wins same
+    time (20.0/20.0/20.0): renders `Average: 20.0 (best 20.0)` —
+    honest, states consistency ✓. Loss after exactly 3 wins:
+    `recordLoss` runs first (touches `played` / `currentStreak` /
+    `bestSafePercent` / `bestFlagAccuracyPercent` only); the dialog
+    then reads the same `won` / `totalSecondsWon` / `bestSeconds`
+    triple `priorRecord` carries — pinned by
+    `testLoadAfterLossDoesNotDisturbAverageForLossDialog` ✓.
+  - **Backwards-compat?** Pure addition. No new QSettings key (the
+    three fields read are persisted from v1.0 / v1.36); no
+    migration; no signature break for any external consumer (the
+    only callers of `showEndDialog` are within `MainWindow`).
+  - **Error paths?** Defensive `> 0.0` guards on both render
+    branches. The `lossBestSeconds > 0.0` guard around the
+    `(best %1)` line is unreachable in normal operation (the
+    parent `lossAverageSeconds > 0.0` already implies
+    `bestSeconds > 0.0` via `recordWin`'s shared `seconds > 0.0`
+    gate), but pinned defensively for stray default-constructed
+    Records.
+  - **Secrets / PII?** None. Lifetime durations only.
+  - **Performance?** O(1) per loss dialog. One `Stats::load`
+    (already required by `Last win:` since v1.37 — re-uses the same
+    in-memory record), one divide, two `formatElapsedTime` calls
+    when the gate fires. Negligible.
+  - **Concurrency?** None — single-threaded UI; `Stats::load`
+    is a sync read of `QSettings`.
+  - **Visual regression?** Two new lines on the loss dialog when the
+    gate fires (one Average line + the inline `(best …)` suffix).
+    Adds ~25 characters to the message body — `QMessageBox`
+    auto-sizes, no fixed-width assumption broken. The new lines
+    appear *after* `Last win:` (the previous trailing line), so the
+    closing arc reads as escalating context.
+- **Assumptions made:**
+  - **Reuse the v1.36 + v1.41 tr() keys verbatim.** The previous
+    cycle's "Next candidates" estimated "~1 new translatable string"
+    — full reuse is a strict improvement (zero hand-translation
+    cost, perfect cross-dialog consistency). Naming the loss-side
+    line `"Average win: %1"` for marginal extra clarity would have
+    cost 1 new string × 9 locales for a line whose context is
+    already established by the preceding `Last win:` line.
+  - **`won >= 3` threshold mirrors the win-side.** No special-case
+    for the loss path; the same threshold reasoning applies (n<3 →
+    average degenerates to "best" or "single data point").
+  - **Compound gate `won >= 3 && totalSecondsWon > 0.0`.** The
+    second clause defends the divisor against the all-sub-tick edge
+    (won=3 but accumulator stays 0.0) — pinned via
+    `testLoadAfterAllSubTickWinsLeavesLossDialogGateClosed`.
+  - **Render after `Last win:`, not after `💔 Streak ended`.** The
+    closing arc reads "your streak just ended → you've done this
+    before → here's your typical pace → here's how close that pace
+    was to your best".
+  - **No `LossOutcome.averageSecondsAfter` mirror field.**
+    Documented in DECISIONS.md — `recordLoss` doesn't mutate the
+    fields the line reads, so a returned snapshot would be pure
+    ceremony. Compute at the call site from `priorRecord` instead.
+- **Skipped:**
+  - **Stats-dialog "Worst" or "Slowest win" column.** Symmetric to
+    Best time but needs a new persisted accumulator (slowest counted
+    winning duration per difficulty) and a QSettings schema bump.
+    Multi-cycle.
+  - **Win-dialog flair when current run beats the lifetime
+    average** (e.g., "✨ Beat your average!"). Pure flair beat —
+    breaks the win→loss alternation we owe this cycle. Park for
+    the next win-side beat.
+  - **Stats-dialog "Median win time" column.** Needs persisting
+    every counted winning duration (not just the sum). Multi-cycle.
+  - **End-to-end visual sanity check on the live app.** Autonomous
+    scheduled-task cycle with no user present to approve
+    computer-use access (`request_access` would time out as
+    expected). Relied on unit tests + the small, surgical wiring
+    change; the wiring is symmetric with v1.36 (Average line) and
+    v1.41 (best companion) shipped in the prior six cycles, both
+    of which followed the same path.
+- **Risks logged:** none new.
+  - The macOS DMG `hdiutil: Resource busy` flake on the first
+    release run is a known infrastructure issue (not a code
+    regression). One `gh run rerun --failed` resolved it. Not
+    worth a `RISKS.md` entry on its own — would only earn one if
+    it became a pattern (≥2 occurrences in consecutive cycles).
+- **Post-release watch (T+~3min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.42.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads at
+  watch time and telemetry is opt-in. No new crash group attributable
+  to the 1.42.0 cut. Hand-written user-facing release notes installed
+  via `gh release edit --notes` (covers the new line, the >= 3-wins
+  gate, the macOS quarantine clear, and per-platform install path).
+  All 5 assets + `SHA256SUMS.txt` published. Watch closed.
+- **Next candidates:**
+  - **Win-dialog flair when current run beats the lifetime
+    average** ("✨ Beat your average!"). Mirror of the win-side
+    `🏆 New record!` and `🌟 New best streak!` — pure flair beat,
+    one new translatable string, gated on
+    `m_lastElapsedSeconds < averageSecondsAfter`. Natural next
+    win-side beat in the alternation.
+  - **Stats-dialog "Slowest win" column.** Symmetric to Best time
+    column. Requires a new `slowestSeconds` persisted accumulator
+    (and an em-dashed cell for difficulties with `won == 0`).
+    Multi-cycle if it includes a `slowestDate` companion.
+  - **Loss-dialog flair when current loss is the player's
+    best partial-clear *and* best flag accuracy on a single run.**
+    Combo flair — "🌟 Best loss yet!" — gated on both
+    `lossOutcome.newBestSafePercent` AND
+    `lossOutcome.newBestFlagAccuracyPercent` firing on the same
+    run. Pure flair, one new translatable string. Mirror of the
+    win-side compound flair pattern.
+  - **Stats-dialog "Median win time" column.** Different
+    statistical signal from Average (resistant to outliers). Needs
+    persisting every counted winning duration (not just the sum) —
+    schema bump. Multi-cycle.
+
 ## 2026-04-26 — Cycle 38 — v1.41.0 (autonomous)
 
 - **Chosen problem:** Win dialog has surfaced the lifetime
