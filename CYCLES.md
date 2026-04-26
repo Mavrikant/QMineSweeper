@@ -1,5 +1,216 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 40 — v1.43.0 (autonomous)
+
+- **Chosen problem:** The win dialog has rendered the lifetime
+  `Average: %1 (best %2)` recap line since v1.36 / v1.41, but the
+  comparison between the just-finished run and that average is left
+  to the player to compute mentally. v1.42.0 cycle log called this
+  out as the first listed next candidate — verbatim: "Win-dialog
+  flair when current run beats the lifetime average ('✨ Beat your
+  average!'). Mirror of the win-side `🏆 New record!` and `🌟 New
+  best streak!` — pure flair beat, one new translatable string,
+  gated on `m_lastElapsedSeconds < averageSecondsAfter`. Natural
+  next win-side beat in the alternation." Alternation pattern:
+  v1.41 win → v1.42 loss → **v1.43 win**.
+- **Evidence:** `MainWindow::showEndDialog` (mainwindow.cpp:854)
+  receives `winAverageSeconds` but only uses it for the recap line
+  (mainwindow.cpp:870-885). `m_lastElapsedSeconds` is a member set
+  by `onGameWon` before `showEndDialog` is invoked. Pure
+  presentation gap — no schema change, no new return field, no
+  signature break. The peer flairs (`🏆 New record!`, `🌟 New best
+  streak!`, `🔥 Streak: %1`, `🏃 No-flag run!`, `⚡ New best 3BV/s!`)
+  all live in the same `if (won)` branch, so a new flair fits the
+  established prepend-stack pattern verbatim.
+- **Shipped:**
+  - Branch: `feat/v1.43.0-win-dialog-beat-average-flair`
+    (squash-merged + deleted)
+  - PR: [#61](https://github.com/Mavrikant/QMineSweeper/pull/61)
+  - Squash commit: `e7d46fd`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.43.0
+  - Release workflow `24949442039` succeeded on the first run; all
+    5 jobs (Resolve tag → Linux/macOS/Windows builds → Publish
+    Release) green in ~2m. All 5 assets + `SHA256SUMS.txt`
+    published (Linux AppImage / tar.gz, macOS .dmg, Windows .zip).
+    Hand-written user-facing release notes installed via
+    `gh release edit --notes` covering the new flair, the
+    mutually-exclusive relationship with `🏆 New record!`, the
+    >=3-wins gate via the recap line, and the per-platform install
+    path (incl. macOS quarantine clear).
+- **Code surface:** ~14 LOC of production diff in `mainwindow.cpp`
+  (single `else if` arm + gate-rationale comment) + 121 LOC tests +
+  114 LOC `DECISIONS.md` + 1 LOC `CMakeLists.txt` version bump + 1
+  new translation key × 9 locales + 10 lupdate-managed `.ts`
+  location-only updates. Real code+tests diff well under the
+  400-LOC cycle cap.
+  - `mainwindow.cpp` (`showEndDialog` win branch): single `else if`
+    arm of the existing `if (newRecord)` block prepending
+    `tr("✨ Beat your average!")` when the gate fires. Gate:
+    `winAverageSeconds > 0.0 && m_lastElapsedSeconds > 0.0 &&
+    m_lastElapsedSeconds < winAverageSeconds`. No new parameter,
+    no new member, no new `WinOutcome` field.
+  - `tests/tst_stats.cpp`: 6 new tests under "Win-dialog '✨ Beat
+    your average!' flair gate":
+    `testBeatAverageGateFiresWhenSecondsBelowMean`,
+    `testBeatAverageGateClosedWhenSecondsAtMean`,
+    `testBeatAverageGateClosedWhenSecondsAboveMean`,
+    `testBeatAverageGateRequiresThreeWinsCallerSide`,
+    `testBeatAverageGateNotPoisonedBySubTickWinsAfterRealWins`,
+    `testBeatAverageGateNotMutatedByLoss`.
+  - `CMakeLists.txt`: version bump 1.42.0 → 1.43.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English locales).
+  - `.ts` files: lupdate adds the new key (112 → 113) across all 10
+    locales; apply_translations fills 9 of them; English stays
+    unfinished as designed.
+- **Tests added:** 6 (extension to `tst_stats`). 9 test binaries,
+  all pass. Total tst_stats test count: 136 → 142.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (110 translations applied per
+  non-en locale, was 109 pre-cycle). Hand translations:
+  - TR `"✨ Ortalamanı geçtin!"` ·
+    ES `"✨ ¡Superaste tu promedio!"` ·
+    FR `"✨ Mieux que votre moyenne !"` ·
+    DE `"✨ Schneller als dein Durchschnitt!"` ·
+    RU `"✨ Лучше среднего!"` ·
+    PT `"✨ Você superou sua média!"` ·
+    ZH `"✨ 超越了平均时间！"` ·
+    HI `"✨ औसत से बेहतर!"` ·
+    AR `"✨ تجاوزت متوسطك!"`.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "1 new and 112 already existing" across all 10 locales —
+    confirms exactly one net-new tr() string.
+  - `cmake --build build` clean (no warnings); all 10 locales
+    generate `113 finished and 0 unfinished` `.qm` files.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 9/9
+    pass; total 142 tests in tst_stats including all 6 new
+    BeatAverage tests.
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+  - All 7 PR CI checks green (3× build/test, coverage, formatting,
+    Code Review Doctor, CodeFactor, Codacy).
+- **Adversarial self-review:**
+  - **What breaks this in production?** Tied with the lifetime
+    mean → `seconds < mean` is false → flair hidden ✓ (pinned by
+    `testBeatAverageGateClosedWhenSecondsAtMean`). New best time
+    (`newRecord == true`) → mutual-exclusion `else if` skips the
+    flair → only `🏆 New record!` shown, no double-celebration ✓.
+    Sub-tick win after real wins → `m_lastElapsedSeconds == 0.0`
+    fails the defensive `> 0.0` guard → flair hidden, even though
+    `0 < positive_mean` is vacuously true ✓ (data-side pinned by
+    `testBeatAverageGateNotPoisonedBySubTickWinsAfterRealWins`;
+    UI-side guard makes the gate honest). Pre-1.36 plist with
+    `won > 0` but no `total_seconds_won` → loads as 0.0 →
+    `winAverageSeconds == 0.0` → flair hidden until next 1.36+ win
+    seeds the accumulator (legacy-record behaviour pinned in v1.36
+    tests, transitively) ✓. Replays / custom games never call
+    `recordWin` → `winAverageSeconds == 0.0` → flair hidden by
+    design ✓. Loss between wins doesn't shift the mean (pinned by
+    `testBeatAverageGateNotMutatedByLoss`) → flair gate behaves
+    identically across loss-interrupted vs uninterrupted win
+    sequences ✓. Player with all-identical times (e.g.,
+    20.0/20.0/20.0/20.0) never sees the flair (consistency over
+    improvement is honest) ✓ (pinned by
+    `testBeatAverageGateClosedWhenSecondsAtMean`).
+  - **Backwards-compat?** Pure addition. No new QSettings key
+    (the three fields read are persisted from v1.0 / v1.36); no
+    migration; no signature break for any external consumer (the
+    only callers of `showEndDialog` are within `MainWindow`, and
+    no parameters or members were added).
+  - **Error paths?** Defensive `> 0.0` guards on both `seconds`
+    and `mean`. The `m_lastElapsedSeconds > 0.0` guard is
+    unreachable in normal play (the timer always advances at
+    least 0.1s before a win is recordable in real game flow), but
+    pinned defensively for the setFixedLayout-driven test paths
+    that can synthesise sub-tick wins.
+  - **Secrets / PII?** None. Same lifetime-duration data the
+    existing `Average: %1` recap line surfaces.
+  - **Performance?** O(1) per win dialog. One double comparison
+    on top of the existing `winAverageSeconds > 0.0` recap-line
+    guard. Negligible.
+  - **Concurrency?** None — single-threaded UI; no new shared
+    state. The flair gate consumes already-loaded values
+    (`m_lastElapsedSeconds`, `winAverageSeconds` parameter).
+  - **Visual regression?** One new prepend line on the win dialog
+    when the gate fires. `QMessageBox` auto-sizes — no fixed-width
+    assumption broken. Reading L→R the player sees:
+    `⚡ … 🌟/🔥 … [🏆 OR ✨] … 🏃 … "You cleared the field in …"`.
+    The new flair occupies the `🏆 New record!` slot exactly when
+    a record didn't fire — same horizontal real estate, same
+    cadence.
+- **Assumptions made:**
+  - **Mutual exclusion with `🏆 New record!` via `else if`.**
+    A new best always implies beating the mean for n ≥ 1 (since
+    `bestSeconds <= mean`), so showing both flairs would be
+    redundant noise. Mirrors the existing streak-slot mutual
+    exclusion pattern (`🌟 New best streak: %1!` vs
+    `🔥 Streak: %1`).
+  - **Strict-less comparison.** A run that ties the lifetime
+    mean isn't "beating" it. Honest framing.
+  - **Defensive `m_lastElapsedSeconds > 0.0` guard.** Sub-tick
+    wins are only reachable from setFixedLayout-driven tests; the
+    guard is one extra term and pins the gate honest.
+  - **Reuse the existing `winAverageSeconds` parameter; no new
+    `WinOutcome.beatAverage` field.** The comparison is one line
+    at the call site — adding a returned bool would duplicate
+    state already exposed via `averageSecondsAfter` and would
+    move flair logic out of the rendering layer.
+  - **Tests live at the stats layer.** `MainWindow::showEndDialog`
+    has no direct unit tests; the v1.42 pattern (data-side
+    contract pin via `Stats::load`) carries to the win-side gate
+    via `WinOutcome.averageSecondsAfter`.
+  - **Naming `"✨ Beat your average!"` over `"✨ Faster than your
+    average!"` or `"✨ Below your average!"`.** "Beat" is concise,
+    unambiguously positive, and matches the imperative-positive
+    cadence of the peer flairs. "Below average" has neutral /
+    negative everyday connotations.
+  - **End-to-end visual sanity check on the live app.** Skipped
+    again — autonomous scheduled-task cycle with no user present
+    to approve `request_access`. Relied on unit tests + the small,
+    surgical change; symmetric with v1.41 (best companion) and
+    v1.42 (loss-side average) shipped in the prior two cycles.
+- **Skipped:**
+  - **Stats-dialog "Slowest win" column.** Schema bump (new
+    persisted accumulator + companion date), multi-cycle. Also
+    breaks the win→loss→win alternation owed this cycle.
+  - **Loss-dialog combo flair (best partial-clear + best flag
+    accuracy on a single run).** Loss-side beat after a loss-side
+    cycle. Park for the next loss-side beat.
+  - **Stats-dialog "Median win time" column.** Outlier-resistant
+    statistical signal but needs persisting every counted winning
+    duration. Schema bump. Multi-cycle.
+- **Risks logged:** none new.
+- **Post-release watch (T+~3min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.43.0` in the last hour returned **zero results**.
+  Expected — assets just published with zero downloads at watch
+  time and telemetry is opt-in. No new crash group attributable
+  to the 1.43.0 cut. Hand-written user-facing release notes
+  installed (covers the new flair, mutual exclusion with
+  `🏆 New record!`, the 3-wins gate, macOS quarantine clear, and
+  per-platform install path). All 5 assets + `SHA256SUMS.txt`
+  published. Watch closed.
+- **Next candidates:**
+  - **Stats-dialog "Slowest win" column.** Symmetric to Best time
+    column. Requires a new `slowestSeconds` persisted accumulator
+    (and an em-dashed cell for difficulties with `won == 0`).
+    Multi-cycle if it includes a `slowestDate` companion.
+  - **Loss-dialog combo flair when a single loss is the player's
+    best partial-clear *and* best flag accuracy on a single run**
+    ("🌟 Best loss yet!"). Compound flair gated on both
+    `lossOutcome.newBestSafePercent` AND
+    `lossOutcome.newBestFlagAccuracyPercent` firing on the same
+    run. Pure flair, one new translatable string. Mirror of the
+    win-side compound flair pattern. Natural next loss-side beat.
+  - **Loss-dialog flair "🐌 Slower than your usual loss" or
+    similar — partial-clear-versus-average-partial-clear.** Would
+    need a new persisted `totalPartialBvOnLoss` accumulator —
+    schema bump. Multi-cycle.
+  - **Stats-dialog "Median win time" column.** Different
+    statistical signal from Average (resistant to outliers).
+    Needs persisting every counted winning duration — schema
+    bump. Multi-cycle.
+
 ## 2026-04-26 — Cycle 39 — v1.42.0 (autonomous)
 
 - **Chosen problem:** The win dialog has carried the lifetime
