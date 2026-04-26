@@ -28,9 +28,17 @@
   - Branch: `feat/v1.44.0-loss-dialog-best-loss-yet-combo-flair`
     (squash-merged + deleted)
   - PR: [#62](https://github.com/Mavrikant/QMineSweeper/pull/62)
-  - Squash commit: [TODO]
+  - Squash commit: `65ad467`
   - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.44.0
-  - Release workflow: [TODO]
+  - Release workflow `24950421038` succeeded on the first run; all
+    5 jobs (Resolve tag → Linux/macOS/Windows builds → Publish
+    Release) green. All 5 assets + `SHA256SUMS.txt` published
+    (Linux AppImage 35.9 MiB / tar.gz 35.6 MiB, macOS .dmg 23.2 MiB,
+    Windows .zip 44.1 MiB). Hand-written user-facing release notes
+    installed via `gh release edit --notes-file` covering the new
+    flair, the swap-not-stack mutual exclusion with the individual
+    🎯 / 🚩 flairs, the per-platform install path (incl. macOS
+    quarantine clear), and the asset rundown.
 - **Code surface:** ~25 LOC of production diff in `mainwindow.cpp`
   (combo `if` arm + the existing two prepends moved into the outer
   `else` block + comment) + ~95 LOC tests + ~95 LOC `DECISIONS.md`
@@ -159,13 +167,22 @@
     statistic but needs persisting every counted winning duration.
     Schema bump. Multi-cycle.
 - **Risks logged:** none new.
-- **Post-release watch:** [TODO]
+- **Post-release watch (T+~3min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.44.0` in the last hour returned **zero results**.
+  Expected — assets just published with zero downloads at watch
+  time and telemetry is opt-in. No new crash group attributable
+  to the 1.44.0 cut. Hand-written user-facing release notes
+  installed (covers the new flair, the swap-not-stack mutual
+  exclusion, the per-platform install path, and the macOS
+  quarantine clear). All 5 assets + `SHA256SUMS.txt` published.
+  Watch closed.
 - **Next candidates:**
   - **Win-dialog combo flair when a single win sets BOTH a fresh
     best time AND a fresh best 3BV/s** ("🌟 Personal best
     everything!"). Mirror of this cycle's loss-side combo flair on
     the win-side. Pure flair, one new translatable string.
-    Natural next win-side beat.
+    Natural next win-side beat in the alternation.
   - **Stats-dialog "Slowest win" column.** Symmetric to Best time
     column; would need a new `slowestSeconds` accumulator (and
     optional `slowestDate` companion).
