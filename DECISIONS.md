@@ -1,5 +1,110 @@
 # Cycle decisions
 
+## 2026-04-26 — Stats dialog "Average" column (v1.40.0)
+
+**Chosen:** Add a 5th column "Average" to the Statistics dialog,
+rendering each difficulty's lifetime mean winning duration as
+`formatElapsedTime(record.totalSecondsWon / record.won)` (em-dash when
+the player has no counted winning duration on that difficulty). Inserted
+between "Best time" and "Best (no flag)" so the two time-summary
+metrics for each difficulty sit adjacent. Total row shows em-dash for
+this column (consistent with the other Best columns, where mixing
+difficulties of different sizes makes the aggregate noise rather than
+signal).
+
+**Why:**
+- v1.39.0 cycle log called for the next stats-dialog beat in the
+  alternation pattern (v1.32 loss → v1.33 stats → v1.34 loss → v1.35
+  stats → v1.36 win → v1.37 loss → v1.38 stats → v1.39 loss →
+  **v1.40 stats**).
+- v1.36.0 added `WinOutcome.averageSecondsAfter` and the win-dialog
+  `Average: %1` line, but only surfaces it on a winning run *and only*
+  on the difficulty just won. The Stats dialog is the natural place to
+  compare lifetime average across all three difficulties at one glance,
+  without forcing the player to win on each difficulty to surface it.
+- Schema-zero. `totalSecondsWon` and `won` already exist and are
+  already loaded / saved / tested for the v1.36 win-dialog Average
+  line. No new persisted field, no migration, no QSettings key.
+- Single new translatable string × 9 non-en locales — within budget.
+  All 9 locales already translate the runtime `Average: %1` key, so
+  the column header reuses the same noun stem (Ortalama / Promedio /
+  Moyenne / Durchschnitt / Среднее / Média / 平均 / औसत / المتوسط)
+  for cross-locale consistency.
+
+**Rejected alternatives from the v1.39.0 candidate list:**
+- *Win-dialog "Wins so far" tail on Average line, e.g.
+  `Average: 1:18.9 (n=12)`.* Same plurals blocker as v1.37: the
+  parenthetical wants per-locale pluralisation rules (Russian 3
+  forms, Arabic 6) which `apply_translations.py` doesn't yet
+  template. Would expand the tooling, not just add a string. Park.
+- *Stats-dialog "Best across all" footer cell.* Cell mixes a
+  difficulty name and a time; estimated 3 new translatable strings
+  plus a tie-break policy decision. Higher cost than this cycle's
+  budget.
+- *Win % column broken out from Won.* Pure rearrangement; adds zero
+  new *information* — Won column already renders `5 (50%)` inline.
+- *Win-dialog `🌟 New best streak: %1!` round-number-boundary
+  variant.* Pure flair, no new information; park unless a concrete
+  user-facing motivator surfaces.
+
+**Implementation choices:**
+
+1. **Standalone formatter header `average_time_format.h`.** Same
+   pattern as `time_format.h` / `bv_per_second_format.h` /
+   `flag_accuracy_format.h`: small, allocator-free function inlined
+   into the Stats dialog and tested directly via `tst_average_time_format`.
+   Avoids adding a fourth in-place lambda inside `showStatsDialog`
+   (which would join `formatBest`, `formatStreak`, `formatLastWin`,
+   `formatBestTimeOrPartial`) and gives the new arithmetic a unit-test
+   surface for boundary conditions (won=0, totalSecondsWon=0,
+   sub-tick-only wins, division precision).
+
+2. **Em-dash gate on `won == 0 || totalSecondsWon <= 0.0`.** The
+   first condition is the divide-by-zero guard; the second handles
+   the sub-tick edge case (every counted win was sub-tick → divisor
+   is positive but numerator is 0.0, mean is mathematically 0 but
+   not informative — surface as "—" instead of "0.0"). Mirrors the
+   `WinOutcome.averageSecondsAfter` 0.0 sentinel used by the
+   win-dialog Average gate.
+
+3. **No date suffix on the cell.** Best-time / Best-3BV/s / Streak /
+   Last-win cells all carry a date because they pin a specific run.
+   Average is a lifetime mean — there is no single "average run", so
+   the date suffix would be misleading. Plain `formatElapsedTime`
+   value, no parenthesised date.
+
+4. **No average column header gate.** The header reads `"Average"`
+   even when every cell is em-dash (a brand-new player who has never
+   won anything). Mirrors how `Best time`, `Best (no flag)`, etc. all
+   render their headers regardless of cell population.
+
+5. **Total row em-dash.** `sum(totalSecondsWon) / sum(won)` is a
+   well-defined number, but mixes difficulties of different sizes and
+   would mostly reflect whichever difficulty the player plays most.
+   Em-dash matches the existing Total-row precedent for Best-time /
+   Best-(no flag) / Streak / Best-3BV/s / Best-flag-accuracy / Last-win
+   ("doesn't aggregate meaningfully across mixed-size difficulties").
+
+6. **Insert position: column 5 (between "Best time" and "Best (no
+   flag)").** Groups the three time-summary metrics together.
+   Alternative positions considered: end of table (after "Last win" —
+   rejected because Last-win is a date-anchored closing column);
+   right after Won (rejected because Best-time → Average → Best-(no
+   flag) is the most natural reading order for time-related cells).
+
+7. **Translation strategy.** New lupdate key `"Average"` (column
+   header), distinct from the existing `"Average: %1"` (win-dialog
+   line). All 9 non-English locales hand-translated reusing the same
+   noun stem already shipped for `"Average: %1"`: Ortalama / Promedio /
+   Moyenne / Durchschnitt / Среднее / Média / 平均 / औसत / المتوسط.
+
+**Backwards-compat behaviour:** entirely additive. Pre-1.36 plists
+without `total_seconds_won` load that field as 0.0 (existing
+`testLegacyRecordWithoutTotalSecondsWonLoadsAsZero` test pins this),
+so legacy users see "—" for Average until their next win — the same
+clean-slate behaviour as v1.36 / v1.37 introduced for Average-line
+and Last-win-line gates.
+
 ## 2026-04-26 — Loss dialog "💔 Streak ended at %1" line (v1.39.0)
 
 **Chosen:** Add a recap line `💔 Streak ended at %1` to the loss
