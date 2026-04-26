@@ -168,6 +168,20 @@ class TestStats : public QObject
     void testLoadAfterMixedSubTickAndRealWinsForLossDialog();
     void testLoadAfterLossDoesNotDisturbAverageForLossDialog();
 
+    // Win-dialog "✨ Beat your average!" flair gate — pin the comparison
+    // arithmetic the gate consumes. The flair fires iff
+    //   `winAverageSeconds > 0.0 && seconds > 0.0 && seconds < winAverageSeconds`,
+    // where `winAverageSeconds = (winsAfter >= 3) ? averageSecondsAfter : 0.0`
+    // and `seconds` is the just-finished run's duration. Mutually exclusive
+    // with `🏆 New record!` (caller-side `else if`); these tests pin the
+    // data-side contract that drives the gate.
+    void testBeatAverageGateFiresWhenSecondsBelowMean();
+    void testBeatAverageGateClosedWhenSecondsAtMean();
+    void testBeatAverageGateClosedWhenSecondsAboveMean();
+    void testBeatAverageGateRequiresThreeWinsCallerSide();
+    void testBeatAverageGateNotPoisonedBySubTickWinsAfterRealWins();
+    void testBeatAverageGateNotMutatedByLoss();
+
     // LossOutcome.priorStreak — drives the loss-dialog "💔 Streak ended at %1" line
     void testLossOutcomeDefaultPriorStreakIsZero();
     void testFirstEverLossPriorStreakIsZero();
@@ -1698,6 +1712,113 @@ void TestStats::testLoadAfterLossDoesNotDisturbAverageForLossDialog()
     QCOMPARE(r.totalSecondsWon, 60.0);
     QCOMPARE(r.bestSeconds, 10.0);
     QCOMPARE(r.totalSecondsWon / r.won, 20.0); // average unchanged
+}
+
+// Win-dialog "✨ Beat your average!" flair gate — the gate compares the
+// just-finished `seconds` against `WinOutcome::averageSecondsAfter` (which
+// already includes the current win in its mean). These tests pin the
+// arithmetic the gate consumes without instantiating MainWindow.
+
+void TestStats::testBeatAverageGateFiresWhenSecondsBelowMean()
+{
+    // 30/30/30 then 20: the 4th call returns averageSecondsAfter = 27.5
+    // (110/4). The gate compares the just-finished seconds (20) to that
+    // post-update mean — 20 < 27.5 → flair fires. Pin both sides of the
+    // comparison so the relationship is explicit.
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    const double seconds = 20.0;
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), seconds);
+    QCOMPARE(out.winsAfter, 4u);
+    QCOMPARE(out.averageSecondsAfter, 27.5);
+    QVERIFY(seconds < out.averageSecondsAfter);
+}
+
+void TestStats::testBeatAverageGateClosedWhenSecondsAtMean()
+{
+    // Tying the prior mean leaves the post-update mean equal to seconds —
+    // the strict `<` comparison hides the flair. "Beat" requires beating,
+    // not matching.
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    const double seconds = 20.0;
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), seconds);
+    QCOMPARE(out.winsAfter, 4u);
+    QCOMPARE(out.averageSecondsAfter, 20.0);
+    QVERIFY(!(seconds < out.averageSecondsAfter));
+}
+
+void TestStats::testBeatAverageGateClosedWhenSecondsAboveMean()
+{
+    // 20/20/20 then 30: the post-update mean = 90/4 = 22.5. seconds (30)
+    // is above mean → flair hides. Pin both numbers because a buggy
+    // implementation that compared seconds to the *prior* mean (20) would
+    // also evaluate to false here, masking the bug — explicit values guard
+    // against that.
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    const double seconds = 30.0;
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), seconds);
+    QCOMPARE(out.winsAfter, 4u);
+    QCOMPARE(out.averageSecondsAfter, 22.5);
+    QVERIFY(!(seconds < out.averageSecondsAfter));
+}
+
+void TestStats::testBeatAverageGateRequiresThreeWinsCallerSide()
+{
+    // The MainWindow call site passes `winAverageSeconds = 0.0` when
+    // `outcome.winsAfter < 3`, so the dialog gate (`> 0.0`) hides the
+    // flair regardless of the post-update mean. Pin both sub-threshold
+    // counts: first win and second win.
+    const auto first = Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    QCOMPARE(first.winsAfter, 1u);
+    QVERIFY(first.winsAfter < 3u);
+    const auto second = Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    QCOMPARE(second.winsAfter, 2u);
+    QVERIFY(second.winsAfter < 3u);
+    // Third win crosses the threshold — flair becomes eligible (whether
+    // it actually fires depends on the seconds-vs-mean comparison, which
+    // the other tests pin).
+    const auto third = Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    QCOMPARE(third.winsAfter, 3u);
+}
+
+void TestStats::testBeatAverageGateNotPoisonedBySubTickWinsAfterRealWins()
+{
+    // Sub-tick wins (seconds == 0.0) increment `won` but do not add to
+    // `totalSecondsWon` (gated in recordWin). After 30/30/30 then 0.0 the
+    // post-update averageSecondsAfter = 90/4 = 22.5 — the divisor moved but
+    // the numerator didn't. The dialog's `m_lastElapsedSeconds > 0.0`
+    // defensive guard hides the flair anyway (a 0.0 "win" is not an
+    // achievement to flag); pin the underlying arithmetic so a future
+    // refactor of recordWin can't silently break the assumption.
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    QCOMPARE(out.winsAfter, 4u);
+    QCOMPARE(out.averageSecondsAfter, 22.5);
+}
+
+void TestStats::testBeatAverageGateNotMutatedByLoss()
+{
+    // recordLoss between wins cannot shift the post-update mean — the
+    // accumulator and `won` are won-path-exclusive. After 30/30/30 then
+    // a loss then 20 → averageSecondsAfter is still 110/4 = 27.5. Same
+    // guarantee as the loss-side `Average:` line, but pinned against the
+    // win-side flair gate's specific data path.
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const double seconds = 20.0;
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), seconds);
+    QCOMPARE(out.winsAfter, 4u);
+    QCOMPARE(out.averageSecondsAfter, 27.5);
+    QVERIFY(seconds < out.averageSecondsAfter);
 }
 
 void TestStats::testLossOutcomeDefaultPriorStreakIsZero()
