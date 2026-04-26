@@ -1,5 +1,191 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 36 — v1.39.0 (autonomous)
+
+- **Chosen problem:** Loss dialog has been getting recap lines and
+  flairs since v1.22 but never surfaced *what just got broken* — the
+  win-side has had `🔥 Streak: %1` and `🌟 New best streak: %1!` since
+  v1.18, but losing on a 5-streak silently zeroed the field with no
+  acknowledgement. v1.38.0 cycle log called for the next loss-dialog
+  beat in the alternation pattern (v1.32 loss → v1.33 stats → v1.34
+  loss → v1.35 stats → v1.36 win → v1.37 loss → v1.38 stats →
+  **v1.39 loss**).
+- **Evidence:** `Stats::recordLoss` (stats.cpp:144) zeroed
+  `r.currentStreak` unconditionally and `LossOutcome` carried no field
+  reflecting the value before the reset. The loss dialog
+  (`MainWindow::showEndDialog`, mainwindow.cpp:836) had no read of any
+  prior-streak data — the only place a player saw the streak was the
+  Stats-dialog "Streak" column (`current / best`), and that column is
+  already updated by the time the dialog opens.
+- **Shipped:**
+  - Branch: `feat/v1.39.0-loss-dialog-streak-ended-line` (squash-merged + deleted)
+  - PR: [#57](https://github.com/Mavrikant/QMineSweeper/pull/57)
+  - Squash commit: `def107b`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.39.0
+  - Release workflow `24945691761` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage / tar.gz, macOS .dmg,
+    Windows .zip). Hand-written user-facing release notes installed
+    via `gh release edit` covering the gate, the closing-arc
+    placement, and the standard-difficulty-only scope.
+- **Code surface:** ~25 LOC of production diff + ~100 LOC of tests +
+  9 LOC translation dict + 10 lupdate-managed `.ts` files. Total real
+  code+docs diff well under the 400-LOC cycle cap.
+  - `stats.h`: `LossOutcome` gains `std::uint32_t priorStreak{0}` with
+    inline rationale doc-comment (replays / customs path → 0; line
+    hidden by design).
+  - `stats.cpp`: `recordLoss` captures `r.currentStreak` into a local
+    `priorStreak` before zeroing the field, then threads it into the
+    returned `LossOutcome{...}` initialiser (now 3 args: existing two
+    bools + the new uint32).
+  - `mainwindow.{h,cpp}`: `showEndDialog` gains a trailing
+    `std::uint32_t lossPriorStreak` parameter; loss branch renders
+    `tr("💔 Streak ended at %1").arg(lossPriorStreak)` between
+    "Question marks" and "Last win", gated `>= 2` (mirrors the
+    win-side `🔥 Streak: %1` gate). Win callsite passes `0u`; loss
+    callsite passes `lossOutcome.priorStreak`.
+  - `tests/tst_stats.cpp`: 8 new tests — default LossOutcome carries
+    0; first-ever loss carries 0; loss after 1 win → 1; loss after 5
+    wins → 5; two consecutive losses (second is 0); win/loss/win/loss
+    streak-rebuild path; per-difficulty isolation; defensive "post-
+    loss currentStreak is always 0 regardless of priorStreak". Total
+    `tst_stats` count: 115 → 123.
+  - `CMakeLists.txt`: version bump 1.38.0 → 1.39.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English locales).
+  - `.ts` files: lupdate adds the new key (109 → 110) across all 10
+    locales; apply_translations fills 9 of them; English stays
+    unfinished as designed.
+- **Tests added:** 8 (`tst_stats` 115 → 123). Coverage of the
+  `priorStreak` field path: default-construct, first-ever loss, loss
+  after 1/5 wins (gate boundary), two-consecutive-losses, win-loss
+  rebuild, per-difficulty isolation, and a defensive guard that the
+  post-loss `currentStreak` is always 0 regardless of `priorStreak`'s
+  reported value (catches a future refactor that might leak the
+  captured value into the persisted record).
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (`110 finished, 0 unfinished` per
+  non-en locale; en stays at 107 unfinished by design — Qt falls back
+  to source).
+  - TR `"💔 Seri sona erdi: %1"` ·
+    ES `"💔 Racha terminada en %1"` ·
+    FR `"💔 Série interrompue à %1"` ·
+    DE `"💔 Serie beendet bei %1"` ·
+    RU `"💔 Серия прервана на %1"` ·
+    PT `"💔 Sequência interrompida em %1"` ·
+    ZH `"💔 连胜中断于 %1"` ·
+    HI `"💔 %1 पर लगातार जीत समाप्त"` ·
+    AR `"💔 انقطعت سلسلة الفوز عند %1"`.
+  - Each translation reuses the existing `🔥 Streak: %1` /
+    `🌟 New best streak: %1!` noun stems (Seri / Racha / Série /
+    Serie / Серия / Sequência / 连胜 / लगातार जीत / سلسلة الفوز) for
+    cross-line consistency.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "1 new and 109 already existing" across all 10 locales —
+    confirms exactly one new tr() string, zero accidental drift.
+  - `python3 translations/apply_translations.py` reports
+    "107 translations applied" per non-English locale (was 106
+    pre-cycle).
+  - Per-locale grep confirms `<source>💔 Streak ended at %1</source>`
+    → `<translation>…</translation>` (not `unfinished`) in all 9
+    non-en files.
+  - `cmake --build build` clean. All 8 test binaries link.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 8/8 pass.
+    `tst_stats`: 123 passed (was 115).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    after one auto-fix round (the new showEndDialog callsite line was
+    over the column cap).
+  - All 7 PR CI checks green (3× build/test, coverage, formatting,
+    Codacy, CodeFactor, Code Review Doctor).
+- **Adversarial self-review:**
+  - **What breaks this in production?** First-ever loss →
+    `priorStreak=0`, line hidden ✓. Loss after 1 win → `priorStreak=1`,
+    line hidden by `>= 2` gate ✓. Loss after 5 wins → `priorStreak=5`,
+    line surfaces ✓. Two consecutive losses → first one shows the
+    line, second hides it ✓. Custom/replay loss → `priorStreak=0` (no
+    `recordLoss` call), line hidden ✓.
+  - **Backwards-compat?** Pure addition. No new QSettings key.
+    `streak_current` has been persisted since v1.18, so even pre-1.39
+    plists work without migration. Older binaries reading this user's
+    plist would simply not surface the line (the code path is in
+    1.39+ only).
+  - **Error paths?** `priorStreak` is `std::uint32_t`, no overflow risk
+    in practical use (would need 4B consecutive wins). `currentStreak`
+    is read once into a local, then field reset — no aliasing.
+    `tr(...).arg(uint32)` is type-safe in Qt.
+  - **Secrets / PII?** None. Streak length only.
+  - **Performance?** O(1) per loss. No new I/O — `recordLoss` already
+    loads/saves the record.
+  - **Concurrency?** None — single-threaded UI, single `load`/`save`
+    per `recordLoss` call.
+  - **Visual regression?** One new line at most, gated `>= 2`. Most
+    losses (no prior streak ≥ 2) render byte-identically to v1.38.
+- **Assumptions made:**
+  - **Recap line, not flair prepend.** Loss dialog already has two
+    flair prepends (`🎯 New best %!`, `🚩 New best flag accuracy!`) —
+    both *positive* hall-of-fame achievements. Putting a *negative*
+    "Streak ended" alongside them as a flair would jar visually.
+    Recap-line styling places it in the loss narrative top-to-bottom.
+  - **Gate `>= 2` mirrors win-side.** A single-win streak isn't a
+    streak worth mourning; the dialog stays clean for one-off losses.
+    The field reports the raw value regardless so future callers /
+    telemetry can read it.
+  - **Capture in `recordLoss`, return via `LossOutcome`.** Mirrors
+    `WinOutcome.currentStreak`. Avoids the alternative of double-
+    loading the record in `MainWindow::onGameLost` — one
+    `Stats::load(diffName)` already happens for `priorLastWinDate`.
+  - **Replays / customs hide the line.** They don't call
+    `Stats::recordLoss`, so `lossOutcome.priorStreak` stays at 0. By
+    design — those losses don't actually break the standard-difficulty
+    streak.
+  - **Translation strategy: same noun stems.** Reused `🔥 Streak: %1`
+    noun translations across the new key for cross-line consistency
+    (player who reads "🔥 Seri: 5" on the win and later "💔 Seri sona
+    erdi: 5" on the loss sees the same word for the same concept).
+- **Skipped:**
+  - **Win-dialog "Streak ended" companion.** A win never breaks a
+    streak (it extends one), so there's nothing to surface. N/A.
+  - **Stats-dialog "Streak ended at" timestamp column.** Out of scope;
+    would need a new persisted field (`streak_ended_date`) and the
+    Stats dialog already shows current/best streak inline. Park.
+  - **Telemetry tag for the broken streak length.** Considered;
+    rejected because the existing `game.lost` event payload already
+    includes `streak` (current after loss, always 0 — not informative)
+    and adding `prior_streak` would add a new tag without being
+    surfaced anywhere in Sentry's pre-built rollups. Park until a
+    concrete analytics question motivates it.
+  - **"💔 Streak ended at %1 (was your best — %2)" extension.** When
+    the broken streak equals `bestStreak`, surface that fact too.
+    Cute but adds 1 more translatable string with the same plurals
+    blocker as the v1.37 "X days ago" idea. Park.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.39.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads at
+  watch time and telemetry is opt-in. No new crash group attributable
+  to the 1.39.0 cut. Hand-written user-facing release notes installed
+  via `gh release edit --notes-file` (covers gate, closing-arc
+  placement, standard-difficulty-only scope, and the macOS quarantine
+  clear). All 5 assets + `SHA256SUMS.txt` published. Watch closed.
+- **Next candidates:**
+  - **Win-dialog "Wins so far" tail on Average line**, e.g.
+    `Average: 1:18.9 (n=12)`. Surfaces useful denominator context;
+    blocked on translating the parenthetical cleanly across all 10
+    locales (Arabic / Hindi numeral systems, Russian plural rules).
+  - **Stats-dialog "Best across all" footer cell** for the Best time
+    column. Cell value mixes a difficulty name and a time; estimated
+    3 new translatable strings.
+  - **Win % column** broken out from Won. Pure presentation, ~30 LOC,
+    1 new translatable string ("Win %"). Smallest cell-rearrangement
+    diff but adds zero new *information* — the Won column already
+    renders `5 (50%)` inline.
+  - **Win-dialog `🌟 New best streak: %1!` companion: streak chain
+    arrow** when the new best streak crosses a round-number boundary
+    (5/10/25/50). Currently only flairs on a strict-greater-than the
+    previous record; doesn't differentiate "+1 over the prior record"
+    from "I just hit 50". Park unless a concrete user-facing motivator
+    surfaces.
+
 ## 2026-04-26 — Cycle 35 — v1.38.0 (autonomous)
 
 - **Chosen problem:** v1.37.0 surfaced the per-difficulty
