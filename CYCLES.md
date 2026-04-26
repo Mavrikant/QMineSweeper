@@ -1,5 +1,209 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 38 — v1.41.0 (autonomous)
+
+- **Chosen problem:** Win dialog has surfaced the lifetime
+  `Average: %1` line since v1.36 (gated at `winsAfter >= 3`), but
+  the player has no inline anchor for whether the average is good
+  or bad — they can't see how the average compares to their
+  hall-of-fame best on the same difficulty. The Stats dialog has
+  the column-by-column comparison (Best time + Average) since v1.40,
+  but the win dialog itself doesn't carry the context. A slow win
+  shows `Average: 1:18.9` and the player has no way to know whether
+  their best is `0:45` (huge gap) or `1:15` (consistent). v1.40.0
+  cycle log called out this as the "smallest informative win-dialog
+  beat" — alternation pattern v1.36 win → v1.37 loss → v1.38 stats
+  → v1.39 loss → v1.40 stats → **v1.41 win**.
+- **Evidence:** `Stats::Record::bestSeconds` already exists, is
+  loaded/saved, and is hall-of-fame-tested since v1.0. The win
+  dialog (`MainWindow::showEndDialog`, mainwindow.cpp:854) reads
+  every WinOutcome field except this one — pure presentation gap.
+- **Shipped:**
+  - Branch: `feat/v1.41.0-win-dialog-average-best-companion`
+    (squash-merged + deleted)
+  - PR: [#59](https://github.com/Mavrikant/QMineSweeper/pull/59)
+  - Squash commit: `85c5788`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.41.0
+  - Release workflow `24947558315` succeeded; all 5 assets +
+    `SHA256SUMS.txt` published (Linux AppImage / tar.gz, macOS .dmg,
+    Windows .zip). Hand-written user-facing release notes installed
+    via `gh release edit --notes` covering the new suffix, the
+    >=3-wins gate, and the macOS quarantine clear.
+- **Code surface:** ~18 LOC of production diff in `mainwindow.cpp`
+  + 9 LOC stats.h field + 2 LOC stats.cpp population + 92 LOC
+  tests + 9 LOC translation dict + 10 lupdate-managed `.ts` files
+  + version bump. Real code+tests diff well under the 400-LOC cap.
+  - `stats.h`: `WinOutcome` gains a `double bestSecondsAfter{0.0};`
+    field — same convention as `averageSecondsAfter` (post-update
+    value, so the call site renders without a second `Stats::load`).
+  - `stats.cpp`: `recordWin` returns `r.bestSeconds` in the new
+    field; populated post-newBestTime mutation so the value matches
+    what the next `Stats::load` would return.
+  - `mainwindow.h` / `mainwindow.cpp`: `showEndDialog` gains a
+    trailing `double winBestSeconds` parameter. Win-side call site
+    threads `outcome.bestSecondsAfter` (gated on `winsAfter >= 3`,
+    same gate as `winAverageSeconds`); loss-side call site passes
+    `0.0` (irrelevant on the loss path).
+  - `mainwindow.cpp` body: when `winAverageSeconds > 0.0`, append
+    `" " + tr("(best %1)").arg(formatElapsedTime(winBestSeconds))`
+    if `winBestSeconds > 0.0`. Defensive `> 0.0` guard preserved
+    so a stray default-constructed WinOutcome can't render
+    `(best 0.0)`.
+  - `tests/tst_stats.cpp`: 7 new tests under `WinOutcome.bestSecondsAfter`:
+    default-constructed (== 0.0), first-win (== seconds),
+    faster-win-tracked (n=3 wins 30/20/25 → bestSecondsAfter=20.0
+    while averageSecondsAfter=25.0), slower-win-keeps-prior,
+    sub-tick-after-real-keeps-prior, first-win-sub-tick-stays-zero
+    (gate pin), persisted-equals-returned cross-pin (guards
+    against the pre-save value diverging from what the next load
+    sees).
+  - `CMakeLists.txt`: version bump 1.40.0 → 1.41.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English locales).
+  - `.ts` files: lupdate adds the new key (111 → 112) across all 10
+    locales; apply_translations fills 9 of them; English stays
+    unfinished as designed.
+- **Tests added:** 7 (extension to `tst_stats`). 9 test binaries,
+  all pass. Total tst_stats test count: 123 → 130.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (`109 translations applied` per
+  non-English locale, was 108 pre-cycle).
+  - TR `"(en iyi %1)"` ·
+    ES `"(mejor %1)"` ·
+    FR `"(meilleur %1)"` ·
+    DE `"(Bestzeit %1)"` ·
+    RU `"(лучшее %1)"` ·
+    PT `"(melhor %1)"` ·
+    ZH `"（最佳 %1）"` (full-width parens to match Chinese punctuation
+    norms) ·
+    HI `"(सर्वश्रेष्ठ %1)"` ·
+    AR `"(الأفضل %1)"`.
+  - Each translation reuses the noun stem from the locale's existing
+    "Best time" column header for cross-line consistency — a player
+    who reads "En iyi süre" in Statistics and "Ortalama: 1:18.9
+    (en iyi 0:45.0)" on the win dialog sees the same word for the
+    same concept.
+  - **Existing `"Average: %1"` tr key preserved verbatim.** Two-string
+    approach (keep `"Average: %1"`, add `"(best %1)"`) instead of
+    one combined `"Average: %1 (best %2)"`. Combining would have
+    marked the v1.36 key obsolete in every `.ts` file and forced
+    re-validation of 9 hand translations; two strings means
+    zero churn on the existing translations.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "1 new and 111 already existing" across all 10 locales —
+    confirms exactly one new tr() string, zero accidental drift.
+  - `python3 translations/apply_translations.py` reports
+    "109 translations applied" per non-English locale (was 108
+    pre-cycle).
+  - Per-locale grep confirms `<source>(best %1)</source>` →
+    `<translation>…</translation>` (not `unfinished`) in all 9
+    non-en files.
+  - `cmake --build build` clean.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 9/9 pass.
+    The 7 new tests all PASS (`testWinOutcomeDefaultBestSecondsAfterIsZero`,
+    `testWinOutcomeBestSecondsAfterFirstWinEqualsSeconds`,
+    `testWinOutcomeBestSecondsAfterTracksFasterWin`,
+    `testWinOutcomeBestSecondsAfterKeepsPriorOnSlowerWin`,
+    `testWinOutcomeBestSecondsAfterSubTickWinKeepsPrior`,
+    `testWinOutcomeBestSecondsAfterFirstWinSubTickStaysZero`,
+    `testWinOutcomeBestSecondsAfterMatchesPersisted`).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+  - All 7 PR CI checks green (3× build/test, coverage, formatting,
+    Code Review Doctor, CodeFactor, Codacy).
+- **Adversarial self-review:**
+  - **What breaks this in production?** All-sub-tick wins (3 wins
+    all 0.0s) → `averageSecondsAfter == 0.0` → call-site
+    `winAverageSeconds > 0.0` gate hides BOTH the Average and
+    `(best …)` lines ✓. Mix of sub-tick + real wins:
+    `bestSecondsAfter` tracks only the real ones (gated on
+    `seconds > 0.0` in the same `recordWin` branch), `(best …)`
+    renders correctly ✓. Pre-1.36 plist with 3+ wins but no
+    `total_seconds_won` → `averageSecondsAfter == 0.0` → both
+    lines hidden until next win — same clean-slate behaviour as
+    v1.36 / v1.37 / v1.40 ✓. Three wins same time (n=3 with
+    20.0/20.0/20.0): `(best 20.0)` next to `Average: 20.0` is
+    truthful — states consistency rather than hiding the metric ✓.
+    Replays / custom games: outcome is default-constructed,
+    `winsAfter == 0`, call-site threading passes `0.0` for both
+    the average and the best — both lines hidden ✓.
+  - **Backwards-compat?** Pure addition. No new QSettings key;
+    `bestSeconds` has been persisted since v1.0. The
+    `"Average: %1"` tr key is preserved unchanged so v1.36 hand
+    translations carry over without churn.
+  - **Error paths?** Defensive `winBestSeconds > 0.0` guard around
+    the `(best %1)` line covers a hypothetical default-constructed
+    WinOutcome edge case. Both `winBestSeconds > 0.0` and
+    `winAverageSeconds > 0.0` are unreachable when the >= 3-wins
+    gate is satisfied AND any win was non-sub-tick — but defensively
+    pinned anyway.
+  - **Secrets / PII?** None. Lifetime times only.
+  - **Performance?** O(1) per win dialog. One extra
+    `formatElapsedTime` call when `winsAfter >= 3`. Negligible.
+  - **Concurrency?** None — single-threaded UI.
+  - **Visual regression?** Single-space append on the existing
+    Average line, not a new line. The full message body grows
+    by ~13 characters (`" (best 0:45.0)"`). `QMessageBox`
+    auto-sizes; no fixed-width assumption broken.
+- **Assumptions made:**
+  - **Always show `(best %1)` when Average shows.** No
+    `bestSeconds < average` gate; the redundant case
+    `(best == average)` is informative ("you've been
+    consistent") and adds zero noise to the dialog.
+  - **Suffix appended with a single space, not a newline.** This
+    is one piece of information ("here's your average, anchored
+    against your best") rather than two independent recap lines.
+  - **Two tr() strings, not one combined `"Average: %1 (best %2)"`.**
+    Preserves v1.36's 9 hand translations unchanged; combined key
+    would force re-validation of all 9.
+  - **Translation strategy:** new `"(best %1)"` key reuses each
+    locale's existing "Best time" stem for cross-line consistency.
+    Chinese uses full-width parens `（…）` per CJK punctuation norms.
+- **Skipped:**
+  - **Win-dialog `"Average: %1 — %2 vs your best"` delta variant.**
+    Same data, but adds a sign-prefixed delta (`+25.0s`) instead
+    of the raw best. Two new strings instead of one, plus the
+    sign-prefix wants per-locale formatting and Arabic RTL `+`
+    handling. Higher cost; park.
+  - **Stats-dialog Total row gains an Average footer cell.**
+    Em-dashed by design since v1.40 (mixing difficulties of
+    different sizes makes the aggregate noise). Would only
+    revisit with a concrete user-facing motivator.
+  - **End-to-end visual sanity check on the live app.** Autonomous
+    scheduled-task cycle with no user present to approve
+    computer-use access (`request_access` would time out as
+    expected). Relied on unit tests + the small, surgical wiring
+    change. The wiring is symmetric with v1.36's `Average: %1`
+    line shipped four cycles ago, which followed the same path.
+- **Risks logged:** none new.
+- **Post-release watch (T+~3min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.41.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads at
+  watch time and telemetry is opt-in. No new crash group attributable
+  to the 1.41.0 cut. Hand-written user-facing release notes installed
+  via `gh release edit --notes` (covers the new suffix, the >= 3-wins
+  gate, and the macOS quarantine clear). All 5 assets +
+  `SHA256SUMS.txt` published. Watch closed.
+- **Next candidates:**
+  - **Loss-dialog companion to the win-side `Average: %1` line.**
+    Mirror beat in the alternation: surface lifetime average
+    winning time on the loss dialog ("would have averaged X if
+    you'd won") so the player has the same anchor on losses.
+    ~1 new translatable string.
+  - **Stats-dialog "Worst" or "Slowest win" column.** Symmetric
+    to Best time — needs a new persisted accumulator (slowest
+    counted winning duration per difficulty) and a QSettings
+    schema bump. Multi-cycle.
+  - **Win-dialog flair when current run beats the lifetime
+    average** (e.g., "✨ Beat your average!"). One new
+    translatable string, gated on `m_lastElapsedSeconds <
+    averageSecondsAfter`. Pure flair beat; alternation-friendly.
+  - **Stats-dialog "Median win time" column.** Different
+    statistical signal from average (resistant to outliers).
+    Needs persisting every counted winning duration (not just
+    the sum), schema bump. Multi-cycle.
+
 ## 2026-04-26 — Cycle 37 — v1.40.0 (autonomous)
 
 - **Chosen problem:** Stats dialog (Game → Statistics…) renders 9
