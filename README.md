@@ -33,6 +33,10 @@ A modern implementation of the classic **Minesweeper** game, written in **C++20*
 |---|---|
 | ![Settings → Language menu showing flag-iconified picker for 10 locales](docs/screenshots/03-language-menu.png) | ![Game-over state with all mines revealed and the clicked mine highlighted in red](docs/screenshots/04-boom.png) |
 
+| About QMineSweeper — AI-developed credit & build info | |
+|---|---|
+| ![About QMineSweeper dialog showing version 2.0.0, the bold "Developed by AI" credit line, the © Mavrikant copyright, and the "Built with Qt" footer](docs/screenshots/05-about.png) | |
+
 ## Features
 
 - Three difficulty levels: Beginner (9×9, 10 mines), Intermediate (16×16, 40 mines), Expert (30×16, 99 mines)
