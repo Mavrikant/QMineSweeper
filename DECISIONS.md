@@ -1,5 +1,97 @@
 # Cycle decisions
 
+## 2026-04-26 — Loss-dialog "Average: %1 (best %2)" companion (v1.42.0)
+
+**Chosen:** On the loss dialog, after the existing `Last win: %1`
+line, render the lifetime mean winning duration on the current
+difficulty as `Average: %1`, with the same `(best %1)` companion
+suffix shipped on the win dialog in v1.41 — e.g.
+`Average: 1:18.9 (best 0:45.0)`. Gated on `won >= 3 && totalSecondsWon > 0.0`,
+the same threshold the win-side encodes via `WinOutcome.winsAfter >= 3`.
+**Zero new translatable strings** — both `"Average: %1"` (v1.36) and
+`"(best %1)"` (v1.41) keys already exist in every locale and are
+reused as-is.
+
+**Why:**
+- v1.41.0 cycle log's first listed next candidate ("loss-dialog
+  companion to the win-side `Average: %1` line").
+- Alternation pattern continues: v1.36 win → v1.37 loss → v1.38 stats
+  → v1.39 loss → v1.40 stats → v1.41 win → **v1.42 loss**.
+- The win dialog has surfaced the lifetime average + best companion
+  for two cycles; the loss dialog now mirrors them so the player has
+  the same lifetime-context anchor on losses as on wins. A loss right
+  after a stretch of slow wins reads "you survived 0:42, your average
+  was 1:18.9 (best 0:45.0)" — the player sees their typical pace and
+  best at the moment they need the perspective most.
+- Schema-zero. `totalSecondsWon`, `won`, and `bestSeconds` are all
+  already persisted, loaded, and tested. The compute is a single
+  divide on the loaded `Stats::Record` — no new I/O, no new field on
+  `LossOutcome`, no migration.
+- Translation-zero. Both `tr()` keys already exist with hand
+  translations across all 9 non-en locales; the loss-side render
+  reuses them via Qt's automatic context-shared lookup. A previous
+  cycle estimate of "~1 new string" turned out to be strictly
+  improvable: full reuse drops the cycle's translation cost to zero.
+
+**Rejected alternatives from the v1.41.0 candidate list:**
+- *Stats-dialog "Worst" or "Slowest win" column.* Symmetric to Best
+  time but needs a new persisted accumulator (slowest counted winning
+  duration per difficulty) and a QSettings schema bump. Multi-cycle.
+- *Win-dialog flair when current run beats the lifetime average*
+  (e.g., "✨ Beat your average!"). Pure flair beat — alternation-
+  friendly but breaks the win→loss alternation we're owed this cycle.
+  Park for the next win-side beat.
+- *Stats-dialog "Median win time" column.* Different statistical
+  signal but needs persisting every counted winning duration (not
+  just the sum), schema bump. Multi-cycle.
+
+**Rejected naming alternatives:**
+- *New translatable key `"Average win: %1"` for the loss-side line
+  (more descriptive than the bare "Average: %1" in win-dialog
+  context).* Costs 1 new string × 9 locales for marginal clarity —
+  the loss-dialog placement directly after `Last win: 4/24/26`
+  already establishes the lifetime-win context. Symmetry across the
+  two dialogs (same exact line, same exact translation) outweighs
+  the "win" qualifier on the loss side.
+- *Combined `"Average: %1 (best %2)"` key.* Same trade-off as
+  rejected in v1.41 — would mark the v1.36 + v1.41 keys obsolete in
+  every `.ts` file and force re-validation of all 18 existing hand
+  translations. Two-key approach preserves zero churn.
+
+**Implementation choices:**
+
+1. **Single `Stats::load` per loss.** `MainWindow::onGameLost` already
+   loaded the record once (for `priorLastWinDate`); the new fields
+   read from the same in-memory `priorRecord` so the loss path stays
+   one read regardless of how many lifetime-context lines the dialog
+   surfaces.
+2. **No `LossOutcome.averageSecondsAfter` mirror field.** Unlike
+   `WinOutcome` (which has a pre-recordWin → post-recordWin mutation
+   on the relevant fields, so a returned snapshot is meaningfully
+   different from a post-call `Stats::load`), `recordLoss` does NOT
+   touch `won`, `totalSecondsWon`, or `bestSeconds`. The pre-call
+   `Stats::load` and a hypothetical post-call one would return the
+   same values for these fields, so threading them through
+   `LossOutcome` would be pure ceremony. Compute at the call site
+   from `priorRecord` instead.
+3. **`won >= 3 && totalSecondsWon > 0.0` compound gate.** Mirrors
+   the win-side's `winsAfter >= 3` gate (necessary condition: enough
+   wins for an average to be informative) AND the win-side's
+   `recordWin` `seconds > 0.0` accumulator gate (defends the divisor
+   against the pathological all-sub-tick case where `won == 3` but
+   `totalSecondsWon == 0.0`).
+4. **Render order: `Streak ended → Last win → Average → (best …)`.**
+   The closing arc reads as escalating context: "your streak just
+   ended → you've done this before → here's your typical pace →
+   here's how close that pace was to your best".
+5. **Tests: pin the loaded-record contract, not the dialog text.**
+   Six new `tst_stats` tests pin `Stats::load(diff).{won,totalSecondsWon,bestSeconds}`
+   under the canonical n=3 case, the n=2-below-gate case, the
+   all-sub-tick gate-closed case, the mixed sub-tick + real
+   numerator/divisor case, and the post-recordLoss invariance case.
+   The dialog rendering itself is presentation-only; the
+   loaded-record contract is what a future refactor could break.
+
 ## 2026-04-26 — Win-dialog "Average: %1 (best %2)" companion (v1.41.0)
 
 **Chosen:** When the win dialog already shows the `Average: %1` line
