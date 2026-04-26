@@ -226,28 +226,33 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="872"/>
-        <location filename="../mainwindow.cpp" line="1058"/>
+        <location filename="../mainwindow.cpp" line="1085"/>
         <source>Average: %1</source>
         <translation>Promedio: %1</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="883"/>
-        <location filename="../mainwindow.cpp" line="1061"/>
+        <location filename="../mainwindow.cpp" line="1088"/>
         <source>(best %1)</source>
         <translation>(mejor %1)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="926"/>
+        <location filename="../mainwindow.cpp" line="946"/>
         <source>✨ Beat your average!</source>
         <translation>✨ ¡Superaste tu promedio!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="948"/>
+        <location filename="../mainwindow.cpp" line="971"/>
+        <source>💎 Two new bests!</source>
+        <translation>💎 ¡Dos nuevos récords!</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="975"/>
         <source>⚡ New best 3BV/s!</source>
         <translation>⚡ ¡Nuevo mejor 3BV/s!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="970"/>
+        <location filename="../mainwindow.cpp" line="997"/>
         <source>Partial 3BV: %1 / %2 · 3BV/s: %3</source>
         <translation>3BV parcial: %1 / %2 · 3BV/s: %3</translation>
     </message>
@@ -271,28 +276,28 @@
         <translation>🏃 ¡Sin banderas!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="907"/>
+        <location filename="../mainwindow.cpp" line="927"/>
         <source>🏆 New record!</source>
         <translation>🏆 ¡Nuevo récord!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="933"/>
+        <location filename="../mainwindow.cpp" line="954"/>
         <source>🌟 New best streak: %1!</source>
         <translation>🌟 ¡Nueva mejor racha: %1!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="937"/>
+        <location filename="../mainwindow.cpp" line="958"/>
         <source>🔥 Streak: %1</source>
         <translation>🔥 Racha: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="955"/>
+        <location filename="../mainwindow.cpp" line="982"/>
         <source>You stepped on a mine.</source>
         <translation>Ha pisado una mina.</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="80"/>
-        <location filename="../mainwindow.cpp" line="1110"/>
+        <location filename="../mainwindow.cpp" line="1137"/>
         <source>New Game</source>
         <translation>Nueva partida</translation>
     </message>
@@ -302,12 +307,12 @@
         <translation>Ha despejado el campo en %1.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="956"/>
+        <location filename="../mainwindow.cpp" line="983"/>
         <source>You survived for %1.</source>
         <translation>Sobrevivió durante %1.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="957"/>
+        <location filename="../mainwindow.cpp" line="984"/>
         <source>You cleared %1% of the board.</source>
         <translation>Despejó el %1% del tablero.</translation>
     </message>
@@ -316,162 +321,162 @@
         <translation type="vanished">3BV del tablero: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="979"/>
+        <location filename="../mainwindow.cpp" line="1006"/>
         <source>Clicks: %1</source>
         <translation>Clics: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="990"/>
+        <location filename="../mainwindow.cpp" line="1017"/>
         <source>Flags placed: %1</source>
         <translation>Banderas colocadas: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1000"/>
+        <location filename="../mainwindow.cpp" line="1027"/>
         <source>Correct flags: %1 / %2</source>
         <translation>Banderas correctas: %1 / %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1012"/>
+        <location filename="../mainwindow.cpp" line="1039"/>
         <source>Question marks: %1</source>
         <translation>Signos de interrogación: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1029"/>
+        <location filename="../mainwindow.cpp" line="1056"/>
         <source>💔 Streak ended at %1</source>
         <translation>💔 Racha terminada en %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1044"/>
+        <location filename="../mainwindow.cpp" line="1071"/>
         <source>Last win: %1</source>
         <translation>Última victoria: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1076"/>
+        <location filename="../mainwindow.cpp" line="1103"/>
         <source>🌟 Best loss yet!</source>
         <translation>🌟 ¡Tu mejor derrota!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1089"/>
+        <location filename="../mainwindow.cpp" line="1116"/>
         <source>🎯 New best %!</source>
         <translation>🎯 ¡Nuevo mejor %!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1104"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>🚩 New best flag accuracy!</source>
         <translation>🚩 ¡Nueva mejor precisión de banderas!</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1111"/>
+        <location filename="../mainwindow.cpp" line="1138"/>
         <source>Close</source>
         <translation>Cerrar</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1143"/>
+        <location filename="../mainwindow.cpp" line="1170"/>
         <source>Statistics</source>
         <translation>Estadísticas</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Difficulty</source>
         <translation>Dificultad</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Played</source>
         <translation>Jugadas</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Won</source>
         <translation>Ganadas</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Best time</source>
         <translation>Mejor tiempo</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Best (no flag)</source>
         <translation>Mejor (sin banderas)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Streak</source>
         <translation>Racha</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Best 3BV/s</source>
         <translation>Mejor 3BV/s</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Best flag accuracy</source>
         <translation>Mejor precisión de banderas</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Last win</source>
         <translation>Última victoria</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1148"/>
+        <location filename="../mainwindow.cpp" line="1175"/>
         <source>Average</source>
         <translation>Promedio</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1161"/>
+        <location filename="../mainwindow.cpp" line="1188"/>
         <source>Beginner</source>
         <translation>Principiante</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1162"/>
+        <location filename="../mainwindow.cpp" line="1189"/>
         <source>Intermediate</source>
         <translation>Intermedio</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1163"/>
+        <location filename="../mainwindow.cpp" line="1190"/>
         <source>Expert</source>
         <translation>Experto</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1211"/>
+        <location filename="../mainwindow.cpp" line="1238"/>
         <source>— (best %1%, %2)</source>
         <translation>— (mejor %1%, %2)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1266"/>
+        <location filename="../mainwindow.cpp" line="1293"/>
         <source>Total</source>
         <translation>Total</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1281"/>
+        <location filename="../mainwindow.cpp" line="1308"/>
         <source>Reset all</source>
         <translation>Borrar todo</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1287"/>
+        <location filename="../mainwindow.cpp" line="1314"/>
         <source>Reset statistics?</source>
         <translation>¿Borrar estadísticas?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1287"/>
+        <location filename="../mainwindow.cpp" line="1314"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>¿Borrar permanentemente todos los registros de jugadas / victorias / mejores tiempos?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1307"/>
+        <location filename="../mainwindow.cpp" line="1334"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;Compilado con Qt %1 el %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1308"/>
+        <location filename="../mainwindow.cpp" line="1335"/>
         <source>About QMineSweeper</source>
         <translation>Acerca de QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1301"/>
+        <location filename="../mainwindow.cpp" line="1328"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Un juego de Buscaminas basado en Qt6.&lt;/p&gt;&lt;p&gt;Clic izquierdo para revelar, clic derecho para marcar con bandera, clic central sobre un número satisfecho para despejar alrededor.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>

@@ -203,6 +203,21 @@ class TestStats : public QObject
     void testComboFlairFirstEverLossWithBothMetricsFires();
     void testComboFlairReplaySkippedDoesNotFireBoth();
     void testComboFlairZeroFlagsLossDoesNotFireBoth();
+
+    // Win-dialog "💎 Two new bests!" combo flair gate — fires when the same
+    // win earns BOTH `newRecord` (fresh per-difficulty best clock-time) AND
+    // `newBestBvPerSecond` (fresh per-difficulty best 3BV/s). Mutually
+    // exclusive at the dialog with the individual 🏆 / ⚡ flairs (caller-side
+    // outer skip on the 🏆/✨ block + `if/else if` on the bottom 💎/⚡ pair);
+    // these tests pin the data-side contract that drives the gate without
+    // instantiating MainWindow.
+    void testWinComboFlairBothBestsFireOnSingleWin();
+    void testWinComboFlairOnlyBestTimeDoesNotFireBoth();
+    void testWinComboFlairOnlyBest3BvPerSecondDoesNotFireBoth();
+    void testWinComboFlairNeitherBestDoesNotFireBoth();
+    void testWinComboFlairFirstEverWinWithBothMetricsFires();
+    void testWinComboFlairReplaySkippedDoesNotFireBoth();
+    void testWinComboFlairSubTickWinDoesNotFireBoth();
 };
 
 void TestStats::initTestCase()
@@ -2030,6 +2045,108 @@ void TestStats::testComboFlairZeroFlagsLossDoesNotFireBoth()
     QVERIFY(out.newBestSafePercent);
     QVERIFY(!out.newBestFlagAccuracyPercent);
     QVERIFY(!(out.newBestSafePercent && out.newBestFlagAccuracyPercent));
+}
+
+// Win-dialog "💎 Two new bests!" combo flair gate — pin the data-side
+// contract `MainWindow::showEndDialog` consumes. The flair fires iff
+//   `newRecord && winNewBestBvPerSecond`,
+// where both bools come from the `Stats::WinOutcome` returned by
+// `Stats::recordWin`. Mutually exclusive at the dialog with the individual
+// 🏆 / ⚡ flairs (caller-side outer-skip + `if/else if` pair); these tests
+// pin the underlying arithmetic without instantiating MainWindow.
+
+void TestStats::testWinComboFlairBothBestsFireOnSingleWin()
+{
+    // First win on a clean record with bvPerSecond > 0 → bestSeconds
+    // transitions 0.0 → 30.0 AND bestBvPerSecond transitions 0.0 → 1.5
+    // simultaneously → both bools true → combo fires.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 26}, 1.5);
+    QVERIFY(out.newRecord);
+    QVERIFY(out.newBestBvPerSecond);
+    // The dialog gate is the AND of the two bools; pin it explicitly so a
+    // future refactor that returns the same fields under different names
+    // can't silently flip the gate.
+    QVERIFY(out.newRecord && out.newBestBvPerSecond);
+}
+
+void TestStats::testWinComboFlairOnlyBestTimeDoesNotFireBoth()
+{
+    // Seed a high 3BV/s record, then beat only the clock record on the next
+    // win. The 3BV/s bool stays false because 1.0 < 2.5, so the combo gate
+    // (AND) is false → the individual 🏆 flair shows instead.
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 25}, 2.5);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 20.0, QDate{2026, 4, 26}, 1.0);
+    QVERIFY(out.newRecord);
+    QVERIFY(!out.newBestBvPerSecond);
+    QVERIFY(!(out.newRecord && out.newBestBvPerSecond));
+}
+
+void TestStats::testWinComboFlairOnlyBest3BvPerSecondDoesNotFireBoth()
+{
+    // Symmetric: seed a fast best clock-time, then beat only the 3BV/s
+    // record on the next (slower) win. Combo gate stays false → the
+    // individual ⚡ flair shows instead.
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0, QDate{2026, 4, 25}, 1.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 26}, 2.5);
+    QVERIFY(!out.newRecord);
+    QVERIFY(out.newBestBvPerSecond);
+    QVERIFY(!(out.newRecord && out.newBestBvPerSecond));
+}
+
+void TestStats::testWinComboFlairNeitherBestDoesNotFireBoth()
+{
+    // Seed both records, then a win that ties or undershoots both. Strict-
+    // less semantics on the time gate (`seconds < r.bestSeconds`) and
+    // strict-greater on the 3BV/s gate (`bvPerSecond > r.bestBvPerSecond`)
+    // mean equal-to-prior leaves both bools false → combo gate false → no
+    // record-tier flair fires.
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0, QDate{2026, 4, 25}, 2.5);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 20.0, QDate{2026, 4, 26}, 2.5);
+    QVERIFY(!out.newRecord);
+    QVERIFY(!out.newBestBvPerSecond);
+    QVERIFY(!(out.newRecord && out.newBestBvPerSecond));
+}
+
+void TestStats::testWinComboFlairFirstEverWinWithBothMetricsFires()
+{
+    // Tightest gate path: the very first recorded win on a difficulty with
+    // both metrics positive transitions both 0.0 → positive simultaneously.
+    // Pin both the persistence side and the returned outcome so the dialog
+    // gate sees the exact bools it expects on a clean QSettings.
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSeconds, 0.0);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestBvPerSecond, 0.0);
+    const auto out = Stats::recordWin(QStringLiteral("Expert"), 99.5, QDate{2026, 4, 26}, 0.75);
+    QVERIFY(out.newRecord);
+    QVERIFY(out.newBestBvPerSecond);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSeconds, 99.5);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestBvPerSecond, 0.75);
+}
+
+void TestStats::testWinComboFlairReplaySkippedDoesNotFireBoth()
+{
+    // `MainWindow::onGameWon` skips `Stats::recordWin` on replay/custom
+    // games and threads a default-constructed `WinOutcome{}` into the
+    // dialog. Both bools default to false → combo gate false → no flair.
+    // Pinned via the struct-default contract so a future struct refactor
+    // can't accidentally default either field to true.
+    Stats::WinOutcome out{};
+    QVERIFY(!out.newRecord);
+    QVERIFY(!out.newBestBvPerSecond);
+    QVERIFY(!(out.newRecord && out.newBestBvPerSecond));
+}
+
+void TestStats::testWinComboFlairSubTickWinDoesNotFireBoth()
+{
+    // `MainWindow::onGameWon` only computes a non-zero bvRate when
+    // `m_lastElapsedSeconds > 0.05` (sub-tick guard against div-by-zero) —
+    // pathological setFixedLayout-driven tests can produce a 0.0 bvRate
+    // even on a fresh record. recordWin's `bvPerSecond > 0.0` sentinel then
+    // skips the 3BV/s update, so newBestBvPerSecond stays false even though
+    // newRecord may fire. Combo gate stays false → individual 🏆 flair only.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0, QDate{2026, 4, 26}, 0.0);
+    QVERIFY(out.newRecord);
+    QVERIFY(!out.newBestBvPerSecond);
+    QVERIFY(!(out.newRecord && out.newBestBvPerSecond));
 }
 
 QTEST_MAIN(TestStats)
