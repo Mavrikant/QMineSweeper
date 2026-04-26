@@ -1,5 +1,255 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 44 — v1.47.0 (autonomous)
+
+- **Chosen problem:** The v1.29 `bestSafePercent` field — per-difficulty
+  highest percentage of board ever cleared on a *loss* — has, since
+  v1.46.0 last cycle, a permanent column on the Stats dialog. But on
+  the **loss dialog** itself (the modal the player actually reads at
+  the moment of explosion), the field was invisible: the line "You
+  cleared 27% of the board." stood alone with no anchor against the
+  player's lifetime hall-of-fame partial-clear. Mirror gap of the
+  win-side `Average: %1 (best %2)` companion that's been on the win
+  dialog since v1.41 — the win-side has the just-played + lifetime
+  best paired together; the loss-side did not. v1.46.0 cycle log's
+  first listed next candidate, paraphrased: "Loss-dialog `Best
+  partial: X%` recap line. Surface the fresh `bestSafePercent` in the
+  loss dialog when the player has a prior partial-clear best for the
+  difficulty (parallel to the v1.41 win-side `(best %1)` companion to
+  the average line). Pure flair, one new translatable string. Loss-
+  side end-of-game-dialog beat — natural alternation slot after this
+  Stats-dialog cycle."
+- **Evidence:** `MainWindow::showEndDialog` (mainwindow.cpp:985 pre-
+  cycle) renders `tr("You cleared %1% of the board.").arg(...)` and
+  immediately moves on — no companion suffix, no anchor against the
+  prior record. Compare to mainwindow.cpp:1084-1091 pre-cycle which
+  renders the v1.42 `Average: %1` + `(best %1)` companion pair on the
+  same loss dialog. The v1.41/v1.42 pair-line idiom was already
+  established; the partial-clear line was the missing third instance.
+- **Shipped:**
+  - Branch: `feat/v1.47.0-loss-dialog-best-partial-companion` (squash-
+    merged + deleted)
+  - PR: [#65](https://github.com/Mavrikant/QMineSweeper/pull/65)
+  - Squash commit: `351a5f0`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.47.0
+  - Release workflow `24953720398` succeeded on the first run; all 5
+    jobs (Resolve tag → Linux/macOS/Windows builds → Publish Release)
+    green in ~2m. All 5 assets + `SHA256SUMS.txt` published (Linux
+    AppImage 35.9 MiB / tar.gz 35.6 MiB, macOS .dmg 23.2 MiB, Windows
+    .zip 44.1 MiB). Hand-written user-facing release notes installed
+    via `gh release edit --notes` covering the new companion line, the
+    when-it-shows-up matrix (standard / replay / Custom / first-loss),
+    the per-locale translation list, the per-platform install path
+    (incl. macOS quarantine clear), and SHA256SUMS verification.
+- **Code surface:** ~25 LOC of production diff in `mainwindow.cpp`
+  (one new local computation in `onGameLost` deriving the post-update
+  `lossBestSafePercent` from `priorRecord` + `lossOutcome`, one new
+  `if`-gated line in `showEndDialog` loss branch, one new param on
+  `showEndDialog` signature) + 1 LOC `mainwindow.h` (param) + ~85 LOC
+  `tests/tst_stats.cpp` (4 new tests) + 121 LOC `DECISIONS.md` + 1
+  LOC `CMakeLists.txt` version bump + 9 LOC `apply_translations.py`
+  (1 new key × 9 non-English locales) + 10 lupdate-managed `.ts`
+  location-only updates (1 new source string per locale). Real
+  code+tests diff well under the 400-LOC cycle cap.
+  - `mainwindow.cpp` `onGameLost`:
+    - Compute `lossBestSafePercent` post-recordLoss as
+      `lossOutcome.newBestSafePercent ? clamped(safePercent) : priorRecord.bestSafePercent`.
+      Defensive `int → uint32_t` clamp covers `safePercentCleared()`'s
+      contract being [0, 100] (already true; clamp is future-proofing).
+    - Pass through to `showEndDialog` as the new trailing parameter.
+  - `mainwindow.cpp` `showEndDialog` loss branch: append
+    `tr("(best %1%)").arg(lossBestSafePercent)` separated by a single
+    space when `lossBestSafePercent > 0`, on the same logical line as
+    the existing `tr("You cleared %1% of the board.")` anchor.
+    Mirrors the v1.41 win-side composition exactly.
+  - `mainwindow.cpp` `onGameWon`: pass `0u` for the new parameter
+    (line is loss-side only; the win path doesn't render it).
+  - `mainwindow.h`: add `std::uint32_t lossBestSafePercent` as the
+    24th `showEndDialog` parameter (trailing, additive).
+  - `tests/tst_stats.cpp`: 4 new tests under "post-recordLoss
+    `bestSafePercent` invariant" pinning the persistence-layer
+    contract the call-site formula reads:
+    - `testPostRecordLossLoadEqualsClampedInputOnNewBest` (covers
+      both nominal and clamp-to-100 overflow paths)
+    - `testPostRecordLossLoadPreservesPriorOnNonImprovingLoss` (tie
+      AND lower-percent paths)
+    - `testPostRecordLossLoadStaysAtPriorOnZeroPercent` (first-click
+      boom doesn't zero a prior record AND first-ever zero stays at 0)
+    - `testPostRecordLossLoadUnchangedWhenRecordLossSkipped` (replay
+      / Custom code path; verifies "Custom" load returns 0u for the
+      gate-hides case)
+  - `CMakeLists.txt`: version bump 1.46.0 → 1.47.0.
+  - `apply_translations.py`: `"(best %1%)"` added to all 9 non-
+    English locale dicts adjacent to the existing `"(best %1)"` keys.
+  - `.ts` files: lupdate adds the new key (115 → 116 source texts, 1
+    new + 115 existing) across all 10 locales; apply_translations
+    fills 113 keys per non-English locale (up from 112 last cycle —
+    the +1 matches the 1-new-string cycle budget exactly).
+- **Tests added:** 4 (extension to `tst_stats`). 10 test binaries, all
+  pass. Total tst_stats test count: 156 → 160.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (113 translations applied per non-
+  en locale). Hand translations:
+  - TR `"(en iyi %1%)"` ·
+    ES `"(mejor %1%)"` ·
+    FR `"(meilleur %1 %)"` (French non-breaking space before %) ·
+    DE `"(Rekord %1 %)"` (German non-breaking space; "Rekord" picked
+    over "Bestzeit" because the time-side noun doesn't fit a percent
+    context) ·
+    RU `"(лучшее %1%)"` ·
+    PT `"(melhor %1%)"` ·
+    ZH `"（最佳 %1%）"` (full-width parens to match the existing time-
+    companion) ·
+    HI `"(सर्वश्रेष्ठ %1%)"` ·
+    AR `"(الأفضل %1%)"`.
+  Each parallels the locale's existing `(best %1)` time-companion
+  vocabulary with a percent suffix, modulo the per-locale percent-
+  spacing convention pinned by each locale's existing
+  `"You cleared %1% of the board."` translation (FR/DE space, others
+  no space).
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports "Found
+    116 source text(s) (1 new and 115 already existing)" across all
+    10 locales — confirms exactly one net-new tr() string.
+  - `python3 translations/apply_translations.py` reports "113
+    translations applied" per non-English locale (up from 112 last
+    cycle, matching the 1-new-string budget).
+  - `cmake --build build` clean (no warnings); all 10 locales
+    generate `116 finished and 0 unfinished` `.qm` files.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 10/10
+    pass.
+  - `tst_stats` 160 passed / 0 failed (was 156); the 4 new tests all
+    pass.
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` — one
+    initial format violation in the long ternary line in onGameLost,
+    fixed by `clang-format -i mainwindow.cpp`; second dry-run clean.
+  - Offscreen app startup smoke (`QT_QPA_PLATFORM=offscreen` + 2s
+    sleep + pkill): no crashes, translation resources load.
+- **Adversarial self-review:**
+  - **What breaks this in production?**
+    - Default-constructed `Record` (pre-1.29 plist or fresh install)
+      → `priorRecord.bestSafePercent = 0u` → gate hides line ✓.
+    - First-ever loss with `safePercent > 0` → recordLoss returns
+      `newBestSafePercent = true` → call-site formula returns
+      clamped input → line renders `(best X%)` ✓ (pinned by
+      `testPostRecordLossLoadEqualsClampedInputOnNewBest`).
+    - First-click boom on fresh difficulty (`safePercent = 0`,
+      prior = 0) → line hidden ✓ (pinned by
+      `testPostRecordLossLoadStaysAtPriorOnZeroPercent`).
+    - First-click boom after a prior record → line renders the
+      lifetime anchor (the prior record stays intact) ✓.
+    - Replay loss on standard difficulty with prior record →
+      `lossOutcome` default-constructed → call-site falls back to
+      `priorRecord.bestSafePercent` → line renders ✓ (pinned by
+      `testPostRecordLossLoadUnchangedWhenRecordLossSkipped`).
+    - Custom-difficulty loss → `priorRecord.bestSafePercent = 0u`
+      for the "Custom" key → gate hides line ✓ (pinned by the same
+      test's Custom assertion).
+    - 100% partial-clear loss → renders `(best 100%)` ✓.
+    - Overflow input (`safePercent > 100`) → clamped to 100 in both
+      the call-site formula AND the persistence layer → values match
+      ✓ (pinned by the overflow assertion in
+      `testPostRecordLossLoadEqualsClampedInputOnNewBest`).
+  - **Backwards-compat?** Pure presentation. QSettings schema
+    unchanged. The `bestSafePercent` field has been persisted since
+    v1.29 and read identically. The new translation key does not
+    obsolete the existing v1.41 `(best %1)` key — both coexist.
+    `showEndDialog` gains a 24th parameter (trailing, additive); the
+    only call sites are `onGameWon` (passes 0u) and `onGameLost`
+    (passes the computed value), both updated atomically in the same
+    commit.
+  - **Error paths?** None. Render gate is a single `> 0` check; the
+    `arg()` call is on a clamped `[0, 100]` `uint32_t`. No allocation
+    failures, no exceptions.
+  - **Secrets / PII?** None. No telemetry change.
+  - **Performance?** O(1) per loss — one extra ternary, one extra
+    `tr()` lookup, one extra QString concat. No I/O.
+  - **Concurrency?** None — single-threaded UI; the call-site formula
+    has no shared state.
+  - **Visual regression?** Loss dialog grows by a single suffix on
+    one line when the gate fires. The v1.42 `Average: %1 (best %2)`
+    composition has shipped the same suffix-on-same-line idiom on the
+    same dialog for two cycles without complaint.
+- **Assumptions made:**
+  - **Distinct translation key from v1.41's `"(best %1)"`** rather
+    than reusing the existing key with `arg(QString::number(p) + "%")`.
+    The v1.46.0 cycle-log candidate explicitly budgets for "one new
+    translatable string"; a separate key gives translators flexibility
+    on punctuation (FR/DE non-breaking-space convention, ZH full-
+    width parens) and digit set (e.g. future Arabic-Indic numerals).
+    Documented in DECISIONS.md.
+  - **Suffix shape, not standalone line.** Mirrors the v1.41 win-side
+    `(best %1)` companion idiom that the cycle log explicitly
+    references with the phrase "parallel to the v1.41 win-side
+    `(best %1)` companion to the average line".
+  - **Render on replays / pre-existing record.** The line reflects
+    the per-difficulty lifetime record, not whether *this* loss
+    counted — same convention as the v1.42 `Last win:` and
+    `Average:` lines (which also load `priorRecord` regardless of
+    replay status). A replay loss on a difficulty the player has
+    cleared 80% on still reads `(best 80%)`, which is the correct
+    informative anchor.
+  - **Compute at call site, not via a new `LossOutcome` field.**
+    `recordLoss` already returns `newBestSafePercent`; combined with
+    the already-loaded `priorRecord.bestSafePercent` and the just-
+    played clamped `safePercent`, the post-update value is fully
+    derivable in one ternary. Adding `LossOutcome.bestSafePercentAfter`
+    would (a) duplicate state already reachable from the pre-call
+    load + the outcome flag, (b) require a fallback for replays /
+    Custom where `recordLoss` is skipped (defeating the purpose), and
+    (c) bloat the struct. The win-side `WinOutcome.bestSecondsAfter`
+    is necessary because the win-side has no pre-call `Stats::load`;
+    the loss-side does pre-load (since v1.42), so call-site
+    derivation is strictly simpler.
+- **Skipped:**
+  - *Stats-dialog "Slowest win" column.* Symmetric to Best time but
+    needs a new `slowestSeconds` accumulator and a QSettings schema
+    bump. Multi-cycle. Park.
+  - *Stats-dialog "Last loss" column.* Locale-formatted date of the
+    most-recent recorded loss for each difficulty. Pure presentation
+    but breaks the loss/win/stats alternation we're owed this cycle —
+    the previous cycle was already a Stats-dialog beat. Park.
+  - *Live UI smoke test via computer-use.* Cost > marginal value —
+    the unit tests pin the persistence-layer invariant the dialog
+    reads, the change parallels two existing companion-line patterns
+    (v1.41 win-side, v1.42 loss-side) that already work, and the
+    offscreen startup smoke confirmed the binary loads. Same trade-
+    off as the past four cycles' "Local verification" pattern.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.47.0` in the last hour returned **zero results**.
+  No new crashes, no spike on prior groups attributable to the 1.47.0
+  cut. Telemetry is opt-in and the release just shipped, so the
+  expected baseline volume is low; the signal worth watching for is
+  *any* new group tagged with the 1.47.0 release. None observed.
+  Watch closed.
+- **Next candidates:**
+  - **Loss-dialog `🎯 New best %!` flair message refresh.** The
+    current "🎯 New best %!" prepend (since v1.29) reads as raw and
+    a bit telegraphic; with the new `(best %1%)` companion now
+    showing the actual record on the very same dialog, the flair
+    could be tightened (e.g. "🎯 New best %% record!" or
+    "🎯 Personal best!") for parallelism with the win-side's "🏆
+    New record!" wording. One new translatable string, mutex with
+    the existing `🎯` flair via `else if`. Pure flair beat.
+  - **Win-dialog `(best %1)` companion to the `🏆 New record!` flair.**
+    Today the win dialog shows `🏆 New record!  You cleared the field
+    in 12.3.` — the new best is *implicit* in the message. A
+    parallel `(best 12.3)` suffix on the cleared-in line would make
+    the record value explicit, mirroring this cycle's loss-side
+    companion exactly. One existing translation key reused (`(best
+    %1)`), zero new strings — same translation-zero shape as v1.42.
+    Win-side beat to alternate with this loss-side cycle.
+  - **Stats-dialog "Best partial date" inline-anchor cell.** v1.46
+    shipped the `Best partial` column showing the percentage; the
+    underlying `bestSafePercentDate` field is loaded but not yet
+    surfaced. Mirror the existing inline-date treatment of `Best
+    time`: render `"65%  (25.04.2026)"` instead of bare `"65%"`. Zero
+    new translatable strings (the helper exists in
+    `safe_percent_format.h` since v1.46 and already accepts the
+    date). Pure presentation Stats-dialog beat.
+
 ## 2026-04-26 — Cycle 43 — v1.46.0 (autonomous)
 
 - **Chosen problem:** The v1.29 `bestSafePercent` field — per-difficulty
