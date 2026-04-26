@@ -83,6 +83,15 @@ class TestStats : public QObject
     void testLossOutcomeOverflowAtCapReturnsNoNewBest();
     void testLossOutcomeBoolConversion();
 
+    // post-recordLoss `bestSafePercent` invariant — drives the loss-dialog
+    // `(best %1%)` companion (v1.47). The dialog's call site reads
+    // `lossOutcome.newBestSafePercent ? clamped(safePercent) : priorRecord.bestSafePercent`;
+    // these tests pin the equivalence at the persistence-layer boundary.
+    void testPostRecordLossLoadEqualsClampedInputOnNewBest();
+    void testPostRecordLossLoadPreservesPriorOnNonImprovingLoss();
+    void testPostRecordLossLoadStaysAtPriorOnZeroPercent();
+    void testPostRecordLossLoadUnchangedWhenRecordLossSkipped();
+
     // best 3BV/s + WinOutcome.newBestBvPerSecond — `⚡ New best 3BV/s!` flair
     void testBestBvPerSecondDefaultsZero();
     void testRecordWinDefaultArgsKeepsBestBvPerSecondZero();
@@ -874,6 +883,83 @@ void TestStats::testLossOutcomeBoolConversion()
     QVERIFY(static_cast<bool>(first));
     const auto tie = Stats::recordLoss(QStringLiteral("Beginner"), 30, 0, QDate{2026, 4, 25});
     QVERIFY(!static_cast<bool>(tie));
+}
+
+void TestStats::testPostRecordLossLoadEqualsClampedInputOnNewBest()
+{
+    // When recordLoss returns newBestSafePercent=true, the post-update load
+    // must equal the clamped input. The v1.47 loss-dialog `(best %1%)`
+    // companion derives its rendered value from this invariant — if the
+    // persisted field diverges from the formula, the dialog renders a
+    // stale or impossible value.
+    const auto out = Stats::recordLoss(QStringLiteral("Beginner"), 47, 0, QDate{2026, 4, 25});
+    QVERIFY(out.newBestSafePercent);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSafePercent, 47u);
+
+    // Overflow path: `safePercent > 100` clamps to 100 in the persisted
+    // record; the dialog's call-site formula clamps to the same ceiling so
+    // the rendered value matches.
+    const auto outOverflow = Stats::recordLoss(QStringLiteral("Expert"), 250, 0, QDate{2026, 4, 25});
+    QVERIFY(outOverflow.newBestSafePercent);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 100u);
+}
+
+void TestStats::testPostRecordLossLoadPreservesPriorOnNonImprovingLoss()
+{
+    // Tie and lower-percent losses leave the field at the prior record;
+    // the loss-dialog companion must render the unchanged record (NOT the
+    // just-played lower value), which is what the call-site formula does
+    // by falling back to `priorRecord.bestSafePercent` when
+    // `newBestSafePercent` is false.
+    Stats::recordLoss(QStringLiteral("Expert"), 70, 0, QDate{2026, 1, 1});
+    const auto tie = Stats::recordLoss(QStringLiteral("Expert"), 70, 0, QDate{2026, 4, 25});
+    QVERIFY(!tie.newBestSafePercent);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 70u);
+
+    const auto lower = Stats::recordLoss(QStringLiteral("Expert"), 50, 0, QDate{2026, 4, 25});
+    QVERIFY(!lower.newBestSafePercent);
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).bestSafePercent, 70u);
+}
+
+void TestStats::testPostRecordLossLoadStaysAtPriorOnZeroPercent()
+{
+    // First-click boom (safePercent == 0) on a difficulty with a prior
+    // record must NOT zero the persisted field — the dialog companion
+    // would otherwise vanish after a single bad loss. The call-site
+    // formula collapses to `priorRecord.bestSafePercent` because the 0%
+    // input cannot satisfy the strict-greater-than gate, so the persisted
+    // field also stays at the prior value.
+    Stats::recordLoss(QStringLiteral("Beginner"), 65, 0, QDate{2026, 1, 1});
+    const auto zeroLoss = Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, QDate{2026, 4, 25});
+    QVERIFY(!zeroLoss.newBestSafePercent);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).bestSafePercent, 65u);
+
+    // First-ever loss with safePercent == 0 leaves the field at its
+    // default-constructed 0 — the dialog gate `lossBestSafePercent > 0`
+    // hides the companion line in this case.
+    const auto firstZero = Stats::recordLoss(QStringLiteral("Intermediate"), 0, 0, QDate{2026, 4, 25});
+    QVERIFY(!firstZero.newBestSafePercent);
+    QCOMPARE(Stats::load(QStringLiteral("Intermediate")).bestSafePercent, 0u);
+}
+
+void TestStats::testPostRecordLossLoadUnchangedWhenRecordLossSkipped()
+{
+    // Replays / Custom games skip recordLoss, so the persisted field stays
+    // at whatever the prior record was. The call-site formula handles this
+    // by falling back to `priorRecord.bestSafePercent` (lossOutcome stays
+    // default-constructed with newBestSafePercent=false). Pin the
+    // persistence side of that contract: a load taken before *and* after
+    // skipping recordLoss must return the same value.
+    Stats::recordLoss(QStringLiteral("Expert"), 80, 0, QDate{2026, 1, 1});
+    const auto pre = Stats::load(QStringLiteral("Expert")).bestSafePercent;
+    QCOMPARE(pre, 80u);
+    // Simulate the replay/custom code path: no recordLoss call.
+    const auto post = Stats::load(QStringLiteral("Expert")).bestSafePercent;
+    QCOMPARE(post, pre);
+
+    // Custom-difficulty parallel: never any record, load returns 0 — the
+    // dialog gate hides the companion line for custom games.
+    QCOMPARE(Stats::load(QStringLiteral("Custom")).bestSafePercent, 0u);
 }
 
 void TestStats::testBestBvPerSecondDefaultsZero()
