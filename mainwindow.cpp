@@ -557,7 +557,7 @@ void MainWindow::onGameWon()
     // so the outcome is the default-constructed WinOutcome with zeroed
     // wins/average; threshold-gating in the dialog handles the rest.
     showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0, false,
-                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u, (outcome.winsAfter >= 3) ? outcome.bestSecondsAfter : 0.0);
+                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u, (outcome.winsAfter >= 3) ? outcome.bestSecondsAfter : 0.0, 0.0, 0.0);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -583,14 +583,30 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
     // record, mirroring the v1.32 loss-dialog gate that hides the
     // `Correct flags: %1 / %2` line when `flagsPlaced == 0`.
     const int flagAccuracyPercent = (flags > 0) ? static_cast<int>(std::lround(100.0 * correctFlags / flags)) : 0;
-    // Read the prior lastWinDate *before* recordLoss runs (recordLoss doesn't
-    // touch it, but loading once and passing the value keeps the read explicit
-    // at the call site and makes the "no prior win → invalid → don't render"
-    // gate easy to follow). For custom games / replays we still load — the
-    // line reflects the per-difficulty record, not whether this loss was
-    // counted; on Custom the load returns the default-constructed record with
-    // an invalid `lastWinDate` so the line stays hidden.
-    const QDate priorLastWinDate = Stats::load(diffName).lastWinDate;
+    // Read the full prior record *before* recordLoss runs. Three loss-dialog
+    // lines depend on per-difficulty win history that recordLoss doesn't touch:
+    // `Last win: %1` (lastWinDate), `Average: %1` (totalSecondsWon / won), and
+    // its `(best %1)` companion (bestSeconds). Loading once and passing the
+    // values keeps the read explicit at the call site and makes the "no prior
+    // win → don't render" gates easy to follow. For custom games / replays we
+    // still load — the lines reflect the per-difficulty record, not whether
+    // this loss was counted; on Custom the load returns the default-constructed
+    // record with `won == 0` and an invalid `lastWinDate` so all three lines
+    // stay hidden.
+    const Stats::Record priorRecord = Stats::load(diffName);
+    const QDate priorLastWinDate = priorRecord.lastWinDate;
+    // Loss-side mirror of the win-side `winsAfter >= 3` gate. The same
+    // threshold reasoning applies: fewer than three wins reduces to "average is
+    // the best time" (n=1) or "single data point of variation" (n=2), neither
+    // informative. `totalSecondsWon > 0.0` defends the divisor against the
+    // pathological all-sub-tick case (won=3 but every win was 0.0s).
+    const double lossAverageSeconds = (priorRecord.won >= 3 && priorRecord.totalSecondsWon > 0.0) ? (priorRecord.totalSecondsWon / priorRecord.won) : 0.0;
+    // Companion to the loss-side Average line — same gate as the win-side
+    // `(best %2)` suffix: only render when the Average renders, since the
+    // suffix without the anchor line would lose its referent. Same defensive
+    // `> 0.0` guard preserved at the call site so a stray default-constructed
+    // record can't render `(best 0.0)`.
+    const double lossBestSeconds = (lossAverageSeconds > 0.0) ? priorRecord.bestSeconds : 0.0;
     Stats::LossOutcome lossOutcome{};
     if (!m_isReplay && !m_isCustom)
     {
@@ -625,7 +641,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("new_best_flag_accuracy"), lossOutcome.newBestFlagAccuracyPercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
     showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags, lossOutcome.newBestFlagAccuracyPercent, 0.0, priorLastWinDate,
-                  lossOutcome.priorStreak, 0.0);
+                  lossOutcome.priorStreak, 0.0, lossAverageSeconds, lossBestSeconds);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -837,7 +853,7 @@ void MainWindow::updateTimerLabel()
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
                                int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds,
-                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak, double winBestSeconds)
+                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak, double winBestSeconds, double lossAverageSeconds, double lossBestSeconds)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -1007,6 +1023,24 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (lossLastWinDate.isValid())
         {
             text += QStringLiteral("\n") + tr("Last win: %1").arg(QLocale().toString(lossLastWinDate, QLocale::ShortFormat));
+        }
+        // Loss-side mirror of the v1.36 win-dialog `Average: %1` line and v1.41
+        // `(best %2)` companion. Surfaces the lifetime mean winning time on the
+        // current difficulty so the player has the same lifetime-context anchor
+        // on losses as they have on wins. Same `>= 3 wins` threshold as the
+        // win-side (encoded by the call site passing 0.0 below the gate); same
+        // `tr("Average: %1")` and `tr("(best %1)")` keys as the win-side, so
+        // every existing hand translation carries over with zero churn.
+        // Rendered after `Last win:` so the closing arc reads "you've done this
+        // before (Last win) → here's your typical pace (Average) → here's how
+        // close that pace was to your best (best …)".
+        if (lossAverageSeconds > 0.0)
+        {
+            text += QStringLiteral("\n") + tr("Average: %1").arg(formatElapsedTime(lossAverageSeconds));
+            if (lossBestSeconds > 0.0)
+            {
+                text += QStringLiteral(" ") + tr("(best %1)").arg(formatElapsedTime(lossBestSeconds));
+            }
         }
         // Mirror of the win-side `🏆 New record!` prepend: a fresh per-difficulty
         // partial-clear hall-of-fame entry deserves a celebratory flair on the

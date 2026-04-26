@@ -155,6 +155,19 @@ class TestStats : public QObject
     void testLegacyRecordWithoutLastWinDateLoadsAsInvalid();
     void testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid();
 
+    // Loss-dialog "Average: %1 (best %2)" lifetime-mean line — pin the
+    // loaded-record contract the loss-side render gate reads. The win-side gate
+    // is already pinned via WinOutcome.{winsAfter,averageSecondsAfter,bestSecondsAfter};
+    // the loss path doesn't have a recordLoss-returned outcome to thread the
+    // mean, so it computes from `Stats::load(diff).{won,totalSecondsWon,bestSeconds}`
+    // directly. These tests pin that contract explicitly.
+    void testLoadAfterThreeWinsExposesAverageForLossDialog();
+    void testLoadAfterThreeWinsExposesBestForLossDialog();
+    void testLoadAfterTwoWinsBelowLossDialogGate();
+    void testLoadAfterAllSubTickWinsLeavesLossDialogGateClosed();
+    void testLoadAfterMixedSubTickAndRealWinsForLossDialog();
+    void testLoadAfterLossDoesNotDisturbAverageForLossDialog();
+
     // LossOutcome.priorStreak — drives the loss-dialog "💔 Streak ended at %1" line
     void testLossOutcomeDefaultPriorStreakIsZero();
     void testFirstEverLossPriorStreakIsZero();
@@ -1578,6 +1591,113 @@ void TestStats::testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid()
     QCOMPARE(r.won, 50u);
     QCOMPARE(r.bestDate, QDate(2025, 6, 1));
     QVERIFY(!r.lastWinDate.isValid()); // not back-filled
+}
+
+// Loss-dialog "Average: %1 (best %2)" line — these tests pin the
+// loaded-record contract `MainWindow::onGameLost` reads. The win path
+// threads the mean through WinOutcome.{averageSecondsAfter,bestSecondsAfter}
+// (covered by the WinOutcome tests above); the loss path has no
+// recordLoss-returned field for the mean, so it computes from
+// `Stats::load(diff).{won,totalSecondsWon,bestSeconds}` directly with the
+// same `won >= 3 && totalSecondsWon > 0.0` gate the win-side encodes via
+// `winsAfter >= 3`. These tests pin that loss-side contract explicitly so a
+// future refactor of the load shape can't silently break the loss-dialog
+// render gate.
+
+void TestStats::testLoadAfterThreeWinsExposesAverageForLossDialog()
+{
+    // Canonical n=3 ao3 mean (10/20/30 → 20.0). Pinned against the same
+    // (load → divide) sequence the loss path runs every game-lost dispatch.
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 3u);
+    QCOMPARE(r.totalSecondsWon, 60.0);
+    QVERIFY(r.totalSecondsWon > 0.0); // gate satisfied
+    QCOMPARE(r.totalSecondsWon / r.won, 20.0);
+}
+
+void TestStats::testLoadAfterThreeWinsExposesBestForLossDialog()
+{
+    // Companion: when the loss-side Average line renders, the (best %1)
+    // suffix anchors against r.bestSeconds (= fastest of the three wins).
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 18.0); // new best
+    Stats::recordWin(QStringLiteral("Beginner"), 24.0);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 3u);
+    QCOMPARE(r.bestSeconds, 18.0);
+    QCOMPARE(r.totalSecondsWon, 72.0);
+    QVERIFY(r.bestSeconds > 0.0); // (best %1) suffix gate satisfied
+}
+
+void TestStats::testLoadAfterTwoWinsBelowLossDialogGate()
+{
+    // Below the gate (n=2): the persisted record is internally consistent
+    // (won=2, totalSecondsWon=mean·n), but the loss-side `won >= 3` gate
+    // hides the line. Same threshold reasoning as the win-side: n<3 is
+    // not informative ("the average is the best" / "single data point").
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 2u);
+    QCOMPARE(r.totalSecondsWon, 30.0);
+    QVERIFY(r.won < 3u); // gate-closed: loss dialog must hide
+}
+
+void TestStats::testLoadAfterAllSubTickWinsLeavesLossDialogGateClosed()
+{
+    // Pathological all-sub-tick case: won=3 (gate's n threshold satisfied)
+    // but totalSecondsWon stays 0.0 because every recordWin gated on
+    // `seconds > 0.0`. The loss-side compound gate (`won>=3 && total>0.0`)
+    // still hides the line — same defensive divisor guard the win-side
+    // applies in `recordWin` itself.
+    Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 3u);
+    QCOMPARE(r.totalSecondsWon, 0.0);
+    QCOMPARE(r.bestSeconds, 0.0); // suffix would be hidden too
+}
+
+void TestStats::testLoadAfterMixedSubTickAndRealWinsForLossDialog()
+{
+    // Mixed sub-tick + real wins: the divisor stays at the *count of all
+    // counted wins* (won=3 here), but the numerator only includes the
+    // real ones (12.0 + 0.0 + 18.0 = 30.0). The mean (10.0) is therefore
+    // ~lower than it would be if we'd divided by the real-only count (2),
+    // matching the win-side's `recordWin` behaviour. This pins the
+    // loss-side contract against a refactor that switches the divisor.
+    Stats::recordWin(QStringLiteral("Beginner"), 12.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 0.0); // sub-tick counts toward won
+    Stats::recordWin(QStringLiteral("Beginner"), 18.0);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 3u);
+    QCOMPARE(r.totalSecondsWon, 30.0);
+    QCOMPARE(r.totalSecondsWon / r.won, 10.0);
+    QCOMPARE(r.bestSeconds, 12.0); // best ignores sub-tick same as accumulator
+}
+
+void TestStats::testLoadAfterLossDoesNotDisturbAverageForLossDialog()
+{
+    // Pin: a loss after 3 wins must leave the loss-side render numbers
+    // identical (recordLoss touches played/streak/partial-best fields, NOT
+    // totalSecondsWon / won / bestSeconds). The loss dialog opens *after*
+    // recordLoss runs in MainWindow::onGameLost, so this is the precise
+    // state the dialog sees. (Aside from priorRecord being read pre-recordLoss,
+    // which doesn't matter for the win-history fields.)
+    Stats::recordWin(QStringLiteral("Beginner"), 10.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordLoss(QStringLiteral("Beginner"));
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 4u);
+    QCOMPARE(r.won, 3u); // unchanged
+    QCOMPARE(r.totalSecondsWon, 60.0);
+    QCOMPARE(r.bestSeconds, 10.0);
+    QCOMPARE(r.totalSecondsWon / r.won, 20.0); // average unchanged
 }
 
 void TestStats::testLossOutcomeDefaultPriorStreakIsZero()
