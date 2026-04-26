@@ -5,6 +5,7 @@
 #include "bv_per_second_format.h"
 #include "flag_accuracy_format.h"
 #include "language.h"
+#include "safe_percent_format.h"
 #include "stats.h"
 #include "telemetry.h"
 #include "time_format.h"
@@ -1171,8 +1172,8 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(4, 10, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Average"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best flag accuracy"), tr("Last win")});
+    auto *table = new QTableWidget(4, 11, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Average"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best partial"), tr("Best flag accuracy"), tr("Last win")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -1221,24 +1222,6 @@ void MainWindow::showStatsDialog()
         }
         return s;
     };
-    // Best-time cell with a partial-clear hall-of-fame fallback for
-    // difficulties the player has never won — shows the highest
-    // safe-percent ever reached on a loss as "— (best 87%, 25.04.2026)"
-    // instead of a bare em-dash. Once a win is recorded the best-time
-    // value supersedes the partial-clear annotation entirely (the
-    // partial-best stays in QSettings but is no longer surfaced).
-    const auto formatBestTimeOrPartial = [this, &formatBest](const Stats::Record &rec)
-    {
-        if (rec.bestSeconds > 0.0)
-        {
-            return formatBest(rec.bestSeconds, rec.bestDate);
-        }
-        if (rec.won == 0 && rec.bestSafePercent > 0 && rec.bestSafePercentDate.isValid())
-        {
-            return tr("— (best %1%, %2)").arg(rec.bestSafePercent).arg(QLocale().toString(rec.bestSafePercentDate, QLocale::ShortFormat));
-        }
-        return QStringLiteral("—");
-    };
     // Last-win cell: locale-formatted date of the player's most-recent counted
     // win for this difficulty. Mirrors the v1.37.0 loss-dialog "Last win: %1"
     // line so a player who reads the loss dialog and then opens Stats sees the
@@ -1262,25 +1245,33 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 0, new QTableWidgetItem(tr(rows[i].label)));
         table->setItem(i, 1, new QTableWidgetItem(QString::number(rec.played)));
         table->setItem(i, 2, new QTableWidgetItem(QString::number(rec.won) + winRate));
-        table->setItem(i, 3, new QTableWidgetItem(formatBestTimeOrPartial(rec)));
+        table->setItem(i, 3, new QTableWidgetItem(formatBest(rec.bestSeconds, rec.bestDate)));
         table->setItem(i, 4, new QTableWidgetItem(formatAverageCell(rec.totalSecondsWon, rec.won)));
         table->setItem(i, 5, new QTableWidgetItem(formatBest(rec.bestNoflagSeconds, rec.bestNoflagDate)));
         table->setItem(i, 6, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
         table->setItem(i, 7, new QTableWidgetItem(formatBvPerSecondCell(rec.bestBvPerSecond, rec.bestBvPerSecondDate)));
-        table->setItem(i, 8, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
-        table->setItem(i, 9, new QTableWidgetItem(formatLastWin(rec.lastWinDate)));
+        // Best partial: per-difficulty highest board-coverage percentage ever
+        // reached on a *loss* (v1.29 `bestSafePercent`). Pre-1.46 this lived
+        // as a fallback inside the Best-time cell that gated off as soon as
+        // any win was recorded — surfaced now in its own column so the
+        // partial-clear hall of fame stays visible regardless of win count,
+        // mirroring the dedicated Best-flag-accuracy column added in v1.33.
+        table->setItem(i, 8, new QTableWidgetItem(formatSafePercentCell(static_cast<int>(rec.bestSafePercent), rec.bestSafePercentDate)));
+        table->setItem(i, 9, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
+        table->setItem(i, 10, new QTableWidgetItem(formatLastWin(rec.lastWinDate)));
         totalPlayed += rec.played;
         totalWon += rec.won;
     }
     // "Total" row aggregates Played and Won across all three difficulties.
-    // Best-time / average / best-streak / best-3BV/s / best-flag-accuracy /
-    // last-win columns collapse to em-dash because per-difficulty bests
-    // don't sum or average meaningfully across difficulties of different
-    // sizes (the global lifetime mean `sum(totalSecondsWon)/sum(won)` is
-    // mathematically defined but mostly reflects whichever difficulty the
-    // player plays most — noise, not signal). And "last win across any
-    // difficulty" would just shadow whichever per-row date is most recent —
-    // duplicate signal, not new information.
+    // Best-time / average / best-streak / best-3BV/s / best-partial /
+    // best-flag-accuracy / last-win columns collapse to em-dash because
+    // per-difficulty bests don't sum or average meaningfully across
+    // difficulties of different sizes (the global lifetime mean
+    // `sum(totalSecondsWon)/sum(won)` is mathematically defined but mostly
+    // reflects whichever difficulty the player plays most — noise, not
+    // signal). And "last win across any difficulty" would just shadow
+    // whichever per-row date is most recent — duplicate signal, not new
+    // information.
     const QString totalWinRate = totalPlayed > 0 ? QStringLiteral(" (%1%)").arg(100 * totalWon / totalPlayed) : QString{};
     QFont totalFont = table->font();
     totalFont.setBold(true);
@@ -1300,6 +1291,7 @@ void MainWindow::showStatsDialog()
     table->setItem(3, 7, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 8, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 9, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 10, makeTotalItem(QStringLiteral("—")));
     table->resizeColumnsToContents();
 
     layout->addWidget(table);
