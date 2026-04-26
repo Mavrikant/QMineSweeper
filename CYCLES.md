@@ -1,5 +1,263 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 43 — v1.46.0 (autonomous)
+
+- **Chosen problem:** The v1.29 `bestSafePercent` field — per-difficulty
+  highest percentage of board ever cleared on a *loss* — has no
+  permanent home in the Stats dialog. Pre-1.46 it lived only as a
+  fallback inside the **Best time** cell ("— (best 87%, 25.04.2026)")
+  that gated off as soon as the player recorded any win on that
+  difficulty. Once a Beginner player got their first win, their
+  partial-clear hall-of-fame entry vanished from the Stats dialog
+  forever. v1.45.0 cycle log called this out as the first listed next
+  candidate, paraphrased: "Loss-dialog 'Best loss' stats column.
+  Surface the v1.29 `bestSafePercent` (+ v1.33 `bestFlagAccuracyPercent`)
+  as a single cell on the Stats dialog (currently only the win-side
+  records are columnized). Pure presentation, no schema change.
+  Loss-side beat — natural alternation slot after this win-side
+  cycle." Premise was partly stale (`bestFlagAccuracyPercent` IS
+  already its own column since v1.33), so the actual gap is the
+  partial-clear field's missing dedicated column. Also: the past four
+  cycles (v1.42–v1.45) were all end-of-game-dialog beats; a Stats-
+  dialog beat is overdue (last one was v1.40's "Average" column).
+- **Evidence:** `MainWindow::showStatsDialog` (mainwindow.cpp:1175
+  pre-cycle) renders 10 columns. `formatBestTimeOrPartial` lambda
+  (mainwindow.cpp:1230-1241 pre-cycle) gates on `rec.won == 0` to
+  show the partial-clear inline; once `won > 0`, the partial signal
+  is dropped from view (the underlying field stays in QSettings,
+  unread). The v1.33 "Best flag accuracy" column proves the loss-
+  side hall-of-fame pattern works as a dedicated column; the safe-
+  percent field never got the same treatment.
+- **Shipped:**
+  - Branch: `feat/v1.46.0-stats-best-partial-column` (squash-merged
+    + deleted)
+  - PR: [#64](https://github.com/Mavrikant/QMineSweeper/pull/64)
+  - Squash commit: `3d03adb`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.46.0
+  - Release workflow `24952591117` succeeded on the first run; all
+    5 jobs (Resolve tag → Linux/macOS/Windows builds → Publish
+    Release) green in ~2m. All 5 assets + `SHA256SUMS.txt`
+    published (Linux AppImage 35.9 MiB / tar.gz 35.6 MiB, macOS .dmg
+    23.2 MiB, Windows .zip 44.1 MiB). Hand-written user-facing
+    release notes installed via `gh release edit --notes` covering
+    the new column, the loss-vs-win row split (Best time empty until
+    win, Best partial filled from first cleared loss), the per-
+    platform install path (incl. macOS quarantine clear), and the
+    SHA256SUMS verification command.
+- **Code surface:** ~50 LOC of production diff in `mainwindow.cpp`
+  (column count 10 → 11, header insert, per-row formatter call,
+  Total-row em-dash filler, dropped `formatBestTimeOrPartial`
+  lambda) + 41 LOC `safe_percent_format.h` + 105 LOC
+  `tests/tst_safe_percent_format.cpp` (9 tests) + 1 LOC test
+  CMakeLists registration + 1 LOC `CMakeLists.txt` version bump
+  + 9 LOC apply_translations.py (1 new key × 9 non-English locales,
+  1 obsolete key removed) + 10 lupdate-managed `.ts` location-only
+  updates (1 new source string + 1 obsolete entry per locale).
+  Real code+tests diff well under the 400-LOC cycle cap.
+  - `safe_percent_format.h`: new `formatSafePercentCell(int, QDate)`
+    helper, byte-equivalent to `formatFlagAccuracyCell` today;
+    accept range `(0, 100]`, two-space-then-parens-date layout.
+    Kept as a separate file so a future per-axis format tweak (e.g.
+    one-decimal safe-percent vs. integer flag-accuracy) can land
+    without untangling a shared helper.
+  - `mainwindow.cpp` `showStatsDialog`:
+    - Column count 10 → 11; new header `tr("Best partial")` inserted
+      at index 8 (between `tr("Best 3BV/s")` and
+      `tr("Best flag accuracy")` — keeps loss-side records grouped
+      at indices 8–9).
+    - Per-row: `setItem(i, 8, formatSafePercentCell(static_cast<int>(rec.bestSafePercent), rec.bestSafePercentDate))`.
+    - `setItem(i, 9, …)` for flag accuracy and `setItem(i, 10, …)`
+      for last-win shift one slot right.
+    - Total-row `setItem(3, 10, "—")` appended; existing 3-9 em-
+      dashes preserved.
+    - Dropped: `formatBestTimeOrPartial` lambda and its
+      `tr("— (best %1%, %2)")` source string. Best-time cell now
+      reads `formatBest(rec.bestSeconds, rec.bestDate)` directly —
+      empty `—` until the first counted win, then the time and date.
+  - `tests/tst_safe_percent_format.cpp`: 9 tests mirroring
+    `tst_flag_accuracy_format.cpp` 1:1: `testZeroRendersAsEmDash`,
+    `testNegativeRendersAsEmDash`, `testOver100RendersAsEmDash`,
+    `testPositiveWithoutDateRendersPercentSuffix`,
+    `testPositiveWithDateAppendsLocaleShortDate`,
+    `test100PercentBoundary`, `test1PercentBoundary`,
+    `testInvalidDateFallsBackToValueOnly`,
+    `testTwoSpaceSeparatorBeforeDate`.
+  - `CMakeLists.txt`: version bump 1.45.0 → 1.46.0.
+  - `tests/CMakeLists.txt`: `qms_add_test(tst_safe_percent_format)`
+    appended.
+  - `apply_translations.py`: `"Best partial"` added to all 9 non-
+    English locale dicts; obsolete `"— (best %1%, %2)"` removed
+    from all 9.
+  - `.ts` files: lupdate adds the new key (115 source texts, 1 new +
+    114 existing) and marks `"— (best %1%, %2)"` as `type="obsolete"`
+    across all 10 locales; apply_translations fills 112 keys per
+    non-English locale (one obsolete entry no longer counted in
+    finished total).
+- **Tests added:** 9 (new `tst_safe_percent_format` binary). 10 test
+  binaries total now, all pass. `tst_safe_percent_format` 9/9 pass;
+  the existing tst_stats 156/156 also pass unchanged (the persistence
+  layer for `bestSafePercent` was already covered by the v1.29 tests
+  at lines 656-805).
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales, 1 obsolete string removed (net 0 change). Hand
+  translations:
+  - TR `"En iyi kısmi"` ·
+    ES `"Mejor parcial"` ·
+    FR `"Record partiel"` ·
+    DE `"Bester Teilerfolg"` ·
+    RU `"Лучший процент"` ·
+    PT `"Recorde parcial"` ·
+    ZH `"最佳完成度"` ·
+    HI `"सर्वश्रेष्ठ आंशिक"` ·
+    AR `"أفضل جزئي"`.
+  Pattern matches each locale's existing "Best …" column-header
+  vocabulary (e.g. TR `"En iyi"`, ES `"Mejor"`, FR `"Record"`, DE
+  `"Beste"`/`"Bester"`, RU `"Лучший"`/`"Лучшая"`, PT `"Recorde"`,
+  ZH `"最佳"`, HI `"सर्वश्रेष्ठ"`, AR `"أفضل"`).
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "Found 115 source text(s) (1 new and 114 already existing)" +
+    "Kept 1 obsolete entries" across all 10 locales — confirms one
+    net-new tr() key plus one removal preserved as obsolete.
+  - `python3 translations/apply_translations.py` reports `112
+    translations applied` per non-English locale (down from 113
+    pre-cycle because the removed obsolete string is no longer in
+    the dicts; the `Best partial` add nets back to a clean delta).
+  - `cmake --build build` clean (no warnings); all 10 locales
+    generate `115 finished and 0 unfinished` `.qm` files.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 10/10
+    pass (added `tst_safe_percent_format` binary, 9 cases all pass;
+    existing 9 binaries unchanged).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+- **Adversarial self-review:**
+  - **What breaks this in production?**
+    - Default-constructed `Record` (pre-1.29 plist or fresh
+      install) → `bestSafePercent=0` → cell renders `"—"` (pinned
+      by `testZeroRendersAsEmDash`) ✓.
+    - First-ever loss with positive `safePercent` → cell renders
+      `"X%  (today)"` (pinned by
+      `testPositiveWithDateAppendsLocaleShortDate`) ✓.
+    - **Player wins after recording a partial** → cell still shows
+      the partial — no longer hidden by the win-count gate. This
+      is the deliberate UX cleanup; the partial-clear hall-of-fame
+      entry stays visible regardless of subsequent wins ✓.
+    - 100% partial-clear (last cell before victory loss) → cell
+      renders `"100%  (...)"` (pinned by `test100PercentBoundary`) ✓.
+    - 1% lower-bound boundary → cell renders `"1%  (...)"` (pinned
+      by `test1PercentBoundary`) ✓.
+    - Out-of-range percent (defence in depth — the persistence
+      layer already clamps to [0, 100]) → collapses to `"—"`
+      (pinned by `testOver100RendersAsEmDash` and
+      `testNegativeRendersAsEmDash`) ✓.
+    - Invalid date (default-constructed) → cell renders `"X%"`
+      without parens suffix (pinned by
+      `testInvalidDateFallsBackToValueOnly`) ✓.
+    - `static_cast<int>(rec.bestSafePercent)` — `bestSafePercent`
+      is `uint32_t` clamped to [0, 100] by the persistence layer;
+      the cast is safe (no truncation, no UB). Defence-in-depth
+      out-of-range guard in the helper catches any future call-
+      site bug ✓.
+  - **Backwards-compat?** Pure presentation. QSettings schema
+    unchanged. `bestSafePercent` / `bestSafePercentDate` are read
+    identically (since v1.29). The removed translation source
+    string is preserved as `type="obsolete"` in each `.ts` file
+    by lupdate; Qt simply stops looking it up at runtime — no
+    migration, no signature break. **Visible behaviour change** for
+    pre-1.46 first-time-on-difficulty players: the Best-time cell
+    no longer shows the partial-clear fallback; same data lives in
+    the new dedicated column instead. Net signal preserved,
+    presentation cleaner.
+  - **Error paths?** `formatSafePercentCell` is pure — no
+    exceptions, no allocations beyond the QString return. Out-of-
+    range inputs collapse to `"—"` rather than rendering nonsense.
+  - **Secrets / PII?** None. No telemetry change. Pure presentation.
+  - **Performance?** O(1) per cell × 3 rows; same scaling as the
+    rest of the table. `resizeColumnsToContents()` cost grows
+    linearly with column count — 11/10 = 10% increase, negligible.
+  - **Concurrency?** None — single-threaded UI; the format helper
+    has no shared state.
+  - **Visual regression?** Stats table grows from 10 to 11 columns.
+    The dialog has `setStretchLastSection(true)` and
+    `resizeColumnsToContents()`; horizontal scroll appears if the
+    user shrinks the dialog. Existing column widths stay roughly
+    the same; the new column slots in at index 8, pushing
+    flag-accuracy and last-win one slot right. Total-row em-dash
+    layout extended cleanly.
+- **Assumptions made:**
+  - **Drop the Best-time fallback rather than keep it alongside the
+    new column.** Keeping both would show the same partial-clear
+    data twice on a no-wins row (`Best time: "— (best 87%, ...)"`
+    and `Best partial: "87%  (...)"`), which is confusing
+    redundancy. Cleaner UX: Best-time stays empty until the first
+    win, Best-partial fills from the first cleared loss. The
+    partial-clear hall-of-fame entry now lives in one place
+    consistently.
+  - **Column slot index 8** (between Best 3BV/s and Best flag
+    accuracy) — groups loss-side records (Best partial + Best flag
+    accuracy) at adjacent indices 8–9, mirroring the chronological
+    add order (v1.29 partial-clear, v1.33 flag accuracy). Last-win
+    stays at the rightmost slot as a recency anchor.
+  - **Dedicated `safe_percent_format.h` over reusing
+    `formatFlagAccuracyCell`.** The two helpers are byte-equivalent
+    today, but the project pattern is one `<metric>_format.h` per
+    cell type (see `time_format.h`, `bv_per_second_format.h`,
+    `flag_accuracy_format.h`, `average_time_format.h`). Following
+    the pattern keeps a future per-axis format tweak (e.g. one-
+    decimal safe-percent) from requiring a refactor to extract
+    the shared helper. CLAUDE.md "three similar lines is better
+    than a premature abstraction" applies the other way: keeping
+    them separate is the *concrete* path; merging into a generic
+    `formatPercentCell` would be the premature abstraction.
+  - **Header naming `"Best partial"` over `"Best loss"` /
+    `"Best clear"` / `"Best % cleared"`.** "Best partial" is
+    short, fits the column-header voice (matches `"Best time"`,
+    `"Best (no flag)"`, `"Best 3BV/s"`, `"Best flag accuracy"`),
+    and reads as "best partial-clear" without spelling out the
+    five-syllable noun. "Best loss" reads ambiguously (could mean
+    "smallest defeat" with a darker connotation); "Best clear"
+    overlaps with the "completed-the-board" Best-time concept;
+    "Best % cleared" is verbose for a column header.
+- **Skipped:**
+  - *Date as a separate column rather than parens-inline.* Would
+    bloat the dialog to 12 columns and require new column-header
+    translations. The parens-inline date matches every other
+    record cell (Best time, Best (no flag), Streak, Best 3BV/s,
+    Best flag accuracy) — consistency wins.
+  - *Loss-dialog "Best partial: X%" recap line.* Would mirror the
+    win-side `"(best %1)"` companion to `"Average: %1"`. Park as
+    a future loss-dialog beat — the next-candidate slot for
+    end-of-game-dialog alternation.
+  - *Telemetry tag for the new column.* Pure presentation, no
+    new signal worth tracking; the underlying `bestSafePercent`
+    field's persistence is already exercised by the v1.29 tests.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.46.0` in the last hour returned **zero results**.
+  No new crashes, no spike on prior groups attributable to the
+  1.46.0 cut. Telemetry is opt-in and the release just shipped, so
+  the expected baseline volume is low; the signal worth watching
+  for is *any* new group tagged with the 1.46.0 release. None
+  observed. Watch closed.
+- **Next candidates:**
+  - **Loss-dialog "Best partial: X%" recap line.** Surface the
+    fresh `bestSafePercent` in the loss dialog when the player
+    has a prior partial-clear best for the difficulty (parallel
+    to the v1.41 win-side `"(best %1)"` companion to the average
+    line). Pure flair, one new translatable string. Loss-side
+    end-of-game-dialog beat — natural alternation slot after this
+    Stats-dialog cycle.
+  - **Stats-dialog "Slowest win" column.** Symmetric to Best time;
+    needs a new `slowestSeconds` accumulator (and optional
+    `slowestDate` companion). Schema bump but keeps the alternation
+    cadence on a Stats-dialog beat.
+  - **Stats-dialog "Last loss" column / cell.** Locale-formatted
+    date of the most-recent recorded loss for each difficulty,
+    parallel to the v1.38 "Last win" column. Pure presentation, no
+    schema change (would derive from a new `lastLossDate` QSettings
+    key — minimal addition).
+
 ## 2026-04-26 — Cycle 42 — v1.45.0 (autonomous)
 
 - **Chosen problem:** When a single win earns BOTH a fresh per-
