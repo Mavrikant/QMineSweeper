@@ -1,5 +1,126 @@
 # Cycle decisions
 
+## 2026-04-26 — Loss-dialog "(best %1%)" companion to partial-clear line (v1.47.0)
+
+**Chosen:** On the loss dialog, append a `(best %1%)` companion suffix
+to the existing `You cleared %1% of the board.` line whenever the
+player has any non-zero per-difficulty `bestSafePercent` record after
+this loss has been processed. Parallels the v1.41 win-side
+`Average: %1 (best %2)` arrangement: the suffix anchors the just-
+played value against the player's lifetime hall-of-fame best on the
+same metric. One new translatable string (`"(best %1%)"`), hand-
+translated into all 9 non-English locales. Zero schema changes — the
+post-update `bestSafePercent` is derived at the call site from
+`priorRecord.bestSafePercent` and `lossOutcome.newBestSafePercent`
+plus the just-played `safePercent`, so no new field on `LossOutcome`
+and no second `Stats::load` per loss.
+
+**Why:**
+- v1.46.0 cycle log's first listed next candidate, paraphrased:
+  "Loss-dialog 'Best partial: X%' recap line. Surface the fresh
+  `bestSafePercent` in the loss dialog when the player has a prior
+  partial-clear best for the difficulty (parallel to the v1.41 win-
+  side `(best %1)` companion to the average line). Pure flair, one
+  new translatable string. Loss-side end-of-game-dialog beat —
+  natural alternation slot after this Stats-dialog cycle."
+- Alternation pattern: v1.42 loss → v1.43 win → v1.44 loss → v1.45
+  win → v1.46 stats → **v1.47 loss**. The Stats-dialog beat in v1.46
+  (Best partial column) carved out a permanent home for the field;
+  this cycle's end-of-game beat surfaces it at the moment the player
+  feels it — right after `You cleared 27% of the board.`
+- Shape mirror: the win-side `Average: %1 (best %2)` arrangement
+  already establishes the "anchor the just-played value against the
+  lifetime best" idiom. The loss-side analog reads
+  `You cleared 27% of the board. (best 65%)` — the same composition,
+  different metric. Re-uses the existing `(best %1)` lexical
+  pattern with a percent placeholder so each locale's translation
+  parallels its existing time companion.
+- Zero schema. `bestSafePercent` is loaded into `priorRecord` once at
+  the top of `onGameLost` (the v1.42 cycle established this read).
+  `recordLoss` mutates the field iff `newBestSafePercent` returns
+  true, in which case the new value is the clamped input
+  `safePercent`. So
+  `lossOutcome.newBestSafePercent ? clamped(safePercent) : priorRecord.bestSafePercent`
+  is the post-update value — no second `Stats::load`, no new field on
+  `LossOutcome`, no migration.
+- Replays / Custom: `lossOutcome` stays default-constructed (no
+  recordLoss call), so `newBestSafePercent` is false and the formula
+  collapses to `priorRecord.bestSafePercent` — i.e. the player's
+  lifetime record on the standard difficulty. Custom games load the
+  Custom record (always 0), so the gate `> 0` hides the line. By
+  design: the line reflects the per-difficulty lifetime record, not
+  whether *this* loss counted (mirror of the v1.42 `Last win: %1`
+  / `Average: %1` lines which behave identically on replays).
+
+**Rejected alternatives from the v1.46.0 candidate list:**
+- *Stats-dialog "Slowest win" column.* Symmetric to Best time but
+  needs a new `slowestSeconds` accumulator (and optional
+  `slowestDate` companion). Schema bump — multi-cycle. Park.
+- *Stats-dialog "Last loss" column.* Locale-formatted date of the
+  most-recent recorded loss for each difficulty. Pure presentation
+  but breaks the loss/win/stats alternation we're owed this cycle —
+  this is a Stats-dialog beat, and the previous cycle was already a
+  Stats-dialog beat. Park.
+
+**Rejected naming alternatives:**
+- *Standalone line `Best partial: 65%`.* Reads as a top-level recap
+  (like the v1.42 `Average: %1` line) instead of a suffix anchor.
+  Costs more visual weight on the dialog and breaks the parallel
+  with the v1.41 win-side `(best %1)` companion idiom. The
+  parenthetical-suffix shape is what the cycle log's "parallel to the
+  v1.41 win-side `(best %1)` companion" phrasing explicitly calls
+  out.
+- *Reuse the existing `tr("(best %1)")` key with `arg(QString::number(p) + "%")`.*
+  Would save one new translation string × 9 locales but conflates two
+  semantically distinct contexts (time vs. percent). A future locale
+  may render the percent variant with non-Western digits or different
+  punctuation; keeping a separate key preserves that flexibility.
+  The cycle log explicitly budgets for "one new translatable string",
+  and the project's hand-translation policy treats per-axis keys as
+  the default.
+
+**Implementation choices:**
+
+1. **Compute post-update best at call site, not via `LossOutcome` field.**
+   `recordLoss` already returns `newBestSafePercent`; combined with
+   the already-loaded `priorRecord.bestSafePercent` and the just-
+   played clamped `safePercent`, the post-update value is fully
+   derivable in one ternary. Adding a `LossOutcome.bestSafePercentAfter`
+   mirror field would (a) duplicate state already reachable from the
+   pre-call load + the outcome flag, (b) require a fallback for
+   replays / Custom where `recordLoss` is skipped (defeating the
+   purpose), and (c) bloat the struct. The win-side
+   `WinOutcome.bestSecondsAfter` is necessary because `recordWin`
+   may mutate the field across many code paths (the win-side has no
+   pre-call `Stats::load`); the loss-side does pre-load, so call-
+   site derivation is strictly simpler.
+2. **Single new translation key `"(best %1%)"`.** The literal `%`
+   after `%1` renders unchanged through `arg()` (Qt only interprets
+   `%1`, `%2`, …); the source string is distinct from v1.41's
+   `"(best %1)"` so each locale gets a dedicated translation.
+3. **Gate: `lossBestSafePercent > 0`.** Hides the line on the very
+   first loss for a difficulty where the player has never cleared
+   any safe cells (e.g. first-click boom on a fresh install) AND on
+   Custom games (where the per-difficulty record is always 0). Same
+   sentinel-zero convention as `bestSeconds` / `bestBvPerSecond` /
+   etc.
+4. **Render order: appended to the same line as `You cleared X% of the board.` with a single space.**
+   Mirrors the win-side
+   `text += " " + tr("(best %1)").arg(formatElapsedTime(winBestSeconds))`
+   pattern. The companion lives on the same logical line as its
+   anchor; the loss dialog already uses this exact composition for
+   the v1.42 `Average: %1 (best %2)` pair.
+5. **Tests: pin the call-site contract via the post-recordLoss `Stats::load` invariant.**
+   The call-site formula reduces to "post-update bestSafePercent ==
+   pre-update bestSafePercent unless recordLoss set a new best, in
+   which case it's the clamped input." Four new `tst_stats` tests
+   pin this exact equivalence at the persistence-layer boundary,
+   which is what a future refactor of `recordLoss` could break:
+   - `testPostRecordLossLoadEqualsClampedInputOnNewBest`
+   - `testPostRecordLossLoadPreservesPriorOnNonImprovingLoss`
+   - `testPostRecordLossLoadStaysAtPriorOnZeroPercent`
+   - `testPostRecordLossLoadUnchangedWhenRecordLossSkipped`
+
 ## 2026-04-26 — Win-dialog "💎 Two new bests!" combo flair (v1.45.0)
 
 **Chosen:** On the win dialog, when a single win earns BOTH a fresh

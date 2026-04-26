@@ -558,7 +558,7 @@ void MainWindow::onGameWon()
     // so the outcome is the default-constructed WinOutcome with zeroed
     // wins/average; threshold-gating in the dialog handles the rest.
     showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0, false,
-                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u, (outcome.winsAfter >= 3) ? outcome.bestSecondsAfter : 0.0, 0.0, 0.0);
+                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u, (outcome.winsAfter >= 3) ? outcome.bestSecondsAfter : 0.0, 0.0, 0.0, 0u);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -623,6 +623,18 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
         // gate (>0) and same strict-greater-than semantics as safePercent.
         lossOutcome = Stats::recordLoss(diffName, safePercent, flagAccuracyPercent);
     }
+    // Post-update bestSafePercent — the value the loss dialog's `(best %1%)`
+    // companion to the "You cleared X% of the board." line renders. recordLoss
+    // mutates the field iff `lossOutcome.newBestSafePercent` returns true, in
+    // which case the new value is the clamped just-played safePercent;
+    // otherwise it stays at the prior record. Replays / Custom skip recordLoss
+    // so the field collapses to `priorRecord.bestSafePercent` — which on Custom
+    // is 0 (the dialog gate hides the line), and on a standard-difficulty
+    // replay is the lifetime record (informative anchor regardless of whether
+    // this loss counted, mirroring the v1.42 `Average: %1` line behaviour).
+    // safePercentCleared() returns [0, 100] by construction, but the clamp is
+    // defensive against any future change to that contract.
+    const std::uint32_t lossBestSafePercent = lossOutcome.newBestSafePercent ? static_cast<std::uint32_t>(safePercent > 100 ? 100 : (safePercent < 0 ? 0 : safePercent)) : priorRecord.bestSafePercent;
     // Same sub-tick guard as the win path — a fast loss with zero elapsed time
     // would otherwise divide by zero. 0.05s mirrors the win-side threshold.
     const double partialBvRate = (m_lastElapsedSeconds > 0.05) ? (partialBv / m_lastElapsedSeconds) : 0.0;
@@ -642,7 +654,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("new_best_flag_accuracy"), lossOutcome.newBestFlagAccuracyPercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
     showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags, lossOutcome.newBestFlagAccuracyPercent, 0.0, priorLastWinDate,
-                  lossOutcome.priorStreak, 0.0, lossAverageSeconds, lossBestSeconds);
+                  lossOutcome.priorStreak, 0.0, lossAverageSeconds, lossBestSeconds, lossBestSafePercent);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -854,7 +866,7 @@ void MainWindow::updateTimerLabel()
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
                                int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds,
-                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak, double winBestSeconds, double lossAverageSeconds, double lossBestSeconds)
+                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak, double winBestSeconds, double lossAverageSeconds, double lossBestSeconds, std::uint32_t lossBestSafePercent)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -983,6 +995,25 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         QString text = tr("You stepped on a mine.");
         text += QStringLiteral("\n") + tr("You survived for %1.").arg(formatElapsedTime(m_lastElapsedSeconds));
         text += QStringLiteral("\n") + tr("You cleared %1% of the board.").arg(ui->mineFieldWidget->safePercentCleared());
+        // Companion suffix anchoring the just-played partial-clear against the
+        // player's lifetime best on the same difficulty. Mirror of the v1.41
+        // win-side `Average: %1 (best %2)` arrangement: the suffix lives on
+        // the same logical line as its anchor, separated by a single space.
+        // Gate is `lossBestSafePercent > 0` — hides the line on the very
+        // first loss for a difficulty with no prior partial-clear record
+        // (e.g. first-click boom on a fresh install) AND on Custom games
+        // (where the per-difficulty record is always 0). On replays the
+        // line still renders if the player has a standing record on the
+        // standard difficulty, by design — the line reflects the per-
+        // difficulty lifetime record, not whether *this* loss counted
+        // (mirror of the v1.42 `Last win: %1` / `Average: %1` lines).
+        // Distinct translation key from v1.41's `(best %1)` because the
+        // percent suffix is part of the source string, allowing each locale
+        // to render the percent variant with its own punctuation / digits.
+        if (lossBestSafePercent > 0)
+        {
+            text += QStringLiteral(" ") + tr("(best %1%)").arg(lossBestSafePercent);
+        }
         // Speedrun-canonical "cleared 3BV" line. X = how many of the board's
         // 3BV "clicks" the player effectively completed at the moment of
         // explosion (opened openings + opened isolated numbered cells); Y =
