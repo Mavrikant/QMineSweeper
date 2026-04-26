@@ -1,5 +1,51 @@
 # Cycle decisions
 
+## 2026-04-26 — Stats dialog "Last win" column (v1.38.0)
+
+**Chosen:** Add a 9th column "Last win" to the Statistics dialog,
+rendering each difficulty's `Stats::Record::lastWinDate` via
+`QLocale::ShortFormat` (em-dash when the player has never won).
+
+**Why:** v1.37.0 surfaced the `lastWinDate` field as a single line
+on the loss dialog — but only one difficulty at a time. The Stats
+dialog is the natural place to compare the metric across all three
+difficulties at one glance. It's also pure presentation: the field
+already exists and is already loaded/saved/tested by the v1.37.0
+schema work, so the column is a passive reader with zero new state
+and zero migration risk. Continues the loss-dialog → stats-dialog
+alternation pattern (v1.32→v1.33→v1.34→v1.35→v1.37→**v1.38**).
+
+**Rejected alternatives:**
+- *Win % column broken out from Won.* Pure presentation but adds
+  zero new *information* — the Won column already renders `5 (50%)`
+  inline. v1.38 spends its budget on a column that surfaces a field
+  that's currently invisible from this dialog.
+- *Win-dialog "Wins so far" tail on the Average line* (e.g. "Average:
+  1:18.9 (n=12)"). Useful denominator context but blocked on
+  translating the parenthetical cleanly across all 10 locales
+  (Arabic / Hindi numeral systems, Russian plural rules — adds
+  tooling work, not a 1-string add).
+- *"Best across all" footer for Best time.* Cell would mix a
+  difficulty name and a time — estimated 3 new translatable strings
+  plus a tie-break policy decision. Higher cost than v1.38's budget.
+- *Replacing the Total row's em-dash for Last win with the most-recent
+  per-row date.* Considered, rejected — would shadow whichever
+  per-row cell is most recent. Duplicate signal, no new information.
+  Pinned in the mainwindow.cpp Total-row comment.
+
+**Translation policy:** new lupdate key "Last win" (column header,
+no `%1` placeholder) is distinct from the existing v1.37.0 key
+"Last win: %1" (verb-phrase loss-dialog line). Each non-English
+translation is the existing v1.37.0 translation with the `: %1`
+suffix stripped. No translation churn on existing keys.
+
+**Backwards-compat behaviour:** unchanged from v1.37.0. Pre-1.37
+plists with `won > 0` but no `last_win_date` key load the date as
+invalid → cell renders em-dash until the player's next 1.37+ win.
+Clean-slate seeding by design (best-date is the date of the
+*fastest* run, not the most recent — back-filling could lie by
+months).
+
 ## 2026-04-26 — Loss dialog: "Last win: %1" line when difficulty has a prior win (v1.37.0)
 
 **Chosen:** Add a `Last win: %1` line to the loss dialog that shows

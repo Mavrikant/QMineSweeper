@@ -1,5 +1,174 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 35 — v1.38.0 (autonomous)
+
+- **Chosen problem:** v1.37.0 surfaced the per-difficulty
+  `lastWinDate` field as a single line on the loss dialog — but
+  only one difficulty at a time. The Stats dialog (Game →
+  Statistics…) is the natural place to compare the metric across
+  all three difficulties at one glance, instead of forcing the
+  player to lose on each difficulty to surface it. v1.37.0 cycle
+  log explicitly listed "Stats-dialog 'Last win' column" as the
+  top next candidate. Continues the loss-dialog → stats-dialog
+  alternation pattern (v1.32→v1.33→v1.34→v1.35→v1.37→**v1.38**).
+- **Evidence:** `MainWindow::showStatsDialog` (mainwindow.cpp:1039)
+  rendered 8 columns spanning Difficulty / Played / Won /
+  Best time / Best (no flag) / Streak / Best 3BV/s /
+  Best flag accuracy — but no `lastWinDate` cell. The field
+  shipped in v1.37.0 (with 11 dedicated tests in tst_stats.cpp)
+  was visible from exactly one place: the loss dialog.
+- **Shipped:**
+  - Branch: `feat/v1.38.0-stats-dialog-last-win-column` (squash-merged + deleted)
+  - PR: [#56](https://github.com/Mavrikant/QMineSweeper/pull/56)
+  - Squash commit: `43efd8e`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.38.0
+  - Release workflow `24944462175` succeeded (1m38s); all 5 assets
+    + `SHA256SUMS.txt` published (Linux AppImage / tar.gz, macOS
+    .dmg, Windows .zip). Hand-written user-facing release notes
+    installed via `gh release edit` covering the new column, the
+    pre-1.37 plist em-dash behaviour, the custom/replay
+    exclusion, and the macOS quarantine clear.
+- **Code surface:** ~30 LOC of production diff + 9 LOC translation
+  dict + 10 lupdate-managed `.ts` files. Zero new tests — the
+  change is pure presentation reading a v1.37.0 field that already
+  has 11 dedicated tests in tst_stats.cpp.
+  - `mainwindow.cpp`: column-count bump 8 → 9; `tr("Last win")`
+    appended to header labels; new `formatLastWin` lambda renders
+    `QLocale::ShortFormat` date or em-dash; per-row loop gains
+    `setItem(i, 8, …)`; Total row gains `setItem(3, 8, …)` em-dash;
+    Total-row comment extended to pin "last win across all"
+    collapse rationale (would just shadow the most-recent per-row
+    date — duplicate signal).
+  - `CMakeLists.txt`: version bump 1.37.0 → 1.38.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English
+    locales). Each translation is the existing v1.37.0 "Last
+    win: %1" string with the `: %1` suffix stripped.
+  - `.ts` files: lupdate adds the new key (108 → 109) across all
+    10 locales; apply_translations fills 9 of them; English stays
+    unfinished as designed.
+  - Total real code+docs diff well under the 400-LOC cycle cap.
+- **Tests added:** 0. The new code path is the `formatLastWin`
+  lambda + 4 `setItem` calls — pure rendering of a field whose
+  data layer is already covered by 11 v1.37.0 tests (defaults,
+  first-win-stamps, slower-win-overwrites, faster-win-also-
+  overwrites, loss-doesn't-touch, sub-tick-win-still-stamps,
+  per-difficulty isolation, reset wipes, resetAll wipes, legacy
+  plist without key loads invalid, legacy plist with `won > 0`
+  not back-filled from bestDate). `tst_stats` count remains 115.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (`109 finished, 0 unfinished`
+  per non-en locale; en stays at 109 unfinished by design — Qt
+  falls back to source).
+  - TR `"Son galibiyet"` · ES `"Última victoria"` ·
+    FR `"Dernière victoire"` · DE `"Letzter Sieg"` ·
+    RU `"Последняя победа"` · PT `"Última vitória"` ·
+    ZH `"上次获胜"` · HI `"अंतिम जीत"` · AR `"آخر فوز"`.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "1 new and 108 already existing" across all 10 locales —
+    confirms exactly one new tr() string, zero accidental drift.
+  - `python3 translations/apply_translations.py` reports
+    "106 translations applied" per non-English locale (was 105
+    pre-cycle).
+  - Per-locale grep confirms `<source>Last win</source>` →
+    `<translation>…</translation>` (not `unfinished`) in all 9
+    non-en files.
+  - `cmake --build build` clean. All 8 test binaries link.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 8/8
+    pass. `tst_stats`: 115 passed (unchanged).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean.
+  - All 7 PR CI checks green (3× build/test, coverage,
+    formatting, Codacy, CodeFactor, Code Review Doctor).
+- **Adversarial self-review:**
+  - **What breaks this in production?** A user with a fresh 1.38
+    install sees em-dash in all three rows until their first
+    win — correct. A user with `won > 0` from pre-1.37 plist
+    sees em-dash until their next 1.38+ win — correct, documented
+    v1.37.0 clean-slate-seeding behaviour. A user who has won all
+    three difficulties sees three locale-formatted dates — correct.
+  - **Is the public API backwards-compatible?** Yes. Pure read of
+    an existing field. No new QSettings key, no migration. Older
+    binaries reading this user's plist would simply not surface
+    the column (the `last_win_date` field they don't know about
+    is harmlessly ignored on save by older versions; v1.37+
+    persists it).
+  - **Error paths handled?** `lastWinDate.isValid()` gates the
+    `QLocale::toString` call. `QLocale::toString` doesn't throw.
+    Em-dash branch is `QStringLiteral` — no allocation surprises.
+  - **Secrets / PII?** None. Calendar date only, no time-of-day.
+    Not surfaced to telemetry — already covered by v1.37.0
+    cycle's per-game `duration_seconds` server-side rollup
+    decision.
+  - **Performance?** O(1) per row × 3 rows. Dialog is opened
+    on demand from Game → Statistics… — no hot path.
+  - **Concurrency?** None — single-threaded UI.
+  - **Visual regression?** One extra column to the right of "Best
+    flag accuracy". `resizeColumnsToContents()` already fits the
+    dialog to whatever the widest cell is. The locale-formatted
+    ShortFormat date is shorter than every other date-bearing
+    cell ("3.2  (23.04.2026)") because it has no time/duration
+    prefix.
+- **Assumptions made:**
+  - **Date, not "X days ago".** Same call as v1.37.0 — avoids
+    plural-forms hell across 10 locales. `QLocale::ShortFormat`
+    is locale-aware.
+  - **Total row collapses to em-dash for Last win.** "Last win
+    across any difficulty" would shadow the most-recent per-row
+    date — duplicate signal, not new information. Pinned in
+    `mainwindow.cpp` Total-row comment.
+  - **No backwards-compat shim.** Pre-1.37 plist with `won > 0`
+    but no `last_win_date` key still loads as invalid date →
+    cell shows em-dash. Clean-slate seeding from v1.37 carried
+    forward; back-filling from `bestDate` could lie by months.
+  - **Translation strategy: bare-noun "Last win".** Reusing the
+    v1.37.0 "Last win: %1" key with arg substitution would render
+    as "Last win: " in the column header — wrong. New lupdate key
+    by necessity; translations cleanly derive from the v1.37
+    versions by stripping `: %1`.
+  - **No live-app screenshot verification.** The change is
+    structurally identical to existing cells (`formatBest`,
+    `formatStreak`, etc.) — just simpler. Pure presentation,
+    cell-rendering code, deterministic from `lastWinDate`. Same
+    review pattern as recent loss-/stats-dialog cycles.
+- **Skipped:**
+  - **"Last win across all" footer cell** in the Total row.
+    Duplicate signal — would shadow whichever per-row date is
+    most recent. Em-dash, not "Apr 25, 2026" repeated.
+  - **Win-dialog "Last win" badge.** Would collapse to "today"
+    immediately after a win — noise.
+  - **Sortable Stats table.** Out of scope; QTableWidget supports
+    it but introducing it just for the new column would be
+    cross-cutting.
+  - **Win % column broken out from Won.** Pure presentation but
+    adds zero new *information* — Won column already renders
+    "5 (50%)" inline. Spent the cycle's budget on a column that
+    surfaces a previously-invisible field instead.
+- **Risks logged:** none new.
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.38.0` in the last hour returned **zero results**.
+  Expected — the assets were just published with zero downloads
+  at watch time and telemetry is opt-in. No new crash group
+  attributable to the 1.38.0 cut. Watch closed.
+- **Next candidates:**
+  - **Loss-dialog "Last win" follow-up: render as "X days ago"**
+    when within a week, fall back to date otherwise. Per-locale
+    plural rules required (Arabic / Russian); previously deferred
+    in v1.37.0 cycle for the same reason. Revisit when willing
+    to grow `apply_translations.py` with plural tables.
+  - **Win % column** broken out from Won. Pure presentation,
+    ~30 LOC, 1 new translatable string ("Win %"). Smallest
+    cell-rearrangement diff but adds zero new *information* — the
+    Won column already renders `5 (50%)` inline.
+  - **Win-dialog "Wins so far" tail** on the Average line, e.g.
+    "Average: 1:18.9 (n=12)". Surfaces useful denominator
+    context; blocked on translating the parenthetical cleanly
+    across all 10 locales (Arabic / Hindi numeral systems,
+    Russian plural rules).
+  - **Stats-dialog "Best across all" footer cell** for the Best
+    time column. Cell value mixes a difficulty name and a time;
+    estimated 3 new translatable strings.
+
 ## 2026-04-26 — Cycle 34 — v1.37.0 (autonomous)
 
 - **Chosen problem:** The loss dialog had grown six recap lines and
