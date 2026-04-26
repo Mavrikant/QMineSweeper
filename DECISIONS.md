@@ -1,5 +1,110 @@
 # Cycle decisions
 
+## 2026-04-26 — Win-dialog "(prev %1)" companion to "🏆 New record!" flair (v1.48.0)
+
+**Chosen:** When the win dialog's `🏆 New record!` flair fires AND the
+player had a non-zero prior best on the difficulty (i.e., not the
+first-ever win), append a `(prev %1)` companion suffix to the
+existing `You cleared the field in %1.` line. Reads e.g.
+`🏆 New record!  You cleared the field in 12.3.  (prev 14.5)` —
+celebrates the magnitude of improvement, not just the fact of one.
+Mirror of the v1.47 loss-side `(best %1%)` companion arrangement,
+applied to the win-side time axis. One new translatable string
+(`"(prev %1)"`), hand-translated into all 9 non-English locales. The
+prior best is captured by `recordWin` in a new `WinOutcome.priorBestSeconds`
+field — natural extension of the existing `bestSecondsAfter` snapshot,
+which already carries the post-update value.
+
+**Why:**
+- The v1.47 cycle (loss-side `(best %1%)`) closed the loss-side half
+  of the just-played-vs-lifetime-best pairing. The win-side half is
+  partly covered (`Average: %1 (best %2)` since v1.41), but the
+  `🏆 New record!` flair itself reads as a bare boolean — the player
+  knows they set a record but not by how much. Adding the prior best
+  next to the just-played time gives the celebration a magnitude.
+- Alternation pattern continues: v1.42 loss → v1.43 win → v1.44 loss
+  → v1.45 win → v1.46 stats → v1.47 loss → **v1.48 win**. The win-
+  side beat owed after this loss-side cycle.
+- Composition mirror: `You cleared the field in 12.3.  (prev 14.5)`
+  uses the same suffix-on-same-line idiom as the v1.47 loss-side
+  `You cleared 27% of the board.  (best 65%)` and the v1.41/v1.42
+  `Average: %1  (best %2)` pair. The dialog's grammar is now
+  consistent across all three companion lines.
+- Schema-zero on the persistence side. `WinOutcome` gains one
+  `double priorBestSeconds` field, populated by capturing
+  `r.bestSeconds` before `recordWin`'s mutation. No QSettings change,
+  no new persisted key.
+- Distinct semantic from `WinOutcome.bestSecondsAfter`. On a `🏆 New
+  record!` win, `bestSecondsAfter == m_lastElapsedSeconds` (the just-
+  played time IS the new best); a `(best 12.3)` companion to the
+  just-played 12.3 line would be the same number twice. `priorBestSeconds`
+  is the value being beaten — different from both `bestSecondsAfter`
+  and `m_lastElapsedSeconds`, so the suffix carries information.
+
+**Rejected alternatives:**
+- *Companion fires on every win, not just `🏆 New record!`.* Non-
+  record wins already get the lifetime context via the v1.41
+  `Average: %1 (best %2)` line — the `(best …)` there is the post-
+  update best (== prior best when no new record set), so a `(prev …)`
+  on a non-record win would either duplicate `(best …)` (when the
+  new run was slower) or be stale-named ("prev" implies "the one
+  just beaten"). Gating on `newRecord` keeps the semantic clean.
+- *Reuse the v1.41 `"(best %1)"` translation key for the new line.*
+  Same source string would carry two different semantics ("post-
+  update best" in the average context, "pre-update best being beaten"
+  in the new-record context). Translators may want different vocab
+  for "prev" vs. "best" — Russian and German distinguish "previous"
+  and "best" lexically; reusing the same key would force translators
+  into a generic fallback.
+- *`(prior %1)` source string.* "Prev" is shorter, scans cleaner in
+  the parenthetical-suffix shape, and is the more common gaming-UI
+  vocabulary for "previous record". "Prior" reads more legalistic.
+- *Render the delta inline, e.g. `🏆 New record!  -2.2s`.* Cleaner
+  signal but loses the absolute reference frame and forces a sign
+  format decision (negative-as-improvement is non-obvious). The
+  paren-suffix preserves both numbers; the player can compute the
+  delta themselves.
+- *Add `WinOutcome.priorBestSeconds` AND make the dialog compute the
+  delta.* Same readability concern as above; also adds presentation
+  logic to the dialog rather than to the persistence boundary.
+
+**Implementation choices:**
+
+1. **Capture `priorBestSeconds` before any mutation in `recordWin`.**
+   Symmetric to the v1.39 `priorStreak` capture in `recordLoss`. The
+   pre-update value is captured at function entry into a local, then
+   the post-update mutation runs, then both pre- and post- values
+   are returned in `WinOutcome`. No race, no extra load.
+2. **Default to 0.0 on first-ever win.** The pre-update `bestSeconds`
+   is 0.0 for a player with no prior win on the difficulty. The
+   companion's gate is `priorBestSeconds > 0.0`, which evaluates
+   false for the first-ever-win case — the dialog reads
+   `🏆 New record!  You cleared the field in 14.5.` (no `(prev)`
+   suffix), since "previous record" has no referent. This gate also
+   defends against the pathological all-sub-tick case where
+   `bestSeconds` may have stayed at 0.0 even with prior wins
+   (matches the win-side `> 0.0` guard convention).
+3. **Gate at the dialog: `newRecord && winPriorBestSeconds > 0.0`.**
+   Combined gate keeps the line out of non-record wins (where the
+   v1.41 `Average: ... (best ...)` line already supplies lifetime
+   context) and out of first-ever-record wins (no prior to anchor).
+4. **Render order: appended to the `You cleared the field in %1.` line
+   with a single space.** Same composition the v1.47 loss-side
+   companion uses; consistent grammar across all four companion
+   suffixes the project ships now (v1.41, v1.42, v1.47, v1.48).
+5. **Combo-flair compatibility.** When the v1.45 `💎 Two new bests!`
+   combo fires (newRecord AND newBestBvPerSecond), the bottom 🏆
+   prepend is suppressed but `newRecord` is still true. The
+   `(prev %1)` companion fires alongside the 💎 combo — by design,
+   since the magnitude-of-improvement context applies to any new
+   record, regardless of which prepended flair celebrates it.
+6. **Tests: pin `WinOutcome.priorBestSeconds` at the persistence-
+   layer boundary.** Five new `tst_stats` tests cover the value's
+   semantics: zero on first-ever win, captured pre-mutation value
+   on a faster win, unchanged across slower wins (no record set),
+   independence from sub-tick (`seconds == 0.0`) wins, and
+   per-difficulty isolation.
+
 ## 2026-04-26 — Loss-dialog "(best %1%)" companion to partial-clear line (v1.47.0)
 
 **Chosen:** On the loss dialog, append a `(best %1%)` companion suffix

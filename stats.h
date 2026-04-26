@@ -113,6 +113,17 @@ struct WinOutcome
     // `seconds > 0.0` gate in `recordWin`) implies `bestSecondsAfter > 0.0`.
     double bestSecondsAfter{0.0};
 
+    // Pre-update best-time on this difficulty: the value of `bestSeconds`
+    // captured *before* this `recordWin` call mutated the field. Drives the
+    // win-dialog `🏆 New record!  …  (prev %1)` companion line: when this run
+    // set a new record, the prior best is the value being beaten, distinct
+    // from `bestSecondsAfter` (which equals the just-played time on a new
+    // record) and from the just-played duration. 0.0 when the player had no
+    // prior counted non-sub-tick win on this difficulty — matches `bestSeconds`'s
+    // 0.0 sentinel and is the gate the dialog uses to suppress the `(prev …)`
+    // line on first-ever wins (where "previous record" has no referent).
+    double priorBestSeconds{0.0};
+
     // Lets `QVERIFY(recordWin(...))` and `if (recordWin(...))` keep their
     // pre-WinOutcome bool semantics (true == new best-time set). Explicit so
     // accidental assignment to `bool` still requires `.newRecord`.
