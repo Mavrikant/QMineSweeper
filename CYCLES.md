@@ -21,6 +21,18 @@
   arrangement that compressed the analogous `🚩 + 🎯` stack.
 - **Shipped:**
   - Branch: `feat/v1.45.0-win-dialog-two-new-bests-combo-flair`
+    (squash-merged + deleted)
+  - PR: [#63](https://github.com/Mavrikant/QMineSweeper/pull/63)
+  - Squash commit: `dadfc9e`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.45.0
+  - Release workflow `24951565130` succeeded on the first run; all
+    5 jobs (Resolve tag → Linux/macOS/Windows builds → Publish
+    Release) green in 2m13s. All 5 assets + `SHA256SUMS.txt`
+    published. Hand-written user-facing release notes installed via
+    `gh release edit --notes` covering the new combo flair, the
+    swap-not-stack mutual exclusion with the individual 🏆 / ⚡
+    flairs, the streak-slot independence, the per-platform install
+    path (incl. macOS quarantine clear), and verification.
 - **Code surface:** ~30 LOC of production diff in `mainwindow.cpp`
   (combo `if/else if` + the existing 🏆/✨ block wrapped in an
   outer skip + comment) + ~95 LOC tests + ~115 LOC `DECISIONS.md`
@@ -171,8 +183,33 @@
     statistic but needs persisting every counted winning duration.
     Schema bump. Multi-cycle.
 - **Risks logged:** none new.
-- **Post-release watch:** [to be filled]
-- **Next candidates:** [to be filled]
+- **Post-release watch (T+~3min):** Sentry `karaman/qminesweeper`
+  `search_issues` for unresolved issues in release
+  `qminesweeper@1.45.0` in the last hour returned **zero results**.
+  Expected — assets just published with zero downloads at watch
+  time and telemetry is opt-in. No new crash group attributable
+  to the 1.45.0 cut. Hand-written user-facing release notes
+  installed (covers the new combo flair, the swap-not-stack mutual
+  exclusion with the individual 🏆 / ⚡ flairs, the streak-slot
+  independence, the per-platform install path, and the macOS
+  quarantine clear). All 5 assets + `SHA256SUMS.txt` published.
+  Watch closed.
+- **Next candidates:**
+  - **Loss-dialog "Best loss" stats column.** Surface the v1.29
+    `bestSafePercent` + v1.33 `bestFlagAccuracyPercent` as a single
+    cell on the Stats dialog (currently only the win-side records
+    are columnized). Pure presentation, no schema change. Loss-side
+    beat — natural alternation slot after this win-side cycle.
+  - **Stats-dialog "Slowest win" column.** Symmetric to Best time;
+    needs a new `slowestSeconds` accumulator (and optional
+    `slowestDate` companion). Schema bump but keeps the alternation
+    cadence on a Stats-dialog beat.
+  - **Loss-dialog "Combo Days" or per-difficulty record date.**
+    Surface the `bestSafePercentDate` + `bestFlagAccuracyDate`
+    stamped since v1.29 / v1.33 in the loss dialog itself when a
+    new combo fires ("set on 2026-04-26"). Pure presentation, no
+    schema change. Date-context beat parallel to the v1.42-v1.43
+    "Last win" / "Average" recap lines on the loss side.
 
 ## 2026-04-26 — Cycle 41 — v1.44.0 (autonomous)
 
