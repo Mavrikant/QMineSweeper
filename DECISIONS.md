@@ -1,5 +1,119 @@
 # Cycle decisions
 
+## 2026-04-26 — Win-dialog "✨ Beat your average!" flair (v1.43.0)
+
+**Chosen:** On the win dialog, when the just-finished run was strictly
+faster than the player's lifetime mean winning duration on the current
+difficulty AND did not also set a new best time, prepend a
+`✨ Beat your average!` flair as a softer-tier celebratory line —
+mutually exclusive with `🏆 New record!` (which is strictly stronger
+and always implies beating the average). One new translatable string,
+hand-translated into all 9 non-English locales. No signature break:
+the gate uses the existing `winAverageSeconds` parameter (already
+threaded through `showEndDialog` since v1.36) and `m_lastElapsedSeconds`
+(already a `MainWindow` member). Zero schema changes, zero new
+`WinOutcome` fields.
+
+**Why:**
+- v1.42.0 cycle log's first listed next candidate, verbatim: "Win-
+  dialog flair when current run beats the lifetime average ('✨ Beat
+  your average!'). Mirror of the win-side `🏆 New record!` and
+  `🌟 New best streak!` — pure flair beat, one new translatable
+  string, gated on `m_lastElapsedSeconds < averageSecondsAfter`.
+  Natural next win-side beat in the alternation."
+- Alternation pattern continues: v1.41 win → v1.42 loss → **v1.43 win**.
+- The win dialog has rendered the lifetime `Average: %1 (best %2)`
+  context line since v1.36 / v1.41, but it's a passive readout —
+  the player has to read the numbers and compute the comparison
+  themselves. The new flair *announces* the comparison ("you just
+  did better than your typical pace"), turning a recap line into
+  active feedback. Same reason `🏆 New record!` exists alongside
+  `Best time: …` in the Stats dialog: the recap is the proof, the
+  flair is the celebration.
+- Schema-zero. The data driving the gate (`averageSecondsAfter`,
+  `winsAfter`, the just-finished `seconds`) is already persisted,
+  exposed via `WinOutcome`, and tested since v1.36 / v1.41. The
+  compute is a single double comparison at the call site.
+- Implementation-zero on signature change. The existing
+  `showEndDialog(…, double winAverageSeconds, …)` parameter (added
+  in v1.36) is reused; `m_lastElapsedSeconds` is a `MainWindow`
+  member already in scope. The flair gate fits in a single
+  `else if` arm of the existing `if (newRecord)` block.
+
+**Rejected alternatives from the v1.42.0 candidate list:**
+- *Stats-dialog "Slowest win" column.* Symmetric to Best time column
+  but requires a new `slowestSeconds` persisted accumulator (and a
+  `slowestDate` companion) — schema bump. Multi-cycle. Also breaks
+  the win→loss→win alternation; this cycle is owed a win-side beat.
+- *Loss-dialog combo flair when a single loss is the player's best
+  partial-clear AND best flag accuracy.* Compound flair, would mirror
+  the win-side compound flair pattern, one new translatable string —
+  but it breaks alternation (loss-side after a loss-side cycle).
+  Park for the next loss-side beat.
+- *Stats-dialog "Median win time" column.* Resistant-to-outliers
+  statistical signal, but needs persisting every counted winning
+  duration. Schema bump. Multi-cycle.
+
+**Rejected naming alternatives:**
+- *`"✨ Faster than your average!"`.* More descriptive but verbose.
+  The shorter "Beat your average!" matches the imperative-positive
+  cadence of the existing `🏆 New record!` and `🌟 New best streak!`
+  prepend lines (subject-elided second-person celebration), keeping
+  the L→R reading rhythm consistent across all win-side flairs.
+- *`"✨ Below your average!"`.* Ambiguous — "below" has neutral and
+  even negative connotations in everyday usage ("below average" =
+  "subpar"). For Minesweeper a faster time is better, so "below
+  average" is technically correct but the framing fights the
+  achievement. "Beat" is unambiguously positive.
+- *`"⏱ Faster than usual!"`.* "⏱" overloads the timer icon and the
+  word "usual" is colloquial; "average" is more precise and matches
+  the recap-line key (`Average: %1`) the player sees just below.
+
+**Implementation choices:**
+
+1. **Mutual exclusion with `🏆 New record!` via `else if`.** A new
+   best time *always* implies beating the average for `n >= 1` (since
+   `bestSeconds <= mean`), so showing both flairs would be redundant
+   noise — the strong flair subsumes the weak one. Mirrors the existing
+   streak-slot mutual exclusion (`🌟 New best streak: %1!` vs
+   `🔥 Streak: %1`), where the strict-superset signal wins. Single
+   slot in the prepend stack: reading L→R the player sees
+   `⚡ … 🌟/🔥 … [🏆 OR ✨] … 🏃 … "You cleared the field in …"`.
+2. **Strict-less comparison.** The gate is `m_lastElapsedSeconds <
+   winAverageSeconds`, not `<=`. A run that ties the lifetime mean
+   isn't "beating" it, and rendering the flair on a tie would
+   subtly mislead the player. (Tied with mean is a not-uncommon
+   case for consistent players who happen to play the same difficulty
+   over and over with similar times.)
+3. **Defensive `m_lastElapsedSeconds > 0.0` guard.** A sub-tick
+   "win" would trivially satisfy `0 < positive_mean` and render the
+   flair, but a 0.0-second clear is not an achievement to celebrate —
+   it's reachable only via setFixedLayout-driven tests. The guard is
+   one extra term; pinning it explicitly keeps the gate honest.
+4. **Reuse `winAverageSeconds` parameter; no new param, no new
+   member.** The dialog signature has carried `winAverageSeconds`
+   since v1.36 with the call-site `winsAfter >= 3` gate already
+   encoded (caller passes `0.0` below threshold). The new flair
+   piggybacks on the same parameter — `winAverageSeconds > 0.0`
+   IS the threshold check.
+5. **No new `WinOutcome.beatAverage` field.** Considered: a returned
+   bool that bakes the comparison at the stats layer. Rejected
+   because (a) the comparison is one line at the call site,
+   (b) `WinOutcome` already exposes `averageSecondsAfter` for the
+   recap line so adding a derivation would duplicate state, and
+   (c) the flair logic stays at the same layer (MainWindow) as the
+   peer flairs (`🏆`, `🌟`, `🔥`, `🏃`, `⚡`) — keeps the rendering
+   layer cohesive.
+6. **Tests live at the stats layer (tst_stats.cpp).** The flair lives
+   in `MainWindow::showEndDialog`, which has no direct unit tests.
+   Following the v1.42 pattern (loss-dialog Average tests pinned the
+   data contract `Stats::load` exposes), the new tests pin the
+   data contract `WinOutcome.averageSecondsAfter` exposes — the
+   data the flair gate consumes. Six tests cover the firing edge,
+   the at-mean edge, the slower edge, the sub-3-wins caller-side
+   gate, the sub-tick-after-real-wins arithmetic, and the
+   loss-doesn't-disturb-mean invariant.
+
 ## 2026-04-26 — Loss-dialog "Average: %1 (best %2)" companion (v1.42.0)
 
 **Chosen:** On the loss dialog, after the existing `Last win: %1`

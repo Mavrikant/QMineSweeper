@@ -226,23 +226,28 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="872"/>
-        <location filename="../mainwindow.cpp" line="1039"/>
+        <location filename="../mainwindow.cpp" line="1058"/>
         <source>Average: %1</source>
         <translation>Moyenne : %1</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="883"/>
-        <location filename="../mainwindow.cpp" line="1042"/>
+        <location filename="../mainwindow.cpp" line="1061"/>
         <source>(best %1)</source>
         <translation>(meilleur %1)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="929"/>
+        <location filename="../mainwindow.cpp" line="926"/>
+        <source>✨ Beat your average!</source>
+        <translation>✨ Mieux que votre moyenne !</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="948"/>
         <source>⚡ New best 3BV/s!</source>
         <translation>⚡ Nouveau meilleur 3BV/s !</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="951"/>
+        <location filename="../mainwindow.cpp" line="970"/>
         <source>Partial 3BV: %1 / %2 · 3BV/s: %3</source>
         <translation>3BV partiel : %1 / %2 · 3BV/s : %3</translation>
     </message>
@@ -271,23 +276,23 @@
         <translation>🏆 Nouveau record !</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="914"/>
+        <location filename="../mainwindow.cpp" line="933"/>
         <source>🌟 New best streak: %1!</source>
         <translation>🌟 Nouvelle meilleure série : %1 !</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="918"/>
+        <location filename="../mainwindow.cpp" line="937"/>
         <source>🔥 Streak: %1</source>
         <translation>🔥 Série : %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="936"/>
+        <location filename="../mainwindow.cpp" line="955"/>
         <source>You stepped on a mine.</source>
         <translation>Vous avez marché sur une mine.</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="80"/>
-        <location filename="../mainwindow.cpp" line="1074"/>
+        <location filename="../mainwindow.cpp" line="1093"/>
         <source>New Game</source>
         <translation>Nouvelle partie</translation>
     </message>
@@ -297,12 +302,12 @@
         <translation>Vous avez déminé le terrain en %1.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="937"/>
+        <location filename="../mainwindow.cpp" line="956"/>
         <source>You survived for %1.</source>
         <translation>Vous avez tenu %1.</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="938"/>
+        <location filename="../mainwindow.cpp" line="957"/>
         <source>You cleared %1% of the board.</source>
         <translation>Vous avez déminé %1 % du terrain.</translation>
     </message>
@@ -311,157 +316,157 @@
         <translation type="vanished">3BV du plateau : %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="960"/>
+        <location filename="../mainwindow.cpp" line="979"/>
         <source>Clicks: %1</source>
         <translation>Clics : %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="971"/>
+        <location filename="../mainwindow.cpp" line="990"/>
         <source>Flags placed: %1</source>
         <translation>Drapeaux placés : %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="981"/>
+        <location filename="../mainwindow.cpp" line="1000"/>
         <source>Correct flags: %1 / %2</source>
         <translation>Drapeaux corrects : %1 / %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="993"/>
+        <location filename="../mainwindow.cpp" line="1012"/>
         <source>Question marks: %1</source>
         <translation>Points d’interrogation : %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1010"/>
+        <location filename="../mainwindow.cpp" line="1029"/>
         <source>💔 Streak ended at %1</source>
         <translation>💔 Série interrompue à %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1025"/>
+        <location filename="../mainwindow.cpp" line="1044"/>
         <source>Last win: %1</source>
         <translation>Dernière victoire : %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1054"/>
+        <location filename="../mainwindow.cpp" line="1073"/>
         <source>🎯 New best %!</source>
         <translation>🎯 Nouveau meilleur % !</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1069"/>
+        <location filename="../mainwindow.cpp" line="1088"/>
         <source>🚩 New best flag accuracy!</source>
         <translation>🚩 Nouveau record précision drapeaux !</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1075"/>
+        <location filename="../mainwindow.cpp" line="1094"/>
         <source>Close</source>
         <translation>Fermer</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1107"/>
+        <location filename="../mainwindow.cpp" line="1126"/>
         <source>Statistics</source>
         <translation>Statistiques</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Difficulty</source>
         <translation>Difficulté</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Played</source>
         <translation>Jouées</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Won</source>
         <translation>Gagnées</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Best time</source>
         <translation>Meilleur temps</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Best (no flag)</source>
         <translation>Record (sans drapeau)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Streak</source>
         <translation>Série</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Best 3BV/s</source>
         <translation>Record 3BV/s</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Best flag accuracy</source>
         <translation>Record précision drapeaux</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Last win</source>
         <translation>Dernière victoire</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1112"/>
+        <location filename="../mainwindow.cpp" line="1131"/>
         <source>Average</source>
         <translation>Moyenne</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1125"/>
+        <location filename="../mainwindow.cpp" line="1144"/>
         <source>Beginner</source>
         <translation>Débutant</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1126"/>
+        <location filename="../mainwindow.cpp" line="1145"/>
         <source>Intermediate</source>
         <translation>Intermédiaire</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1127"/>
+        <location filename="../mainwindow.cpp" line="1146"/>
         <source>Expert</source>
         <translation>Expert</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1175"/>
+        <location filename="../mainwindow.cpp" line="1194"/>
         <source>— (best %1%, %2)</source>
         <translation>— (meilleur %1%, %2)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1230"/>
+        <location filename="../mainwindow.cpp" line="1249"/>
         <source>Total</source>
         <translation>Total</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1245"/>
+        <location filename="../mainwindow.cpp" line="1264"/>
         <source>Reset all</source>
         <translation>Tout réinitialiser</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1251"/>
+        <location filename="../mainwindow.cpp" line="1270"/>
         <source>Reset statistics?</source>
         <translation>Réinitialiser les statistiques ?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1251"/>
+        <location filename="../mainwindow.cpp" line="1270"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>Effacer définitivement toutes les parties jouées / gagnées / meilleurs temps ?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1271"/>
+        <location filename="../mainwindow.cpp" line="1290"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;Compilé avec Qt %1 le %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1272"/>
+        <location filename="../mainwindow.cpp" line="1291"/>
         <source>About QMineSweeper</source>
         <translation>À propos de QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1265"/>
+        <location filename="../mainwindow.cpp" line="1284"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Un jeu de Démineur basé sur Qt6.&lt;/p&gt;&lt;p&gt;Clic gauche pour révéler, clic droit pour poser un drapeau, clic milieu sur un nombre satisfait pour enchaîner les voisines.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>
