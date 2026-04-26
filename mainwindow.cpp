@@ -902,28 +902,49 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         {
             text.prepend(tr("🏃 No-flag run!") + QStringLiteral("  "));
         }
-        if (newRecord)
+        // Combo flair: when the same win sets BOTH a fresh per-difficulty
+        // best clock-time AND a fresh per-difficulty best 3BV/s, swap both
+        // individual flairs (`🏆 New record!` and `⚡ New best 3BV/s!`) for a
+        // single celebratory line. Avoids the double-celebration stack of
+        // 🏆 + ⚡ on a rare both-fire run and gives that moment its own beat.
+        // Mirror of the v1.44 loss-side `🌟 Best loss yet!` arrangement, but
+        // 💎 is picked over 🌟 because 🌟 is already the win-side `New best
+        // streak` glyph (v1.16) — co-firing the combo and a streak-record on
+        // one win would otherwise render two `🌟` prepends side-by-side.
+        // Mutually exclusive with the individual 🏆 / ✨ / ⚡ flairs via the
+        // outer-`if`-skip on the 🏆/✨ block and the `if/else if` shape on
+        // the bottom 💎/⚡ pair; `✨ Beat your average!` is also skipped in
+        // the combo case because beating the lifetime mean is implied by
+        // setting a new best clock-time, so reading "💎 ✨" together would
+        // re-celebrate the same axis. Streak slot is independent and may
+        // still co-fire (e.g. `💎 Two new bests!  🌟 New best streak: N!`)
+        // since a streak record is a different axis (counted run length,
+        // not run quality).
+        if (!(newRecord && winNewBestBvPerSecond))
         {
-            text.prepend(tr("🏆 New record!") + QStringLiteral("  "));
-        }
-        // Softer lifetime-context flair when the just-finished run was strictly
-        // faster than the player's lifetime mean on this difficulty but did NOT
-        // set a new best. Mutually exclusive with `🏆 New record!` via `else if`
-        // — a new record always implies beating the average (since `bestSeconds
-        // <= mean` once n >= 1), so showing both would be redundant noise. Same
-        // mutual-exclusion shape the streak slot uses for `🌟` vs `🔥`. Gates:
-        //   • `winAverageSeconds > 0.0` — caller side already encodes the
-        //     `winsAfter >= 3` threshold by passing 0.0 below it; replays /
-        //     custom games never seed it (they don't call recordWin).
-        //   • `m_lastElapsedSeconds > 0.0` — defends against a sub-tick win
-        //     vacuously satisfying `0 < positive_mean`. Sub-tick wins are only
-        //     reachable via setFixedLayout-driven tests, but the guard is cheap
-        //     and pins honest behaviour.
-        //   • `m_lastElapsedSeconds < winAverageSeconds` — strict-less; tying
-        //     the average is not "beating" it.
-        else if (winAverageSeconds > 0.0 && m_lastElapsedSeconds > 0.0 && m_lastElapsedSeconds < winAverageSeconds)
-        {
-            text.prepend(tr("✨ Beat your average!") + QStringLiteral("  "));
+            if (newRecord)
+            {
+                text.prepend(tr("🏆 New record!") + QStringLiteral("  "));
+            }
+            // Softer lifetime-context flair when the just-finished run was strictly
+            // faster than the player's lifetime mean on this difficulty but did NOT
+            // set a new best. Mutually exclusive with `🏆 New record!` via `else if`
+            // — a new record always implies beating the average (since `bestSeconds
+            // <= mean` once n >= 1), so showing both would be redundant noise. Same
+            // mutual-exclusion shape the streak slot uses for `🌟` vs `🔥`. Gates:
+            //   • `winAverageSeconds > 0.0` — caller side already encodes the
+            //     `winsAfter >= 3` threshold by passing 0.0 below it; replays /
+            //     custom games never seed it (they don't call recordWin).
+            //   • `m_lastElapsedSeconds > 0.0` — defends against a sub-tick win
+            //     vacuously satisfying `0 < positive_mean`. Sub-tick wins are only
+            //     reachable via setFixedLayout-driven tests, but the guard is cheap
+            //     and pins honest behaviour.
+            //   • `m_lastElapsedSeconds < winAverageSeconds` — strict-less; tying
+            //     the average is not "beating" it.
+            else if (winAverageSeconds > 0.0 && m_lastElapsedSeconds > 0.0 && m_lastElapsedSeconds < winAverageSeconds)
+            {
+                text.prepend(tr("✨ Beat your average!") + QStringLiteral("  "));
+            }
         }
         // Streak flair — `newBestStreak` wins over the plain streak line so
         // the user never sees both. Streak >= 2 keeps the noise off when a
@@ -942,8 +963,14 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         // win on a smaller board can set a new clock without touching 3BV/s,
         // and vice versa. Prepended last so it ends up leftmost — reading
         // left-to-right the player sees ⚡ first, then 🌟/🔥, then 🏆, then
-        // 🏃, then the base "You cleared the field in …" line.
-        if (winNewBestBvPerSecond)
+        // 🏃, then the base "You cleared the field in …" line. The combo
+        // arm above takes this slot when both records co-fire so 💎 ends up
+        // leftmost in that case (and ⚡ is suppressed via the `else if`).
+        if (newRecord && winNewBestBvPerSecond)
+        {
+            text.prepend(tr("💎 Two new bests!") + QStringLiteral("  "));
+        }
+        else if (winNewBestBvPerSecond)
         {
             text.prepend(tr("⚡ New best 3BV/s!") + QStringLiteral("  "));
         }
