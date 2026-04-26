@@ -12,6 +12,17 @@
 
 A modern implementation of the classic **Minesweeper** game, written in **C++20** using the **Qt 6** widget toolkit.
 
+> **🤖 Developed by AI.** Every line of source code, unit test, translation,
+> commit message, release note, and documentation page in this repository
+> was authored by an AI assistant ([Claude](https://www.anthropic.com/claude))
+> collaborating with the maintainer. Bug reports, feature requests, code
+> review, and release decisions go through the human maintainer; the
+> implementation itself is end-to-end AI-written. The first-launch
+> "About QMineSweeper" dialog and the project copyright line both reflect
+> this. If you find a bug, please open an issue — the fix will be drafted
+> by AI, reviewed by the maintainer, and shipped through the same CI / CD
+> pipeline as any other change.
+
 ## Screenshots
 
 | Fresh Beginner board | Mid-game: numbers, flags, flood-fill |
@@ -296,3 +307,22 @@ This project is licensed under the terms of the
 [MIT License](https://choosealicense.com/licenses/mit/).
 
 Copyright (c) 2020 M. Serdar Karaman
+
+## Authorship
+
+QMineSweeper is an **AI-developed** project. Every code change since the
+initial scaffolding has been written by an AI assistant
+([Claude](https://www.anthropic.com/claude), running under the
+[Claude Code](https://www.anthropic.com/claude-code) CLI) collaborating
+with the human maintainer M. Serdar Karaman, who reviews, gates, and ships
+each change through the standard CI / CD pipeline. The architecture, test
+coverage, translations across 10 locales, telemetry integration, release
+automation, and this README itself are all the output of that workflow.
+
+This is intentional: the project doubles as a public, end-to-end
+demonstration of what an AI-authored, human-supervised codebase looks like
+when held to the same engineering standards (lint, format, tests on three
+OSes, code coverage, signed releases) as any other open-source Qt
+application. Issues, PRs, and discussion are very welcome — they will be
+triaged by the maintainer and the implementation drafted by AI in the
+same loop.

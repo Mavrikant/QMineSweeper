@@ -1,5 +1,173 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 46 — v2.0.0 (autonomous)
+
+- **Chosen problem:** The Statistics dialog's table has a "Last win"
+  column (v1.38, shipped ~10 cycles back) that gives the player a
+  cross-difficulty "when was I last successful here?" anchor. The
+  loss-side equivalent — "when did I last lose this difficulty?" —
+  has been missing despite every other per-axis pairing having matured
+  (best partial / best flag accuracy / partial-clear loss-dialog
+  companion). v1.48.0's cycle log called this out explicitly as a
+  next candidate two cycles out; coming due now.
+- **Evidence:** `MainWindow::showStatsDialog` (mainwindow.cpp:1224
+  pre-cycle) constructs a `QTableWidget(4, 11, ...)` and sets 11
+  header labels ending in `tr("Last win")`; the per-row loop fills
+  columns 0..10 with the win-side anchor at index 10 but no loss-
+  side equivalent. `Stats::Record` (stats.h:77 pre-cycle) carries
+  `lastWinDate` but no `lastLossDate`; `Stats::recordLoss`
+  (stats.cpp:144 pre-cycle) increments played, captures
+  priorStreak, zeroes currentStreak, conditionally updates
+  bestSafePercent/bestFlagAccuracyPercent — but does not stamp any
+  date field unconditionally. The v1.37 `lastWinDate` pattern was
+  the proven shape; the loss axis simply hadn't picked it up.
+- **Shipped:**
+  - Branch: `feat/v2.0.0-stats-last-loss-column` (squash-merged + deleted)
+  - PR: [pending squash]
+  - Squash commit: [pending]
+  - Release: [pending tag push]
+- **Code surface:** ~10 LOC `stats.h` (one new field on Record + a
+  multi-line comment) + ~12 LOC `stats.cpp` (load read, save
+  write, reset key remove, recordLoss unconditional stamp) + ~10 LOC
+  `mainwindow.cpp` (12-column header, formatLastLoss lambda, per-row
+  setItem at column 11, Total row em-dash at column 11) + ~95 LOC
+  `tests/tst_stats.cpp` (11 new tests + 11 declarations) +
+  `DECISIONS.md` entry + `CMakeLists.txt` version bump (1.48.0 → 2.0.0)
+  + 9 LOC `apply_translations.py` (1 new key × 9 non-English locales)
+  + 10 lupdate-managed `.ts` location-only updates (1 new source
+  string per locale). Real code+tests diff well under the 400-LOC
+  cycle cap.
+- **Tests added:** 11 (extension to `tst_stats`). 10 test binaries,
+  all pass. Total tst_stats test count: 165 → 176.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (115 translations applied per
+  non-en locale, up from 114 last cycle). Hand translations:
+  - TR `"Son mağlubiyet"` ·
+    ES `"Última derrota"` ·
+    FR `"Dernière défaite"` ·
+    DE `"Letzte Niederlage"` ·
+    RU `"Последнее поражение"` ·
+    PT `"Última derrota"` ·
+    ZH `"上次失利"` ·
+    HI `"अंतिम हार"` ·
+    AR `"آخر خسارة"`.
+  Each picks a "loss"/"defeat" lexeme distinct from the locale's
+  existing "win"/"victory" word so the column header is unambiguous
+  next to the v1.38 "Last win" column.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "Found 118 source text(s) (1 new and 117 already existing)"
+    across all 10 locales — exactly one net-new tr() string.
+  - `python3 translations/apply_translations.py` reports "115
+    translations applied" per non-English locale (up from 114 last
+    cycle).
+  - `cmake --build build` clean.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure` 10/10
+    pass; tst_stats 176/176 pass (was 165).
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    after a single auto-fix pass on inline comment alignment.
+- **Adversarial self-review:**
+  - **What breaks this in production?**
+    - Pre-2.0 plist load with no `last_loss_date` key → invalid
+      QDate → em-dash render ✓ (pinned by
+      `testLegacyRecordWithoutLastLossDateLoadsAsInvalid` and
+      `testLegacyRecordWithLossesButNoLastLossDateLoadsAsInvalid`).
+    - First-ever loss → date stamped → cell renders ✓
+      (`testFirstLossStampsLastLossDate`).
+    - Slower / weaker subsequent loss → still overwrites the stamp
+      because the column tracks "most recent" not "best" ✓
+      (`testNonImprovingLossStillOverwritesLastLossDate`).
+    - Replay / Custom games → `recordLoss` not called → field
+      stays at last persisted value (or invalid) ✓ (matches v1.37
+      `lastWinDate` invariant).
+    - Per-difficulty isolation → Beginner stamp does not leak to
+      Intermediate/Expert ✓ (`testLastLossDateIsPerDifficulty`).
+    - Both axes coexist → win after loss keeps loss date, loss
+      after win keeps win date ✓
+      (`testLastWinAndLastLossCoexistIndependently`).
+  - **Backwards-compat?** Forward-only additive QSettings schema:
+    new `last_loss_date` key, no rename or removal of existing keys.
+    Pre-2.0 plists load cleanly. `Stats::Record` gains a trailing
+    field; the only writers are `recordLoss` / `save` (intra-module),
+    so no public-API consumer outside `MainWindow` (which renders
+    the new column) and `tests/tst_stats`.
+  - **Error paths?** None. The stamp is unconditional; the load gate
+    is the same `isEmpty() ? QDate{} : fromString` shape as the eight
+    other date fields. `formatLastLoss` is structurally identical to
+    `formatLastWin` (shipped since v1.38 without complaint).
+  - **Secrets / PII?** None. The date is local-clock relative; no
+    timezone information persisted; no telemetry change.
+  - **Performance?** O(1) per loss — one QString conversion + one
+    QSettings setValue, both already on the recordLoss hot path. No
+    new allocations beyond what the existing date-field writes do.
+  - **Concurrency?** None — single-threaded UI; the new field is
+    populated on the same thread that mutates Record.
+  - **Visual regression?** The Stats dialog grows by one column.
+    `resizeColumnsToContents()` already runs after the per-row loop,
+    so the table widens naturally. The 12-column layout still fits
+    on a default-sized desktop; `setStretchLastSection` on the
+    horizontal header keeps the rightmost column flexible.
+- **Assumptions made:**
+  - **Major version bump to 2.0.0** instead of the otherwise-natural
+    1.49.0. The CMakeLists.txt version was set to 2.0.0 mid-cycle as
+    an intentional change. Treating it as load-bearing per the
+    autonomy charter; the cycle's content (one new column + one new
+    QSettings key) is small but defensible as the 2.0 cut: v1.0 →
+    v1.48 was the "fill out the end-of-game dialogs" arc and the
+    Stats grid is now wide enough (12×4) that a 2.x line is the
+    right user-facing signal that per-axis maturation has finished.
+    Schema is forward-only additive — no breaking changes.
+  - **Unconditional `lastLossDate` stamp on every counted recordLoss**
+    rather than gated on a "real loss" predicate. Mirror of v1.37
+    `lastWinDate`'s contract exactly: the date stamp is meaningful
+    independent of whether the loss also touched bestSafePercent /
+    bestFlagAccuracyPercent. Replays / Custom skip recordLoss
+    entirely, which is the correct exclusion shape.
+  - **`formatLastLoss` lambda byte-identical in shape to `formatLastWin`**
+    rather than refactoring into a shared helper. Two trivial
+    em-dash-or-shortFormat lambdas at the cell-render site beats a
+    new free function for the same render. The pattern is already
+    established for `formatBest` / `formatStreak` co-existing.
+  - **No "Last loss" line on the loss dialog itself.** The loss
+    dialog *is* the last-loss event; printing today's date inside it
+    would be tautological. The Stats dialog is the right surface
+    because the player consults it to compare across difficulties.
+  - **Total-row "Last loss" cell renders em-dash.** Same rationale
+    as the v1.38 Total-row "Last win" cell: max-of-per-difficulty
+    just shadows whichever per-row date is most recent, duplicate
+    signal not new information.
+- **Skipped:**
+  - *Loss-dialog `🎯 New best %!` flair message refresh.* Pure copy
+    update on an existing flair — minor signal-to-noise improvement
+    but breaks the alternation we're owed this cycle (last two cycles
+    were loss-side and win-side; this one wants stats-dialog). Park.
+  - *Win-dialog `(prev %1)` companion to `⚡ New best 3BV/s!` flair.*
+    Mirror of v1.48 on the 3BV/s axis; needs a new
+    `WinOutcome.priorBvPerSecond` field. Win-side dialog beat —
+    natural alternation slot two cycles out.
+  - *Live UI smoke test via computer-use.* Same trade-off as the
+    past several cycles' "Local verification" pattern — the unit
+    tests pin the persistence-layer invariant the dialog reads, the
+    composition mirrors `formatLastWin` exactly, and offscreen
+    startup smoke confirmed the binary loads.
+- **Risks logged:** none new.
+- **Post-release watch:** [to be filled after release publishes]
+- **Next candidates:**
+  - **Loss-dialog `🎯 New best %!` flair message refresh.** Owed the
+    loss-side alternation slot after this stats cycle. One new
+    translatable string, mutex with the existing `🎯` flair via
+    `else if`. Pure flair beat.
+  - **Win-dialog `(prev %1)` companion to `⚡ New best 3BV/s!` flair.**
+    Mirror of v1.48's pattern on the 3BV/s axis. Needs a new
+    `WinOutcome.priorBvPerSecond` field; the rest is render-side.
+    Win-side dialog beat — natural alternation slot two cycles out.
+  - **Stats-dialog "Total" row Average column reconsideration.**
+    Currently em-dash; a sum-weighted "global average winning time"
+    is mathematically defined and might give the player a single-
+    number summary of "my median minesweeping pace." Investigate
+    whether the noise (different difficulty sizes weighted by play
+    count) overwhelms the signal.
+
 ## 2026-04-26 — Cycle 45 — v1.48.0 (autonomous)
 
 - **Chosen problem:** The win dialog's `🏆 New record!` flair (since

@@ -1,5 +1,85 @@
 # Cycle decisions
 
+## 2026-04-26 — Stats-dialog "Last loss" column (v2.0.0)
+
+**Chosen:** Add a 12th column to the Statistics dialog table — `Last loss`
+— rendering the locale-formatted date of the player's most-recent counted
+loss for each difficulty, with em-dash when none recorded yet. Mirror of
+the v1.38 "Last win" column on the loss axis. Backed by a new
+`Stats::Record::lastLossDate` field (and matching `last_loss_date`
+QSettings key) stamped unconditionally inside `Stats::recordLoss` —
+parallel to the v1.37 `lastWinDate` stamp inside `recordWin`.
+
+**Why:**
+- The v1.38 "Last win" column has shipped working for ~10 cycles and
+  gives the player a "when was I last successful here?" anchor across
+  all three difficulties at one glance. The loss-side equivalent —
+  "when did I last lose this difficulty?" — has been visibly missing
+  from the Stats grid despite every other per-axis pairing having
+  matured (best partial / best flag accuracy / partial-clear loss
+  dialog companion). v1.48.0's cycle log explicitly listed this as a
+  next candidate two cycles out; coming due now.
+- Alternation continues: v1.46 stats → v1.47 loss → v1.48 win →
+  **v1.49/v2.0 stats**. Stats-dialog beat owed after consecutive
+  loss-side and win-side end-of-game-dialog cycles.
+- Schema mirror: `lastLossDate` field + `last_loss_date` QSettings
+  key + `recordLoss` stamp parallels v1.37 exactly. Load / save /
+  reset / resetAll all updated atomically with the same isValid()-
+  gated read/write pattern.
+- One new translatable string (`"Last loss"`), hand-translated into
+  all 9 non-English locales using lexically distinct words from
+  "Last win" so RU/DE/AR/ZH carry the loss vs. win semantic
+  faithfully (e.g. RU `Последнее поражение` vs. `Последняя победа`,
+  DE `Letzte Niederlage` vs. `Letzter Sieg`).
+- Render mirror: `formatLastLoss` lambda is byte-identical to
+  `formatLastWin` in shape (em-dash on invalid, locale ShortFormat on
+  valid). The Total row's loss column collapses to em-dash for the
+  same reason the win column does — "last loss across difficulties"
+  is just whichever per-row date is most recent, duplicate signal not
+  new information.
+
+**Rejected alternatives:**
+- *Stamp `lastLossDate` only when player placed at least one flag (or
+  some other "real loss" gate).* Would create a class of losses that
+  the column can't see. The simpler invariant — "every counted loss
+  stamps the date, replays/Custom skip recordLoss entirely" — matches
+  the v1.37 `lastWinDate` contract exactly and keeps the column's
+  semantic crisp: "the last time the difficulty's persistent counter
+  ticked played-but-not-won."
+- *Add a "Last loss: %1" line to the loss dialog itself, mirroring
+  v1.37's win→loss dialog cross-display.* The loss dialog *is* the
+  last-loss event by construction — printing today's date inside it
+  is tautological. The Stats dialog is the right surface because the
+  player consults it to compare across difficulties (e.g. "did I lose
+  Beginner today, or just Expert?").
+- *Reuse v1.38's `last_win_date` key shape but parameterise on win/loss.*
+  Would couple the two stamps into a tuple just to save the field
+  name. Two scalars beat one tuple here — the read paths
+  (`MainWindow` shows them in different columns; `recordWin` only
+  touches one; `recordLoss` only touches the other) want them
+  independent.
+- *Surface the Total-row "Last loss" cell as `max(per-difficulty
+  lastLossDate)`.* Same rejection rationale as v1.38's "Last win"
+  Total cell: it just shadows whichever per-row date is most recent.
+  Em-dash matches the existing convention.
+- *Back-fill `lastLossDate` for legacy plists with `played > won` but
+  no `last_loss_date` key.* Would invent a date the user didn't
+  actually lose on. Clean-slate seeding (the cell shows em-dash until
+  the next 1.49+ loss refreshes it) matches v1.37's defensive load
+  behaviour for legacy `lastWinDate`.
+
+**Version:** Bumped to **2.0.0** rather than the otherwise-natural
+1.49.0. The release content is small (one new column + one new
+QSettings key), but the major bump landed in CMakeLists.txt
+intentionally and the autonomy charter says treat intentional changes
+as load-bearing. Treating this cycle as the 2.0 cut is defensible:
+v1.0 → v1.48 was the "fill out the end-of-game dialogs" arc, and the
+Stats dialog's data model is now wide enough (12 columns × 4 rows)
+that a 2.x line is appropriate signal to users that the persistence
+schema has had its full per-axis maturation. No breaking changes,
+schema is forward-only additive — pre-2.0 plists load cleanly with
+the new field defaulting to invalid.
+
 ## 2026-04-26 — Win-dialog "(prev %1)" companion to "🏆 New record!" flair (v1.48.0)
 
 **Chosen:** When the win dialog's `🏆 New record!` flair fires AND the

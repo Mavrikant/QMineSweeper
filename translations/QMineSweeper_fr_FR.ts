@@ -441,6 +441,11 @@
         <translation>Record partiel</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="1225"/>
+        <source>Last loss</source>
+        <translation>Dernière défaite</translation>
+    </message>
+    <message>
         <location filename="../mainwindow.cpp" line="1238"/>
         <source>Beginner</source>
         <translation>Débutant</translation>
@@ -460,39 +465,43 @@
         <translation type="vanished">— (meilleur %1%, %2)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1333"/>
+        <location filename="../mainwindow.cpp" line="1348"/>
         <source>Total</source>
         <translation>Total</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1349"/>
+        <location filename="../mainwindow.cpp" line="1365"/>
         <source>Reset all</source>
         <translation>Tout réinitialiser</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1355"/>
+        <location filename="../mainwindow.cpp" line="1371"/>
         <source>Reset statistics?</source>
         <translation>Réinitialiser les statistiques ?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1355"/>
+        <location filename="../mainwindow.cpp" line="1371"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>Effacer définitivement toutes les parties jouées / gagnées / meilleurs temps ?</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1375"/>
+        <location filename="../mainwindow.cpp" line="1385"/>
+        <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Developed by AI&lt;/b&gt; — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
+        <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Un jeu de Démineur basé sur Qt6.&lt;/p&gt;&lt;p&gt;Clic gauche pour révéler, clic droit pour poser un drapeau, clic milieu sur un nombre satisfait pour enchaîner les voisines.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Développé par une IA&lt;/b&gt; — chaque ligne de code, test, traduction et note de version de ce projet a été écrite par un assistant IA en collaboration avec le mainteneur.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1392"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;Compilé avec Qt %1 le %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1376"/>
+        <location filename="../mainwindow.cpp" line="1393"/>
         <source>About QMineSweeper</source>
         <translation>À propos de QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1369"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
-        <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Un jeu de Démineur basé sur Qt6.&lt;/p&gt;&lt;p&gt;Clic gauche pour révéler, clic droit pour poser un drapeau, clic milieu sur un nombre satisfait pour enchaîner les voisines.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
+        <translation type="vanished">&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;Un jeu de Démineur basé sur Qt6.&lt;/p&gt;&lt;p&gt;Clic gauche pour révéler, clic droit pour poser un drapeau, clic milieu sur un nombre satisfait pour enchaîner les voisines.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>
 </context>
 <context>

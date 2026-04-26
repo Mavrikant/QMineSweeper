@@ -441,6 +441,11 @@
         <translation>最佳完成度</translation>
     </message>
     <message>
+        <location filename="../mainwindow.cpp" line="1225"/>
+        <source>Last loss</source>
+        <translation>上次失利</translation>
+    </message>
+    <message>
         <location filename="../mainwindow.cpp" line="1238"/>
         <source>Beginner</source>
         <translation>初级</translation>
@@ -460,39 +465,43 @@
         <translation type="vanished">— (最高 %1%，%2)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1333"/>
+        <location filename="../mainwindow.cpp" line="1348"/>
         <source>Total</source>
         <translation>总计</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1349"/>
+        <location filename="../mainwindow.cpp" line="1365"/>
         <source>Reset all</source>
         <translation>全部重置</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1355"/>
+        <location filename="../mainwindow.cpp" line="1371"/>
         <source>Reset statistics?</source>
         <translation>重置统计数据？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1355"/>
+        <location filename="../mainwindow.cpp" line="1371"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>是否永久删除所有已玩、获胜与最佳时间记录？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1375"/>
+        <location filename="../mainwindow.cpp" line="1385"/>
+        <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;&lt;b&gt;Developed by AI&lt;/b&gt; — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
+        <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;基于 Qt6 的扫雷游戏。&lt;/p&gt;&lt;p&gt;左键揭示，右键标记旗帜，在满足数字的格子上按中键可同时揭开周围格子。&lt;/p&gt;&lt;p&gt;&lt;b&gt;由 AI 开发&lt;/b&gt;——本项目中的每一行代码、测试、翻译和发布说明，都是由 AI 助手与维护者协作编写的。&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="1392"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;使用 Qt %1 构建于 %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1376"/>
+        <location filename="../mainwindow.cpp" line="1393"/>
         <source>About QMineSweeper</source>
         <translation>关于 QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1369"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
-        <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;基于 Qt6 的扫雷游戏。&lt;/p&gt;&lt;p&gt;左键揭示，右键标记旗帜，在满足数字的格子上按中键可同时揭开周围格子。&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
+        <translation type="vanished">&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;基于 Qt6 的扫雷游戏。&lt;/p&gt;&lt;p&gt;左键揭示，右键标记旗帜，在满足数字的格子上按中键可同时揭开周围格子。&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>
 </context>
 <context>
