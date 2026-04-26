@@ -1,5 +1,179 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 41 — v1.44.0 (autonomous)
+
+- **Chosen problem:** A loss that beat both the per-difficulty
+  partial-clear record (🎯, v1.29) AND the per-difficulty flag-
+  accuracy record (🚩, v1.34) on the same run prepended *both*
+  individual flairs to the loss dialog (`🚩 New best flag accuracy!
+  🎯 New best %!  Boom!...`), reading the dialog twice for the
+  same achievement-tier moment. v1.43.0 cycle log called this out
+  as the second listed next candidate, verbatim: "Loss-dialog
+  combo flair when a single loss is the player's best partial-
+  clear *and* best flag accuracy on a single run ('🌟 Best loss
+  yet!'). Compound flair gated on both `lossOutcome.newBestSafePercent`
+  AND `lossOutcome.newBestFlagAccuracyPercent` firing on the same
+  run. Pure flair, one new translatable string. Mirror of the win-
+  side compound flair pattern. Natural next loss-side beat."
+- **Evidence:** `MainWindow::showEndDialog` (mainwindow.cpp:1064-
+  1089 pre-cycle) prepends `🎯 New best %!` and `🚩 New best flag
+  accuracy!` independently in two `if` blocks, with the comment
+  block on the second block calling out the co-fire case explicitly:
+  "Independent of `lossNewBestSafePercent` because the two records
+  track different axes (board coverage vs. flag-placement accuracy)
+  and can co-fire on a single loss; prepended last so 🚩 ends up
+  leftmost when both fire". The pre-1.44 reading order is exactly
+  the noise-doubling case the combo flair compresses.
+- **Shipped:**
+  - Branch: `feat/v1.44.0-loss-dialog-best-loss-yet-combo-flair`
+    (squash-merged + deleted)
+  - PR: [#62](https://github.com/Mavrikant/QMineSweeper/pull/62)
+  - Squash commit: [TODO]
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v1.44.0
+  - Release workflow: [TODO]
+- **Code surface:** ~25 LOC of production diff in `mainwindow.cpp`
+  (combo `if` arm + the existing two prepends moved into the outer
+  `else` block + comment) + ~95 LOC tests + ~95 LOC `DECISIONS.md`
+  + 1 LOC `CMakeLists.txt` version bump + 1 new translation key ×
+  9 locales + 10 lupdate-managed `.ts` location-only updates.
+  Real code+tests diff well under the 400-LOC cycle cap.
+  - `mainwindow.cpp` (`showEndDialog` loss branch): combo `if`
+    fires on `lossNewBestSafePercent && lossNewBestFlagAccuracy`,
+    prepending `tr("🌟 Best loss yet!")`. Outer `else` skips the
+    two individual prepends in that case. No new parameter, no new
+    member, no new `LossOutcome` field.
+  - `tests/tst_stats.cpp`: 7 new tests under "Loss-dialog '🌟 Best
+    loss yet!' combo flair gate":
+    `testComboFlairBothBestsFireOnSingleLoss`,
+    `testComboFlairOnlySafePercentDoesNotFireBoth`,
+    `testComboFlairOnlyFlagAccuracyDoesNotFireBoth`,
+    `testComboFlairNeitherBestDoesNotFireBoth`,
+    `testComboFlairFirstEverLossWithBothMetricsFires`,
+    `testComboFlairReplaySkippedDoesNotFireBoth`,
+    `testComboFlairZeroFlagsLossDoesNotFireBoth`.
+  - `CMakeLists.txt`: version bump 1.43.0 → 1.44.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English locales).
+  - `.ts` files: lupdate adds the new key (113 → 114) across all 10
+    locales; apply_translations fills 9 of them; English stays
+    unfinished as designed.
+- **Tests added:** 7 (extension to `tst_stats`). 9 test binaries,
+  all pass. Total tst_stats test count: 142 → 149.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (111 translations applied per
+  non-en locale). Hand translations:
+  - TR `"🌟 En iyi yenilgin!"` ·
+    ES `"🌟 ¡Tu mejor derrota!"` ·
+    FR `"🌟 Votre meilleure défaite !"` ·
+    DE `"🌟 Bisher beste Niederlage!"` ·
+    RU `"🌟 Лучший проигрыш на сегодня!"` ·
+    PT `"🌟 Sua melhor derrota até agora!"` ·
+    ZH `"🌟 史上最佳败局！"` ·
+    HI `"🌟 अब तक की सबसे अच्छी हार!"` ·
+    AR `"🌟 أفضل خسارة لك حتى الآن!"`.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "1 new and 113 already existing" across all 10 locales —
+    confirms exactly one net-new tr() string.
+  - `cmake --build build` clean (no warnings); all 10 locales
+    generate `114 finished and 0 unfinished` `.qm` files.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 9/9
+    pass; total 149 tests in tst_stats including all 7 new combo
+    tests.
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+- **Adversarial self-review:**
+  - **What breaks this in production?** Both bools true on the
+    same loss → combo fires alone (pinned by
+    `testComboFlairBothBestsFireOnSingleLoss`) ✓. Only safe-
+    percent true → individual 🎯 fires alone (pinned by
+    `testComboFlairOnlySafePercentDoesNotFireBoth`) ✓. Only flag-
+    accuracy true → individual 🚩 fires alone (pinned by
+    `testComboFlairOnlyFlagAccuracyDoesNotFireBoth`) ✓. Neither
+    true → no flair (pinned by
+    `testComboFlairNeitherBestDoesNotFireBoth`) ✓. Default-
+    constructed `LossOutcome` (the replay/custom branch in
+    `onGameLost`) → both false → no flair, no spurious combo
+    (pinned by `testComboFlairReplaySkippedDoesNotFireBoth`) ✓.
+    First-ever loss with both metrics positive on a clean
+    QSettings → both transition 0 → positive simultaneously →
+    combo fires cleanly (pinned by
+    `testComboFlairFirstEverLossWithBothMetricsFires`) ✓. No-flag
+    loss (`flagAccuracyPercent == 0`) → flag-accuracy stays at 0
+    → individual 🎯 fires alone, never combo (pinned by
+    `testComboFlairZeroFlagsLossDoesNotFireBoth`) ✓.
+  - **Backwards-compat?** Pure addition. No new QSettings key
+    (the two bools have been threaded into `showEndDialog` since
+    v1.29 / v1.34); no migration; no signature break.
+  - **Error paths?** None — three booleans and a string prepend.
+  - **Secrets / PII?** None. Underlying bools are already exposed
+    via telemetry tags `new_best_safe_percent` /
+    `new_best_flag_accuracy` since v1.29 / v1.33.
+  - **Performance?** O(1) per loss dialog. One `&&` short-circuit
+    on top of the existing two prepend gates.
+  - **Concurrency?** None — single-threaded UI; no new shared state.
+  - **Visual regression?** One new prepend slot when the gate
+    fires, swapping for the two individual prepends. `QMessageBox`
+    auto-sizes — no fixed-width assumption broken. Reading L→R
+    the player sees: `[🌟 OR (🚩 + 🎯)] … "Boom!" … [Last win]
+    [Average]`.
+- **Assumptions made:**
+  - **Mutual exclusion via outer `else`, not three-flair stack.**
+    Three celebratory flairs in one dialog reads as noise and
+    triples the same achievement signal. Swap-not-stack matches
+    the streak slot (`🌟 New best streak!` swaps for
+    `🔥 Streak: %1`) and the v1.43 average slot (`🏆 New record!`
+    swaps for `✨ Beat your average!`).
+  - **Strict `&&` at the call site, not a new `LossOutcome.combo`
+    field.** The combo gate is one term; baking it at the stats
+    layer would duplicate state already exposed and move flair
+    logic out of the rendering layer.
+  - **No new `showEndDialog` parameter.** Both bools already
+    threaded since v1.29 / v1.34. Adding a `lossComboFlair`
+    parameter would force `onGameWon` to thread a third `false`
+    arg for symmetry.
+  - **Tests pin the data contract, not the dialog text.** Seven
+    new `tst_stats` tests pin the `Stats::recordLoss` outcome
+    bools the combo gate consumes; each asserts both individual
+    bools and the conjunction explicitly so a future refactor
+    that returns the same fields under different names can't
+    silently flip the gate.
+  - **Naming `"🌟 Best loss yet!"` over `"🌟 Double best!"` /
+    `"🌟 Personal best loss!"` / `"🌟 Two new bests on one
+    loss!"`.** "Best loss yet" is shortest, unambiguously
+    positive, and the "yet" softens the framing without leaning
+    on idiom. Translates cleanly across all 9 non-en locales —
+    "personal best" is a colloquialism that doesn't render
+    cleanly in Russian / Chinese / Hindi / Arabic.
+  - **End-to-end visual sanity check on the live app.** Skipped
+    again — autonomous scheduled-task cycle with no user present
+    to approve `request_access`. Relied on unit tests + the
+    small, surgical change; symmetric with v1.41–v1.43 cycles.
+- **Skipped:**
+  - **Stats-dialog "Slowest win" column.** Schema bump (new
+    `slowestSeconds` accumulator + companion date), multi-cycle.
+    Also breaks alternation.
+  - **Loss-dialog "🐌 Slower than your usual loss" partial-clear-
+    versus-average-partial-clear.** Needs a new persisted
+    `totalPartialBvOnLoss` accumulator. Schema bump. Multi-cycle.
+  - **Stats-dialog "Median win time" column.** Outlier-resistant
+    statistic but needs persisting every counted winning duration.
+    Schema bump. Multi-cycle.
+- **Risks logged:** none new.
+- **Post-release watch:** [TODO]
+- **Next candidates:**
+  - **Win-dialog combo flair when a single win sets BOTH a fresh
+    best time AND a fresh best 3BV/s** ("🌟 Personal best
+    everything!"). Mirror of this cycle's loss-side combo flair on
+    the win-side. Pure flair, one new translatable string.
+    Natural next win-side beat.
+  - **Stats-dialog "Slowest win" column.** Symmetric to Best time
+    column; would need a new `slowestSeconds` accumulator (and
+    optional `slowestDate` companion).
+  - **Loss-dialog "Best loss" stats column.** Surface the v1.29
+    `bestSafePercent` + v1.33 `bestFlagAccuracyPercent` as a single
+    cell on the Stats dialog (currently only the win-side records
+    are columnized). Pure presentation, no schema change.
+
 ## 2026-04-26 — Cycle 40 — v1.43.0 (autonomous)
 
 - **Chosen problem:** The win dialog has rendered the lifetime
