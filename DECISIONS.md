@@ -1,5 +1,136 @@
 # Cycle decisions
 
+## 2026-04-26 — Win-dialog "💎 Two new bests!" combo flair (v1.45.0)
+
+**Chosen:** On the win dialog, when a single win earns BOTH a fresh
+per-difficulty best clock-time (`WinOutcome.newRecord`) AND a fresh
+per-difficulty best 3BV/s (`WinOutcome.newBestBvPerSecond`), swap both
+individual flairs (`🏆 New record!` from v1.0 and `⚡ New best 3BV/s!`
+from v1.30) — and the softer-tier `✨ Beat your average!` (v1.43) —
+for a single celebratory `💎 Two new bests!` prepend. Mutually
+exclusive with the individual flairs via an outer `if (!(newRecord &&
+winNewBestBvPerSecond))` skip on the 🏆/✨ block plus an `if/else if`
+on the bottom 💎/⚡ pair. One new translatable string, hand-translated
+into all 9 non-English locales. Zero schema changes — the gate
+consumes the same two `WinOutcome` bools the individual flairs already
+consume.
+
+**Why:**
+- v1.44.0 cycle log's first listed next candidate, paraphrased: "Win-
+  dialog combo flair when a single win sets BOTH a fresh best time
+  AND a fresh best 3BV/s. Mirror of this cycle's loss-side combo flair
+  on the win-side. Pure flair, one new translatable string. Natural
+  next win-side beat in the alternation."
+- Alternation pattern: v1.41 win → v1.42 loss → v1.43 win → v1.44 loss
+  → **v1.45 win**. The win-side mirror of v1.44.0's `🌟 Best loss yet!`
+  closes the loop on the per-record-axis pairing.
+- The two individual flairs already prepend independently (since v1.30),
+  so a both-fire win currently shows the stack
+  `⚡ New best 3BV/s!  🏆 New record!  You cleared the field in …` —
+  reading the dialog twice celebrates the same achievement-tier
+  moment. The combo flair compresses that into a single tier-up beat,
+  matching the streak-slot mutual-exclusion shape (`🌟 New best
+  streak!` swaps for `🔥 Streak: %1` rather than stacking on top) and
+  the v1.43 average slot (`🏆 New record!` swaps for `✨ Beat your
+  average!`).
+- Schema-zero, signature-zero. The two bools are already passed into
+  `showEndDialog` as `newRecord` / `winNewBestBvPerSecond` (since v1.0
+  / v1.30); the combo gate is a single `&&` at the call site.
+- 1 new translatable string × 9 non-en locales — within the cycle cap.
+  Each locale uses its existing "record" / "best" lexicon for cross-
+  line consistency with the existing `🏆 New record!` / `⚡ New best
+  3BV/s!` translations.
+
+**Rejected alternatives from the v1.44.0 candidate list:**
+- *Stats-dialog "Slowest win" column.* Symmetric to Best time but
+  needs a new `slowestSeconds` accumulator (and optional `slowestDate`
+  companion). Schema bump, multi-cycle. Also breaks alternation —
+  this cycle is owed a win-side beat.
+- *Loss-dialog "Best loss" stats column.* Surface the v1.29
+  `bestSafePercent` + v1.33 `bestFlagAccuracyPercent` as a single
+  cell on the Stats dialog. Pure presentation, no schema change —
+  but it's a loss-side beat and breaks alternation.
+
+**Rejected glyph alternatives:**
+- *`🌟 Personal best everything!`* (the v1.44.0 cycle log's literal
+  suggestion). Rejected because `🌟` is already the win-side glyph
+  for `New best streak: %1!` (since v1.16). On a win that sets best
+  time + best 3BV/s + best streak (rare but possible), reusing 🌟
+  for the combo would render two `🌟` prepends side-by-side
+  (`🌟 Personal best everything!  🌟 New best streak: 5!`),
+  collapsing visual distinction between two unrelated record axes.
+  💎 keeps the combo glyph distinct from every existing win-side
+  glyph (🏆, 🌟, 🔥, ⚡, 🏃, ✨) and reads as "rare, premium" —
+  appropriate for a both-records-on-one-run moment. Loss-side combo
+  could safely use 🌟 because the loss dialog has no other 🌟
+  prepend; the win dialog cannot.
+- *`🥇 Two new bests!`* / *`🏅 Two new bests!`*. Medal glyphs were
+  considered, but 🏆 already occupies the "new record" trophy/medal
+  visual lane on the win dialog. 💎 is in a different visual
+  category and won't read as "yet another medal".
+
+**Rejected naming alternatives:**
+- *`"💎 Personal best everything!"`* (verbatim from the cycle log).
+  Same translation problem as v1.44's rejected `"🌟 Personal best
+  loss!"`: "personal best" is a colloquialism that doesn't translate
+  idiomatically across all 9 non-en locales without a longer
+  rephrase, and "everything" is vague — the player wants to know
+  *which* records they set, and the underlying scoreboard already
+  shows time + 3BV/s in the body. "Two new bests" is explicit and
+  short.
+- *`"💎 Best win yet!"`* (direct mirror of `🌟 Best loss yet!`).
+  Rejected because every win is already "good" — "best win yet"
+  reads as redundant praise. The loss-side equivalent works because
+  every loss is "bad", so "best loss" is the interesting framing.
+- *`"💎 Time and pace!"`*. Specific but tries too hard — the dialog
+  body already shows time and 3BV/s, so the flair restates them.
+  Flair is celebration, not recap.
+- *`"💎 Double record!"`*. Concise but ambiguous — "double" reads
+  as 2× (a single record doubled?) rather than "both records".
+
+**Implementation choices:**
+
+1. **Mutual exclusion via outer skip on the 🏆/✨ block + `if/else if`
+   on the 💎/⚡ pair.** Cleaner than pushing `&& !winNewBestBvPerSecond`
+   onto each of the existing 🏆 / ✨ gates because the ✨ arm is
+   gated on `else if` after 🏆 and would otherwise leak through in
+   the combo case (newRecord is true → 🏆 arm would normally fire,
+   but its tightened gate fails → ✨ would erroneously fire on the
+   `else if`'s `winAverage > 0 && elapsed < winAverage`, since
+   beating one's lifetime mean is implied by setting a new best
+   time). Wrapping the whole 🏆/✨ block in `if (!(newRecord &&
+   winNewBestBvPerSecond))` skips both arms cleanly.
+2. **Streak slot stays independent of the combo.** A streak record
+   tracks a different axis (counted run length) from time/3BV/s
+   (run quality), so a win that sets the combo AND a new best
+   streak legitimately earns two distinct flairs:
+   `💎 Two new bests!  🌟 New best streak: N!`. Same reasoning as
+   the existing independence between `🏆 New record!` and
+   `🌟 New best streak!`.
+3. **No new `showEndDialog` parameter.** Both bools already threaded
+   since v1.0 / v1.30. Adding a `winComboFlair` parameter would
+   force `onGameLost` to thread a third `false` arg for symmetry
+   (the same anti-pattern v1.44 explicitly rejected on the loss
+   side).
+4. **No new `WinOutcome` field.** Same reasoning as the loss-side
+   v1.44 cycle: the rendering decision (swap-not-stack) lives in
+   MainWindow, the data contract stays clean, the call-site `&&`
+   is one term.
+5. **Tests pin the data contract, not the dialog text.** Seven new
+   `tst_stats` tests pin the `Stats::recordWin` outcome bools the
+   combo gate consumes: both-bests-fire (clean record + bvRate >
+   0), only-time-fires (seeded high 3BV/s), only-3BV/s-fires
+   (seeded fast time then slower win with higher rate),
+   neither-fires (seeded both then tied),
+   first-ever-win-with-both-metrics (clean QSettings transitions
+   both 0.0 → positive), replay-skipped (default-constructed
+   `WinOutcome` carries both false), sub-tick-win (`bvPerSecond ==
+   0.0` skips the 3BV/s update so newBestBvPerSecond stays false
+   even on a fresh time record). Each test asserts both individual
+   bools and the gate conjunction explicitly so a future refactor
+   that returns the same fields under different names can't
+   silently flip the gate.
+
 ## 2026-04-26 — Loss-dialog "🌟 Best loss yet!" combo flair (v1.44.0)
 
 **Chosen:** On the loss dialog, when a single loss earns BOTH a fresh

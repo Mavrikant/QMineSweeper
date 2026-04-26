@@ -1,5 +1,179 @@
 # Autonomous cycles log
 
+## 2026-04-26 — Cycle 42 — v1.45.0 (autonomous)
+
+- **Chosen problem:** When a single win earns BOTH a fresh per-
+  difficulty best clock-time (🏆 since v1.0) AND a fresh per-
+  difficulty best 3BV/s (⚡ since v1.30) on the same run, the win
+  dialog currently prepends *both* individual flairs (`⚡ New best
+  3BV/s!  🏆 New record!  You cleared the field in …`), reading the
+  dialog twice for the same achievement-tier moment. v1.44.0 cycle
+  log called this out as the first listed next candidate, paraphrased:
+  "Win-dialog combo flair when a single win sets BOTH a fresh best
+  time AND a fresh best 3BV/s. Mirror of this cycle's loss-side
+  combo flair on the win-side. Pure flair, one new translatable
+  string. Natural next win-side beat in the alternation."
+- **Evidence:** `MainWindow::showEndDialog` (mainwindow.cpp:905-949
+  pre-cycle) prepends `🏆 New record!` (line 907) and `⚡ New best
+  3BV/s!` (line 948) independently in two `if` blocks. The pre-1.45
+  reading order on a both-fire run is exactly the noise-doubling
+  case the combo flair compresses, mirroring the v1.44 loss-side
+  arrangement that compressed the analogous `🚩 + 🎯` stack.
+- **Shipped:**
+  - Branch: `feat/v1.45.0-win-dialog-two-new-bests-combo-flair`
+- **Code surface:** ~30 LOC of production diff in `mainwindow.cpp`
+  (combo `if/else if` + the existing 🏆/✨ block wrapped in an
+  outer skip + comment) + ~95 LOC tests + ~115 LOC `DECISIONS.md`
+  + 1 LOC `CMakeLists.txt` version bump + 1 new translation key ×
+  9 locales + 10 lupdate-managed `.ts` location-only updates.
+  Real code+tests diff well under the 400-LOC cycle cap.
+  - `mainwindow.cpp` (`showEndDialog` win branch): combo `if`
+    fires on `newRecord && winNewBestBvPerSecond`, prepending
+    `tr("💎 Two new bests!")` in the 🏆/⚡ slot. Outer
+    `if (!(newRecord && winNewBestBvPerSecond))` wraps the existing
+    🏆/✨ block so neither individual time-axis flair fires when
+    combo fires. Bottom slot becomes `if (combo) prepend 💎; else
+    if (winNewBestBvPerSecond) prepend ⚡`. No new parameter, no
+    new member, no new `WinOutcome` field.
+  - `tests/tst_stats.cpp`: 7 new tests under "Win-dialog '💎 Two
+    new bests!' combo flair gate":
+    `testWinComboFlairBothBestsFireOnSingleWin`,
+    `testWinComboFlairOnlyBestTimeDoesNotFireBoth`,
+    `testWinComboFlairOnlyBest3BvPerSecondDoesNotFireBoth`,
+    `testWinComboFlairNeitherBestDoesNotFireBoth`,
+    `testWinComboFlairFirstEverWinWithBothMetricsFires`,
+    `testWinComboFlairReplaySkippedDoesNotFireBoth`,
+    `testWinComboFlairSubTickWinDoesNotFireBoth`.
+  - `CMakeLists.txt`: version bump 1.44.0 → 1.45.0.
+  - `apply_translations.py`: 9 LOC (1 new key × 9 non-English locales).
+  - `.ts` files: lupdate adds the new key (114 → 115) across all 10
+    locales; apply_translations fills 9 of them; English stays
+    unfinished as designed.
+- **Tests added:** 7 (extension to `tst_stats`). 9 test binaries,
+  all pass. Total tst_stats test count: 149 → 156.
+- **Translation cost:** 1 new hand-translated string × 9 non-English
+  locales. 50/50 coverage preserved (112 translations applied per
+  non-en locale). Hand translations:
+  - TR `"💎 İki yeni rekor!"` ·
+    ES `"💎 ¡Dos nuevos récords!"` ·
+    FR `"💎 Deux nouveaux records !"` ·
+    DE `"💎 Zwei neue Bestwerte!"` ·
+    RU `"💎 Два новых рекорда!"` ·
+    PT `"💎 Dois novos recordes!"` ·
+    ZH `"💎 两项新纪录！"` ·
+    HI `"💎 दो नए रिकॉर्ड!"` ·
+    AR `"💎 رقمان قياسيان جديدان!"`.
+- **Local verification:**
+  - `cmake --build build --target update_translations` reports
+    "1 new and 114 already existing" across all 10 locales —
+    confirms exactly one net-new tr() string.
+  - `cmake --build build` clean (no warnings); all 10 locales
+    generate `115 finished and 0 unfinished` `.qm` files.
+  - `QT_QPA_PLATFORM=offscreen ctest --output-on-failure`: 9/9
+    pass; tst_stats 156/156 pass including all 7 new combo tests.
+  - `clang-format --dry-run --Werror *.cpp *.h tests/*.cpp` clean
+    on first run (no auto-fixes needed).
+- **Adversarial self-review:**
+  - **What breaks this in production?** Both bools true on the
+    same win → combo fires alone (pinned by
+    `testWinComboFlairBothBestsFireOnSingleWin`) ✓. Only newRecord
+    true → individual 🏆 fires alone (pinned by
+    `testWinComboFlairOnlyBestTimeDoesNotFireBoth`) ✓. Only
+    newBestBvPerSecond true → individual ⚡ fires alone (pinned
+    by `testWinComboFlairOnlyBest3BvPerSecondDoesNotFireBoth`) ✓.
+    Neither true → no record-tier flair (pinned by
+    `testWinComboFlairNeitherBestDoesNotFireBoth`) ✓. Default-
+    constructed `WinOutcome` (the replay/custom branch in
+    `onGameWon`) → both false → no flair, no spurious combo
+    (pinned by `testWinComboFlairReplaySkippedDoesNotFireBoth`) ✓.
+    First-ever win on a clean QSettings with positive bvRate →
+    both transition 0.0 → positive simultaneously → combo fires
+    cleanly (pinned by
+    `testWinComboFlairFirstEverWinWithBothMetricsFires`) ✓.
+    Sub-tick win (`bvPerSecond == 0.0`) → 3BV/s update skipped →
+    newBestBvPerSecond stays false → individual 🏆 fires alone,
+    never combo (pinned by
+    `testWinComboFlairSubTickWinDoesNotFireBoth`) ✓.
+  - **Backwards-compat?** Pure addition. No new QSettings key (the
+    two bools have been threaded into `showEndDialog` since v1.0 /
+    v1.30); no migration; no signature break.
+  - **Error paths?** None — three booleans and a string prepend.
+  - **Secrets / PII?** None. Underlying bools are already exposed
+    via telemetry tags `new_record` / `new_best_bv_per_second`
+    since v1.0 / v1.30.
+  - **Performance?** O(1) per win dialog. One `&&` short-circuit
+    on top of the existing prepend gates.
+  - **Concurrency?** None — single-threaded UI; no new shared state.
+  - **Visual regression?** One new prepend slot when the gate
+    fires, swapping for the two individual prepends (and the
+    softer-tier ✨ which beating one's lifetime mean implies).
+    `QMessageBox` auto-sizes — no fixed-width assumption broken.
+    Reading L→R the player sees: `[💎 OR (⚡ + 🏆/✨)] [🌟/🔥
+    streak] [🏃 noflag] "You cleared the field in …" [3BV] [Clicks]`.
+- **Assumptions made:**
+  - **Mutual exclusion via outer skip on 🏆/✨ block, not three-
+    flair stack.** Three celebratory flairs in one dialog reads as
+    noise and triples the same achievement signal. Swap-not-stack
+    matches the streak slot (`🌟 New best streak!` swaps for
+    `🔥 Streak: %1`), the v1.43 average slot (`🏆 New record!`
+    swaps for `✨ Beat your average!`), and v1.44's loss-side
+    combo (`🌟 Best loss yet!` swaps for 🚩 + 🎯).
+  - **Streak slot stays independent.** Streak length is a
+    different axis from run quality (time/3BV/s). A win that sets
+    the combo AND a new best streak legitimately earns two
+    distinct flairs: `💎 Two new bests!  🌟 New best streak: N!`.
+    Same reasoning as the existing independence between `🏆 New
+    record!` and `🌟 New best streak!` pre-cycle.
+  - **Glyph 💎, not 🌟.** v1.44.0 cycle log literally suggested
+    `🌟 Personal best everything!`, but 🌟 is already the win-side
+    glyph for `New best streak: %1!`. Reusing 🌟 for the combo
+    would render two `🌟` prepends side-by-side on a both-fire +
+    streak-record win. 💎 keeps the combo glyph distinct from
+    every existing win-side glyph and reads as "rare, premium" —
+    appropriate for a both-records-on-one-run moment. Loss-side
+    v1.44 could safely use 🌟 because the loss dialog has no
+    other 🌟 prepend.
+  - **Naming `"💎 Two new bests!"` over `"💎 Personal best
+    everything!"` / `"💎 Best win yet!"` / `"💎 Time and pace!"` /
+    `"💎 Double record!"`.** "Two new bests" is short, explicit
+    about the two-records semantics that drove the gate, and
+    translates cleanly across all 9 non-en locales — "personal
+    best" / "everything" are colloquialisms; "best win yet" reads
+    redundant (every win is good); "time and pace" restates the
+    dialog body; "double record" is ambiguous (2× same record?).
+  - **Strict `&&` at the call site, not a new `WinOutcome.combo`
+    field.** The combo gate is one term; baking it at the stats
+    layer would duplicate state already exposed and move flair
+    logic out of the rendering layer.
+  - **No new `showEndDialog` parameter.** Both bools already
+    threaded since v1.0 / v1.30. Adding a `winComboFlair`
+    parameter would force `onGameLost` to thread a third `false`
+    arg for symmetry — the exact anti-pattern v1.44 rejected.
+  - **Tests pin the data contract, not the dialog text.** Seven
+    new `tst_stats` tests pin the `Stats::recordWin` outcome
+    bools the combo gate consumes; each asserts both individual
+    bools and the conjunction explicitly so a future refactor
+    that returns the same fields under different names can't
+    silently flip the gate.
+  - **End-to-end visual sanity check on the live app.** Skipped
+    again — autonomous scheduled-task cycle with no user present
+    to approve `request_access`. Relied on unit tests + the
+    small, surgical change; symmetric with v1.41–v1.44 cycles.
+- **Skipped:**
+  - **Stats-dialog "Slowest win" column.** Schema bump (new
+    `slowestSeconds` accumulator + companion date), multi-cycle.
+    Also breaks alternation.
+  - **Loss-dialog "Best loss" stats column.** Pure presentation
+    (surface v1.29 `bestSafePercent` + v1.33
+    `bestFlagAccuracyPercent` as a Stats-dialog cell), but a loss-
+    side beat — breaks alternation.
+  - **Stats-dialog "Median win time" column.** Outlier-resistant
+    statistic but needs persisting every counted winning duration.
+    Schema bump. Multi-cycle.
+- **Risks logged:** none new.
+- **Post-release watch:** [to be filled]
+- **Next candidates:** [to be filled]
+
 ## 2026-04-26 — Cycle 41 — v1.44.0 (autonomous)
 
 - **Chosen problem:** A loss that beat both the per-difficulty
