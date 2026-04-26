@@ -1043,8 +1043,8 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(4, 8, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best flag accuracy")});
+    auto *table = new QTableWidget(4, 9, &dlg);
+    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best flag accuracy"), tr("Last win")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -1111,6 +1111,20 @@ void MainWindow::showStatsDialog()
         }
         return QStringLiteral("—");
     };
+    // Last-win cell: locale-formatted date of the player's most-recent counted
+    // win for this difficulty. Mirrors the v1.37.0 loss-dialog "Last win: %1"
+    // line so a player who reads the loss dialog and then opens Stats sees the
+    // same anchor across all three difficulties at once. Em-dash when the
+    // player has never won this difficulty (or pre-1.37 plist with no
+    // last_win_date key — clean-slate seeding by design).
+    const auto formatLastWin = [](const QDate &date)
+    {
+        if (!date.isValid())
+        {
+            return QStringLiteral("—");
+        }
+        return QLocale().toString(date, QLocale::ShortFormat);
+    };
     std::uint64_t totalPlayed = 0;
     std::uint64_t totalWon = 0;
     for (int i = 0; i < 3; ++i)
@@ -1125,13 +1139,16 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 5, new QTableWidgetItem(formatStreak(rec.currentStreak, rec.bestStreak, rec.bestStreakDate)));
         table->setItem(i, 6, new QTableWidgetItem(formatBvPerSecondCell(rec.bestBvPerSecond, rec.bestBvPerSecondDate)));
         table->setItem(i, 7, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
+        table->setItem(i, 8, new QTableWidgetItem(formatLastWin(rec.lastWinDate)));
         totalPlayed += rec.played;
         totalWon += rec.won;
     }
     // "Total" row aggregates Played and Won across all three difficulties.
-    // Best-time / best-streak / best-3BV/s / best-flag-accuracy columns
-    // collapse to em-dash because per-difficulty bests don't sum or
-    // average meaningfully across difficulties of different sizes.
+    // Best-time / best-streak / best-3BV/s / best-flag-accuracy / last-win
+    // columns collapse to em-dash because per-difficulty bests don't sum or
+    // average meaningfully across difficulties of different sizes (and
+    // "last win across any difficulty" would just shadow whichever per-row
+    // date is most recent — duplicate signal, not new information).
     const QString totalWinRate = totalPlayed > 0 ? QStringLiteral(" (%1%)").arg(100 * totalWon / totalPlayed) : QString{};
     QFont totalFont = table->font();
     totalFont.setBold(true);
@@ -1149,6 +1166,7 @@ void MainWindow::showStatsDialog()
     table->setItem(3, 5, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 6, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 7, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 8, makeTotalItem(QStringLiteral("—")));
     table->resizeColumnsToContents();
 
     layout->addWidget(table);
