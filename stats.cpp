@@ -218,7 +218,10 @@ WinOutcome recordWin(const QString &difficultyName, double seconds, const QDate 
     // see. Guarded against 0/0 even though `won` was just incremented — the
     // accumulator may still be 0.0 if every win so far was sub-tick.
     const double averageSecondsAfter = (r.won > 0 && r.totalSecondsWon > 0.0) ? (r.totalSecondsWon / r.won) : 0.0;
-    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak, newBestBvPerSecond, r.won, averageSecondsAfter};
+    // bestSecondsAfter mirrors r.bestSeconds post-newBestTime mutation. Same
+    // value the next Stats::load() will see; the call site reads it for the
+    // win-dialog `Average: %1 (best %2)` companion line.
+    return WinOutcome{newBestTime && seconds > 0.0, r.currentStreak, newBestStreak, newBestBvPerSecond, r.won, averageSecondsAfter, r.bestSeconds};
 }
 
 bool recordNoflagBest(const QString &difficultyName, double seconds, const QDate &onDate)

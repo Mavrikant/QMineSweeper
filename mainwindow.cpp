@@ -557,7 +557,7 @@ void MainWindow::onGameWon()
     // so the outcome is the default-constructed WinOutcome with zeroed
     // wins/average; threshold-gating in the dialog handles the rest.
     showEndDialog(true, newRecord, noflagWin, bv, bvRate, clicks, efficiency, 0, outcome.currentStreak, outcome.newBestStreak, 0, 0, 0, 0.0, false, outcome.newBestBvPerSecond, 0, false,
-                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u);
+                  (outcome.winsAfter >= 3) ? outcome.averageSecondsAfter : 0.0, QDate{}, 0u, (outcome.winsAfter >= 3) ? outcome.bestSecondsAfter : 0.0);
 }
 
 void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
@@ -625,7 +625,7 @@ void MainWindow::onGameLost(std::uint32_t /*row*/, std::uint32_t /*col*/)
                                                             {QStringLiteral("new_best_flag_accuracy"), lossOutcome.newBestFlagAccuracyPercent ? QStringLiteral("true") : QStringLiteral("false")},
                                                         });
     showEndDialog(false, false, false, 0, 0.0, clicks, 0, flags, 0, false, bv, qmarks, partialBv, partialBvRate, lossOutcome.newBestSafePercent, false, correctFlags, lossOutcome.newBestFlagAccuracyPercent, 0.0, priorLastWinDate,
-                  lossOutcome.priorStreak);
+                  lossOutcome.priorStreak, 0.0);
 }
 
 void MainWindow::toggleTelemetry(bool enabled) { Telemetry::setEnabled(enabled, m_releaseId); }
@@ -837,7 +837,7 @@ void MainWindow::updateTimerLabel()
 
 void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boardValue, double bvPerSecond, int userClicks, int efficiencyPct, int flagsPlaced, std::uint32_t currentStreak, bool newBestStreak, int lossBoardValue,
                                int lossQuestionMarks, int lossPartialBoardValue, double lossBvPerSecond, bool lossNewBestSafePercent, bool winNewBestBvPerSecond, int lossCorrectFlags, bool lossNewBestFlagAccuracy, double winAverageSeconds,
-                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak)
+                               const QDate &lossLastWinDate, std::uint32_t lossPriorStreak, double winBestSeconds)
 {
     QMessageBox box(this);
     box.setWindowTitle(won ? tr("You won!") : tr("Boom"));
@@ -854,6 +854,18 @@ void MainWindow::showEndDialog(bool won, bool newRecord, bool noflagWin, int boa
         if (winAverageSeconds > 0.0)
         {
             text += QStringLiteral("\n") + tr("Average: %1").arg(formatElapsedTime(winAverageSeconds));
+            // Companion suffix anchoring the average against the player's
+            // hall-of-fame best time on the same difficulty. Always shown
+            // when the Average line shows: `winAverageSeconds > 0.0` implies
+            // at least one counted non-sub-tick win, which (via the shared
+            // `seconds > 0.0` gate in `Stats::recordWin`) implies
+            // `winBestSeconds > 0.0`. Defensive `> 0.0` guard preserved
+            // anyway so a stray default-constructed WinOutcome can't render
+            // `(best 0.0)`.
+            if (winBestSeconds > 0.0)
+            {
+                text += QStringLiteral(" ") + tr("(best %1)").arg(formatElapsedTime(winBestSeconds));
+            }
         }
         // Speedrun efficiency footer — 3BV is the canonical Minesweeper board
         // value (minimum left-clicks to clear); 3BV/s is the per-second rate.

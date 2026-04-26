@@ -230,12 +230,17 @@
         <translation>平均：%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="901"/>
+        <location filename="../mainwindow.cpp" line="867"/>
+        <source>(best %1)</source>
+        <translation>（最佳 %1）</translation>
+    </message>
+    <message>
+        <location filename="../mainwindow.cpp" line="913"/>
         <source>⚡ New best 3BV/s!</source>
         <translation>⚡ 新最佳 3BV/秒！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="923"/>
+        <location filename="../mainwindow.cpp" line="935"/>
         <source>Partial 3BV: %1 / %2 · 3BV/s: %3</source>
         <translation>部分 3BV：%1 / %2 · 3BV/秒：%3</translation>
     </message>
@@ -244,43 +249,43 @@
         <translation type="vanished">您用时 %1 秒清扫完成。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="864"/>
+        <location filename="../mainwindow.cpp" line="876"/>
         <source>3BV: %1 · 3BV/s: %2</source>
         <translation>3BV：%1 · 3BV/秒：%2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="871"/>
+        <location filename="../mainwindow.cpp" line="883"/>
         <source>Clicks: %1 · Efficiency: %2%</source>
         <translation>点击次数：%1 · 效率：%2%</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="875"/>
+        <location filename="../mainwindow.cpp" line="887"/>
         <source>🏃 No-flag run!</source>
         <translation>🏃 无标记通关！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="879"/>
+        <location filename="../mainwindow.cpp" line="891"/>
         <source>🏆 New record!</source>
         <translation>🏆 新纪录！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="886"/>
+        <location filename="../mainwindow.cpp" line="898"/>
         <source>🌟 New best streak: %1!</source>
         <translation>🌟 新最佳连胜：%1！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="890"/>
+        <location filename="../mainwindow.cpp" line="902"/>
         <source>🔥 Streak: %1</source>
         <translation>🔥 连胜：%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="908"/>
+        <location filename="../mainwindow.cpp" line="920"/>
         <source>You stepped on a mine.</source>
         <translation>您踩到了雷。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="80"/>
-        <location filename="../mainwindow.cpp" line="1028"/>
+        <location filename="../mainwindow.cpp" line="1040"/>
         <source>New Game</source>
         <translation>新游戏</translation>
     </message>
@@ -290,12 +295,12 @@
         <translation>您用时 %1 完成清扫。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="909"/>
+        <location filename="../mainwindow.cpp" line="921"/>
         <source>You survived for %1.</source>
         <translation>您坚持了 %1。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="910"/>
+        <location filename="../mainwindow.cpp" line="922"/>
         <source>You cleared %1% of the board.</source>
         <translation>您清扫了 %1% 的区域。</translation>
     </message>
@@ -304,157 +309,157 @@
         <translation type="vanished">棋盘 3BV：%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="932"/>
+        <location filename="../mainwindow.cpp" line="944"/>
         <source>Clicks: %1</source>
         <translation>点击次数：%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="943"/>
+        <location filename="../mainwindow.cpp" line="955"/>
         <source>Flags placed: %1</source>
         <translation>已放置旗子：%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="953"/>
+        <location filename="../mainwindow.cpp" line="965"/>
         <source>Correct flags: %1 / %2</source>
         <translation>正确旗子：%1 / %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="965"/>
+        <location filename="../mainwindow.cpp" line="977"/>
         <source>Question marks: %1</source>
         <translation>问号标记：%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="982"/>
+        <location filename="../mainwindow.cpp" line="994"/>
         <source>💔 Streak ended at %1</source>
         <translation>💔 连胜中断于 %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="997"/>
+        <location filename="../mainwindow.cpp" line="1009"/>
         <source>Last win: %1</source>
         <translation>上次获胜：%1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1008"/>
+        <location filename="../mainwindow.cpp" line="1020"/>
         <source>🎯 New best %!</source>
         <translation>🎯 新最佳 %！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1023"/>
+        <location filename="../mainwindow.cpp" line="1035"/>
         <source>🚩 New best flag accuracy!</source>
         <translation>🚩 新最佳标旗准确率！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1029"/>
+        <location filename="../mainwindow.cpp" line="1041"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1061"/>
+        <location filename="../mainwindow.cpp" line="1073"/>
         <source>Statistics</source>
         <translation>统计</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Difficulty</source>
         <translation>难度</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Played</source>
         <translation>已玩</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Won</source>
         <translation>获胜</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Best time</source>
         <translation>最佳时间</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Best (no flag)</source>
         <translation>最佳（无标记）</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Streak</source>
         <translation>连胜</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Best 3BV/s</source>
         <translation>最佳 3BV/秒</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Best flag accuracy</source>
         <translation>最佳标旗准确率</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Last win</source>
         <translation>上次获胜</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1066"/>
+        <location filename="../mainwindow.cpp" line="1078"/>
         <source>Average</source>
         <translation>平均</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1079"/>
+        <location filename="../mainwindow.cpp" line="1091"/>
         <source>Beginner</source>
         <translation>初级</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1080"/>
+        <location filename="../mainwindow.cpp" line="1092"/>
         <source>Intermediate</source>
         <translation>中级</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1081"/>
+        <location filename="../mainwindow.cpp" line="1093"/>
         <source>Expert</source>
         <translation>高级</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1129"/>
+        <location filename="../mainwindow.cpp" line="1141"/>
         <source>— (best %1%, %2)</source>
         <translation>— (最高 %1%，%2)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1184"/>
+        <location filename="../mainwindow.cpp" line="1196"/>
         <source>Total</source>
         <translation>总计</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1199"/>
+        <location filename="../mainwindow.cpp" line="1211"/>
         <source>Reset all</source>
         <translation>全部重置</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1205"/>
+        <location filename="../mainwindow.cpp" line="1217"/>
         <source>Reset statistics?</source>
         <translation>重置统计数据？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1205"/>
+        <location filename="../mainwindow.cpp" line="1217"/>
         <source>Permanently erase all played / won / best-time records?</source>
         <translation>是否永久删除所有已玩、获胜与最佳时间记录？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1225"/>
+        <location filename="../mainwindow.cpp" line="1237"/>
         <source>&lt;p&gt;&lt;small&gt;Built with Qt %1 on %2&lt;/small&gt;&lt;/p&gt;</source>
         <translation>&lt;p&gt;&lt;small&gt;使用 Qt %1 构建于 %2&lt;/small&gt;&lt;/p&gt;</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1226"/>
+        <location filename="../mainwindow.cpp" line="1238"/>
         <source>About QMineSweeper</source>
         <translation>关于 QMineSweeper</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1219"/>
+        <location filename="../mainwindow.cpp" line="1231"/>
         <source>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;A Qt6-based Minesweeper game.&lt;/p&gt;&lt;p&gt;Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</source>
         <translation>&lt;h3&gt;QMineSweeper %1&lt;/h3&gt;&lt;p&gt;基于 Qt6 的扫雷游戏。&lt;/p&gt;&lt;p&gt;左键揭示，右键标记旗帜，在满足数字的格子上按中键可同时揭开周围格子。&lt;/p&gt;&lt;p&gt;© Mavrikant&lt;/p&gt;</translation>
     </message>

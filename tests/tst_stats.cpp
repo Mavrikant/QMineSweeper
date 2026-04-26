@@ -132,6 +132,16 @@ class TestStats : public QObject
     void testResetAllWipesTotalSecondsWon();
     void testLegacyRecordWithoutTotalSecondsWonLoadsAsZero();
 
+    // WinOutcome.bestSecondsAfter — drives the win-dialog
+    // "Average: %1 (best %2)" companion suffix
+    void testWinOutcomeDefaultBestSecondsAfterIsZero();
+    void testWinOutcomeBestSecondsAfterFirstWinEqualsSeconds();
+    void testWinOutcomeBestSecondsAfterTracksFasterWin();
+    void testWinOutcomeBestSecondsAfterKeepsPriorOnSlowerWin();
+    void testWinOutcomeBestSecondsAfterSubTickWinKeepsPrior();
+    void testWinOutcomeBestSecondsAfterFirstWinSubTickStaysZero();
+    void testWinOutcomeBestSecondsAfterMatchesPersisted();
+
     // last_win_date — drives the loss-dialog "Last win: %1" line
     void testLastWinDateDefaultsInvalid();
     void testFirstWinStampsLastWinDate();
@@ -1358,6 +1368,88 @@ void TestStats::testLegacyRecordWithoutTotalSecondsWonLoadsAsZero()
     QCOMPARE(r.won, 4u);
     QCOMPARE(r.bestSeconds, 12.5);
     QCOMPARE(r.totalSecondsWon, 0.0);
+}
+
+// WinOutcome.bestSecondsAfter — populated post-update so the win dialog can
+// render the `Average: %1 (best %2)` companion suffix without re-loading.
+
+void TestStats::testWinOutcomeDefaultBestSecondsAfterIsZero()
+{
+    // A default-constructed WinOutcome (the value MainWindow uses for replays
+    // / custom games that never call recordWin) carries 0.0. The win-dialog
+    // call site uses this 0.0 as the "do not render the (best %1) suffix"
+    // sentinel — the same sentinel `bestSeconds` itself uses for an empty
+    // record.
+    Stats::WinOutcome out{};
+    QCOMPARE(out.bestSecondsAfter, 0.0);
+}
+
+void TestStats::testWinOutcomeBestSecondsAfterFirstWinEqualsSeconds()
+{
+    // First counted non-sub-tick win sets bestSeconds to the win duration;
+    // bestSecondsAfter must mirror that value (it's the same field, read
+    // post-mutation). winsAfter == 1 here so the win dialog wouldn't yet
+    // render Average; this test pins the WinOutcome wiring regardless of
+    // the dialog's >= 3 gate.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    QCOMPARE(out.bestSecondsAfter, 30.0);
+}
+
+void TestStats::testWinOutcomeBestSecondsAfterTracksFasterWin()
+{
+    // Three wins at 30 → 20 → 25. Best transitions 30 → 20 on win 2, holds
+    // 20 on win 3 (slower). bestSecondsAfter on the final call is 20.0,
+    // distinct from averageSecondsAfter (25.0) — the very point of the
+    // companion suffix is surfacing the gap.
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 25.0);
+    QCOMPARE(out.winsAfter, 3u);
+    QCOMPARE(out.averageSecondsAfter, 25.0);
+    QCOMPARE(out.bestSecondsAfter, 20.0);
+}
+
+void TestStats::testWinOutcomeBestSecondsAfterKeepsPriorOnSlowerWin()
+{
+    // Pin the slower-win-doesn't-touch-best path through the WinOutcome.
+    // After 20 then 40, bestSecondsAfter == 20.0 (not 40.0) on the second
+    // call. Mirror of testSlowerWinKeepsBest but reads the field that
+    // drives the win-dialog suffix instead of the persisted record.
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 40.0);
+    QCOMPARE(out.bestSecondsAfter, 20.0);
+}
+
+void TestStats::testWinOutcomeBestSecondsAfterSubTickWinKeepsPrior()
+{
+    // Sub-tick win after a real win: bestSeconds doesn't update (gated on
+    // seconds > 0.0 in recordWin), so bestSecondsAfter == prior best.
+    Stats::recordWin(QStringLiteral("Beginner"), 30.0);
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    QCOMPARE(out.bestSecondsAfter, 30.0);
+}
+
+void TestStats::testWinOutcomeBestSecondsAfterFirstWinSubTickStaysZero()
+{
+    // First-ever win is sub-tick: bestSeconds stays 0.0, so
+    // bestSecondsAfter == 0.0. Important pin for the win-dialog gate —
+    // when (theoretically) winsAfter >= 3 with all-sub-tick wins,
+    // averageSecondsAfter is 0.0 and so is bestSecondsAfter, and the
+    // call site's `winAverageSeconds > 0.0` gate hides BOTH lines.
+    const auto out = Stats::recordWin(QStringLiteral("Beginner"), 0.0);
+    QCOMPARE(out.bestSecondsAfter, 0.0);
+}
+
+void TestStats::testWinOutcomeBestSecondsAfterMatchesPersisted()
+{
+    // Cross-pin: bestSecondsAfter is the same value the next Stats::load
+    // would return. Guards against a refactor that diverges the in-memory
+    // pre-save value from what the call site sees on the next dialog open.
+    Stats::recordWin(QStringLiteral("Expert"), 250.0);
+    const auto out = Stats::recordWin(QStringLiteral("Expert"), 200.0);
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(out.bestSecondsAfter, r.bestSeconds);
+    QCOMPARE(out.bestSecondsAfter, 200.0);
 }
 
 void TestStats::testLastWinDateDefaultsInvalid()

@@ -104,6 +104,15 @@ struct WinOutcome
     // `Stats::recordWin` so callers don't re-load the record.
     double averageSecondsAfter{0.0};
 
+    // Post-update best-time on this difficulty (the same value the next
+    // `Stats::load(difficultyName).bestSeconds` will return). 0.0 when no
+    // counted non-sub-tick win exists yet — matching `bestSeconds`'s 0.0
+    // sentinel. Drives the win-dialog `Average: %1 (best %2)` companion
+    // line; the call site renders the suffix only when the gating
+    // `averageSecondsAfter > 0.0` is true, which (via the shared
+    // `seconds > 0.0` gate in `recordWin`) implies `bestSecondsAfter > 0.0`.
+    double bestSecondsAfter{0.0};
+
     // Lets `QVERIFY(recordWin(...))` and `if (recordWin(...))` keep their
     // pre-WinOutcome bool semantics (true == new best-time set). Explicit so
     // accidental assignment to `bool` still requires `.newRecord`.

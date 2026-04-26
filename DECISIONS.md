@@ -1,5 +1,79 @@
 # Cycle decisions
 
+## 2026-04-26 — Win-dialog "Average: %1 (best %2)" companion (v1.41.0)
+
+**Chosen:** When the win dialog already shows the `Average: %1` line
+(gated at `winsAfter >= 3`), append a parenthetical `" (best %1)"`
+suffix rendering the player's lifetime best time on the same
+difficulty, e.g. `Average: 1:18.9 (best 0:45.0)`. New translatable key
+`"(best %1)"` only — the existing `"Average: %1"` key is preserved
+verbatim so v1.36 hand translations continue to apply unchanged.
+
+**Why:**
+- v1.40.0 cycle log's first listed next candidate, called out as the
+  "smallest informative win-dialog beat".
+- Alternation pattern continues: v1.36 win (Average) → v1.37 loss
+  (Last win) → v1.38 stats (Last win column) → v1.39 loss (Streak
+  ended) → v1.40 stats (Average column) → **v1.41 win** (Average
+  companion).
+- The Average line by itself answers "how do I usually do?" but not
+  "how does this run compare to my best?" The parenthetical anchors
+  the average against the player's hall-of-fame for the same
+  difficulty, surfacing the gap-from-best inline.
+- Schema-zero. `bestSeconds` is already persisted, loaded, and
+  hall-of-fame-tested since v1.0; the new `WinOutcome.bestSecondsAfter`
+  field reads `r.bestSeconds` post-update (the same value the next
+  `Stats::load` will see) so no new I/O at the call site and no
+  migration.
+- 1 new translatable string × 9 non-en locales — within the cycle
+  cap of "≤ 1 string change" set in earlier alternation cycles. All
+  9 locales already translate the surrounding `"Average: %1"` line
+  and the standalone `"Best time"` column header, so the new
+  parenthetical reuses each locale's "best" noun for cross-line
+  consistency.
+
+**Rejected alternatives from the v1.40.0 candidate list:**
+- *Win-dialog `"Average: %1 — %2 vs your best"` delta variant.* Same
+  data, but adds a derived `+25.0s` token rather than a raw best time.
+  Two new strings (a sign-prefixed delta plus the tail) instead of
+  one, plus the sign-prefix wants per-locale formatting rules
+  ("+25.0s" reads as Latin-script across all 10 locales but Arabic
+  RTL handling of the leading `+` is fragile). Higher cost; park.
+- *Stats-dialog "Wins per day" column.* Needs a new persisted
+  accumulator (date of first win for a difficulty + active days) and
+  a new QSettings schema. Multi-cycle.
+- *Stats-dialog Total row gains an Average footer cell.* Em-dashed
+  in v1.40 by design (mixing difficulties of different sizes makes
+  the aggregate noise). Would only revisit with a concrete user-
+  facing motivator.
+
+**Implementation choices:**
+
+1. **Two tr() strings, not one combined `"Average: %1 (best %2)"`.**
+   Keeping `"Average: %1"` unchanged means the v1.36 hand
+   translations across all 9 non-en locales continue to apply with
+   zero churn — the new key `"(best %1)"` adds exactly one row per
+   locale to `apply_translations.py`. A combined key would mark the
+   v1.36 key obsolete in every `.ts` file and force re-validation of
+   every existing translation.
+2. **Always show the suffix when the Average line shows.** No
+   `bestSeconds < winAverageSeconds` gate. The sufficient condition
+   is `winAverageSeconds > 0.0` which (per `Stats::recordWin`'s
+   shared `seconds > 0.0` gate) implies `bestSeconds > 0.0`. Edge
+   case `bestSeconds == winAverageSeconds` (every counted win the
+   same duration) reads `Average: 20.0 (best 20.0)` and is honest —
+   it states consistency rather than hiding the metric.
+3. **`WinOutcome.bestSecondsAfter` is the post-update value** — read
+   from `r.bestSeconds` after `recordWin`'s newBestTime branch may
+   have mutated it. Same convention as `averageSecondsAfter`
+   (post-increment / post-update); the win dialog renders the same
+   value the next `Stats::load` would return.
+4. **No format helper needed.** The suffix is a single
+   `tr("(best %1)").arg(formatElapsedTime(bestSeconds))` string.
+   Reusing the existing `time_format.h` `formatElapsedTime` keeps
+   the inner duration formatting identical to the Average and base
+   "You cleared the field in %1." lines.
+
 ## 2026-04-26 — Stats dialog "Average" column (v1.40.0)
 
 **Chosen:** Add a 5th column "Average" to the Statistics dialog,
