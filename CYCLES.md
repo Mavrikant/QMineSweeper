@@ -23,9 +23,18 @@
   the proven shape; the loss axis simply hadn't picked it up.
 - **Shipped:**
   - Branch: `feat/v2.0.0-stats-last-loss-column` (squash-merged + deleted)
-  - PR: [pending squash]
-  - Squash commit: [pending]
-  - Release: [pending tag push]
+  - PR: [#67](https://github.com/Mavrikant/QMineSweeper/pull/67)
+  - Squash commit: `e5a7d35`
+  - Release: https://github.com/Mavrikant/QMineSweeper/releases/tag/v2.0.0
+  - Release workflow `24954796799` succeeded on the first run; all 5
+    jobs (Resolve tag → Linux/macOS/Windows builds → Publish Release)
+    green. All 5 assets + `SHA256SUMS.txt` published. Hand-written
+    user-facing release notes installed via `gh release edit --notes`
+    covering the new column, the when-it-shows-up matrix
+    (since-2.0-loss / never-lost-since-2.0 / replay-or-Custom), the
+    per-locale translation list, the per-platform install path
+    (incl. macOS quarantine clear), SHA256SUMS verification, and the
+    rationale for the major version bump.
 - **Code surface:** ~10 LOC `stats.h` (one new field on Record + a
   multi-line comment) + ~12 LOC `stats.cpp` (load read, save
   write, reset key remove, recordLoss unconditional stamp) + ~10 LOC
@@ -151,7 +160,14 @@
     composition mirrors `formatLastWin` exactly, and offscreen
     startup smoke confirmed the binary loads.
 - **Risks logged:** none new.
-- **Post-release watch:** [to be filled after release publishes]
+- **Post-release watch (T+~5min):** Sentry `karaman/qminesweeper` —
+  `search_issues` for unresolved issues in release
+  `qminesweeper@2.0.0` in the last hour returned **zero results**.
+  No new crashes, no spike on prior groups attributable to the 2.0.0
+  cut. Telemetry is opt-in and the release just shipped, so the
+  expected baseline volume is low; the signal worth watching for is
+  *any* new group tagged with the 2.0.0 release. None observed.
+  Watch closed.
 - **Next candidates:**
   - **Loss-dialog `🎯 New best %!` flair message refresh.** Owed the
     loss-side alternation slot after this stats cycle. One new
