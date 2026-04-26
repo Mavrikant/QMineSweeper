@@ -2,6 +2,16 @@
 
 A Qt6-based Minesweeper game with Beginner / Intermediate / Expert difficulty, first-click safety, chord click, and a proper win / loss state machine.
 
+> **Developed by AI.** This codebase is end-to-end AI-authored — every
+> source file, unit test, translation, commit message, release note, and
+> doc page is drafted by Claude under human supervision. The
+> About-dialog, README and translations all surface this. When you ship
+> a change, the credit goes on the AI; the responsibility for shipping
+> stays with the human maintainer. Treat the AI-developed framing as a
+> first-class product attribute (it's in the About dialog and is a
+> translated string in all 10 locales) — do not accidentally drop it
+> when refactoring the About body or the README intro.
+
 ## Architecture
 
 - **MineButton** (`minebutton.h` / `minebutton.cpp`): A single cell on the minefield, extending `QPushButton`. Owns per-cell state (mined, flagged, opened, adjacent-mine count) and emits input signals — `cellPressed`, `cellOpened`, `explosion`, `flagToggled`, `chordRequested`, `checkNeighbours`. No back-pointer to `MineField`: signals up, slots down.

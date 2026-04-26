@@ -1221,8 +1221,9 @@ void MainWindow::showStatsDialog()
 
     auto *layout = new QVBoxLayout(&dlg);
 
-    auto *table = new QTableWidget(4, 11, &dlg);
-    table->setHorizontalHeaderLabels({tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Average"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best partial"), tr("Best flag accuracy"), tr("Last win")});
+    auto *table = new QTableWidget(4, 12, &dlg);
+    table->setHorizontalHeaderLabels(
+        {tr("Difficulty"), tr("Played"), tr("Won"), tr("Best time"), tr("Average"), tr("Best (no flag)"), tr("Streak"), tr("Best 3BV/s"), tr("Best partial"), tr("Best flag accuracy"), tr("Last win"), tr("Last loss")});
     table->verticalHeader()->setVisible(false);
     table->horizontalHeader()->setStretchLastSection(true);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -1285,6 +1286,20 @@ void MainWindow::showStatsDialog()
         }
         return QLocale().toString(date, QLocale::ShortFormat);
     };
+    // Last-loss cell: locale-formatted date of the player's most-recent counted
+    // loss for this difficulty. Mirror of `formatLastWin` on the loss axis;
+    // surfaces the v1.49 `lastLossDate` field stamped unconditionally on every
+    // counted recordLoss. Em-dash when the player has never lost this
+    // difficulty since 1.49 (or pre-1.49 plist with no last_loss_date key —
+    // clean-slate seeding by design).
+    const auto formatLastLoss = [](const QDate &date)
+    {
+        if (!date.isValid())
+        {
+            return QStringLiteral("—");
+        }
+        return QLocale().toString(date, QLocale::ShortFormat);
+    };
     std::uint64_t totalPlayed = 0;
     std::uint64_t totalWon = 0;
     for (int i = 0; i < 3; ++i)
@@ -1308,19 +1323,20 @@ void MainWindow::showStatsDialog()
         table->setItem(i, 8, new QTableWidgetItem(formatSafePercentCell(static_cast<int>(rec.bestSafePercent), rec.bestSafePercentDate)));
         table->setItem(i, 9, new QTableWidgetItem(formatFlagAccuracyCell(static_cast<int>(rec.bestFlagAccuracyPercent), rec.bestFlagAccuracyDate)));
         table->setItem(i, 10, new QTableWidgetItem(formatLastWin(rec.lastWinDate)));
+        table->setItem(i, 11, new QTableWidgetItem(formatLastLoss(rec.lastLossDate)));
         totalPlayed += rec.played;
         totalWon += rec.won;
     }
     // "Total" row aggregates Played and Won across all three difficulties.
     // Best-time / average / best-streak / best-3BV/s / best-partial /
-    // best-flag-accuracy / last-win columns collapse to em-dash because
-    // per-difficulty bests don't sum or average meaningfully across
+    // best-flag-accuracy / last-win / last-loss columns collapse to em-dash
+    // because per-difficulty bests don't sum or average meaningfully across
     // difficulties of different sizes (the global lifetime mean
     // `sum(totalSecondsWon)/sum(won)` is mathematically defined but mostly
     // reflects whichever difficulty the player plays most — noise, not
     // signal). And "last win across any difficulty" would just shadow
     // whichever per-row date is most recent — duplicate signal, not new
-    // information.
+    // information. Same applies to "last loss across any difficulty".
     const QString totalWinRate = totalPlayed > 0 ? QStringLiteral(" (%1%)").arg(100 * totalWon / totalPlayed) : QString{};
     QFont totalFont = table->font();
     totalFont.setBold(true);
@@ -1341,6 +1357,7 @@ void MainWindow::showStatsDialog()
     table->setItem(3, 8, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 9, makeTotalItem(QStringLiteral("—")));
     table->setItem(3, 10, makeTotalItem(QStringLiteral("—")));
+    table->setItem(3, 11, makeTotalItem(QStringLiteral("—")));
     table->resizeColumnsToContents();
 
     layout->addWidget(table);
@@ -1370,6 +1387,7 @@ void MainWindow::showAboutDialog()
                             "<p>A Qt6-based Minesweeper game.</p>"
                             "<p>Left-click to reveal, right-click to flag,"
                             " middle-click on a satisfied number to chord.</p>"
+                            "<p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p>"
                             "<p>© Mavrikant</p>")
                              .arg(QString::fromUtf8(QMS_VERSION));
     const QString buildInfo = tr("<p><small>Built with Qt %1 on %2</small></p>").arg(QString::fromUtf8(QT_VERSION_STR), QString::fromUtf8(__DATE__ " " __TIME__));

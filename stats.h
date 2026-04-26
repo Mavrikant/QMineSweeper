@@ -12,7 +12,7 @@
 // streak_best_date,best_safe_percent,best_safe_percent_date,
 // best_bv_per_second,best_bv_per_second_date,
 // best_flag_accuracy_percent,best_flag_accuracy_date,
-// total_seconds_won,last_win_date} tree.
+// total_seconds_won,last_win_date,last_loss_date} tree.
 // Best-time is stored as seconds (double); 0 means "no win recorded yet".
 // Best-date is the calendar date (ISO 8601) on which the current best-time
 // run was completed; invalid/empty when no win has been recorded. The
@@ -75,6 +75,16 @@ struct Record
     // `last_win_date` key load as invalid by design — clean-slate seeding
     // surfaces the line on the *next* win, not retroactively.
     QDate lastWinDate{};
+    // Calendar date (ISO 8601) on which the player's *most recent* counted loss
+    // for this difficulty completed. Mirror of `lastWinDate` on the loss axis:
+    // overwritten on every counted `recordLoss` regardless of partial-clear /
+    // flag-accuracy outcome. Drives the Stats-dialog "Last loss" column
+    // (v1.49+), gated on `isValid()` for em-dash rendering. Invalid (default-
+    // constructed) when the player has never lost this difficulty since 1.49;
+    // pre-1.49 plists with `played > won` but no `last_loss_date` key load as
+    // invalid by design — clean-slate seeding surfaces the cell on the *next*
+    // loss, not retroactively.
+    QDate lastLossDate{};
 };
 
 // Outcome of a recordWin call. `newRecord` matches the prior boolean return:

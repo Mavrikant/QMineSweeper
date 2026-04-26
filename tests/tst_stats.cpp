@@ -175,6 +175,19 @@ class TestStats : public QObject
     void testLegacyRecordWithoutLastWinDateLoadsAsInvalid();
     void testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid();
 
+    // last_loss_date — drives the Stats-dialog "Last loss" column (v1.49)
+    void testLastLossDateDefaultsInvalid();
+    void testFirstLossStampsLastLossDate();
+    void testNonImprovingLossStillOverwritesLastLossDate();
+    void testWinDoesNotTouchLastLossDate();
+    void testLastLossDateStampedRegardlessOfPercentArgs();
+    void testLastLossDateIsPerDifficulty();
+    void testResetWipesLastLossDate();
+    void testResetAllWipesLastLossDate();
+    void testLegacyRecordWithoutLastLossDateLoadsAsInvalid();
+    void testLegacyRecordWithLossesButNoLastLossDateLoadsAsInvalid();
+    void testLastWinAndLastLossCoexistIndependently();
+
     // Loss-dialog "Average: %1 (best %2)" lifetime-mean line — pin the
     // loaded-record contract the loss-side render gate reads. The win-side gate
     // is already pinned via WinOutcome.{winsAfter,averageSecondsAfter,bestSecondsAfter};
@@ -1806,6 +1819,142 @@ void TestStats::testLegacyRecordWithWonButNoLastWinDateLoadsAsInvalid()
     QCOMPARE(r.won, 50u);
     QCOMPARE(r.bestDate, QDate(2025, 6, 1));
     QVERIFY(!r.lastWinDate.isValid()); // not back-filled
+}
+
+void TestStats::testLastLossDateDefaultsInvalid()
+{
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QVERIFY(!r.lastLossDate.isValid());
+}
+
+void TestStats::testFirstLossStampsLastLossDate()
+{
+    const QDate d{2026, 4, 26};
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, d);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).lastLossDate, d);
+}
+
+void TestStats::testNonImprovingLossStillOverwritesLastLossDate()
+{
+    // Mirror of testSlowerWinOverwritesLastWinDateEvenWhenBestUnchanged
+    // on the loss axis: a follow-up loss with a *worse* partial-clear
+    // percent does NOT touch `bestSafePercentDate` (the first loss keeps
+    // it), but DOES overwrite `lastLossDate` (this is the most-recent
+    // loss, not the best partial). Pins the "every counted loss" semantic.
+    const QDate originalDate{2026, 1, 1};
+    const QDate laterDate{2026, 4, 26};
+    Stats::recordLoss(QStringLiteral("Beginner"), 60, 0, originalDate);
+    Stats::recordLoss(QStringLiteral("Beginner"), 30, 0, laterDate);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.bestSafePercent, 60u);
+    QCOMPARE(r.bestSafePercentDate, originalDate); // best-partial stayed
+    QCOMPARE(r.lastLossDate, laterDate);           // last advanced
+}
+
+void TestStats::testWinDoesNotTouchLastLossDate()
+{
+    const QDate lossDate{2026, 1, 1};
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, lossDate);
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0, QDate{2026, 4, 26});
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.lastLossDate, lossDate); // win did not bump the loss date
+    QCOMPARE(r.played, 2u);
+    QCOMPARE(r.won, 1u);
+}
+
+void TestStats::testLastLossDateStampedRegardlessOfPercentArgs()
+{
+    // The stamp must fire even when both safePercent and flagAccuracyPercent
+    // default to 0 (the 12 pre-1.33 callers rely on the default args). Same
+    // contract as `lastWinDate` on a sub-tick win — the date is meaningful
+    // independent of the metric updates the call may or may not perform.
+    const QDate d{2026, 4, 26};
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, d);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.played, 1u);
+    QCOMPARE(r.bestSafePercent, 0u);         // unchanged sentinel
+    QCOMPARE(r.bestFlagAccuracyPercent, 0u); // unchanged sentinel
+    QCOMPARE(r.lastLossDate, d);             // but stamp fired
+}
+
+void TestStats::testLastLossDateIsPerDifficulty()
+{
+    const QDate beginnerDate{2026, 4, 1};
+    const QDate expertDate{2026, 4, 26};
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, beginnerDate);
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 0, expertDate);
+    QCOMPARE(Stats::load(QStringLiteral("Beginner")).lastLossDate, beginnerDate);
+    QVERIFY(!Stats::load(QStringLiteral("Intermediate")).lastLossDate.isValid());
+    QCOMPARE(Stats::load(QStringLiteral("Expert")).lastLossDate, expertDate);
+}
+
+void TestStats::testResetWipesLastLossDate()
+{
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, QDate{2026, 1, 1});
+    Stats::reset(QStringLiteral("Beginner"));
+    QVERIFY(!Stats::load(QStringLiteral("Beginner")).lastLossDate.isValid());
+}
+
+void TestStats::testResetAllWipesLastLossDate()
+{
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, QDate{2026, 4, 1});
+    Stats::recordLoss(QStringLiteral("Expert"), 0, 0, QDate{2026, 4, 26});
+    Stats::resetAll();
+    QVERIFY(!Stats::load(QStringLiteral("Beginner")).lastLossDate.isValid());
+    QVERIFY(!Stats::load(QStringLiteral("Expert")).lastLossDate.isValid());
+}
+
+void TestStats::testLegacyRecordWithoutLastLossDateLoadsAsInvalid()
+{
+    // Pre-1.49 record: no `last_loss_date` key present. Must load as
+    // an invalid QDate so the Stats-dialog "Last loss" cell renders the
+    // em-dash sentinel until the player's next 1.49+ loss.
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Beginner/played"), 5u);
+    settings.setValue(QStringLiteral("stats/Beginner/won"), 3u);
+    settings.setValue(QStringLiteral("stats/Beginner/best_seconds"), 12.5);
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.won, 3u);
+    QVERIFY(!r.lastLossDate.isValid());
+}
+
+void TestStats::testLegacyRecordWithLossesButNoLastLossDateLoadsAsInvalid()
+{
+    // Defensive: even with `played > won` (i.e. recorded losses), an absent
+    // `last_loss_date` must NOT be back-filled from any other date field.
+    // The Stats-dialog gate is purely `isValid()` — clean-slate seeding so
+    // the cell shows em-dash until the next counted loss refreshes it,
+    // rather than silently aliasing `bestSafePercentDate` (which may be
+    // months stale even if the user lost yesterday).
+    QSettings settings;
+    settings.setValue(QStringLiteral("stats/Expert/played"), 100u);
+    settings.setValue(QStringLiteral("stats/Expert/won"), 30u);
+    settings.setValue(QStringLiteral("stats/Expert/best_safe_percent"), 80u);
+    settings.setValue(QStringLiteral("stats/Expert/best_safe_percent_date"), QStringLiteral("2025-06-01"));
+    settings.sync();
+
+    const auto r = Stats::load(QStringLiteral("Expert"));
+    QCOMPARE(r.played, 100u);
+    QCOMPARE(r.won, 30u);
+    QCOMPARE(r.bestSafePercent, 80u);
+    QCOMPARE(r.bestSafePercentDate, QDate(2025, 6, 1));
+    QVERIFY(!r.lastLossDate.isValid()); // not back-filled
+}
+
+void TestStats::testLastWinAndLastLossCoexistIndependently()
+{
+    // Both stamps must persist independently — a loss after a win keeps the
+    // win date, a win after a loss keeps the loss date. Pins the per-axis
+    // independence the Stats-dialog "Last win" / "Last loss" columns rely on.
+    const QDate winDate{2026, 1, 1};
+    const QDate lossDate{2026, 4, 26};
+    Stats::recordWin(QStringLiteral("Beginner"), 20.0, winDate);
+    Stats::recordLoss(QStringLiteral("Beginner"), 0, 0, lossDate);
+    const auto r = Stats::load(QStringLiteral("Beginner"));
+    QCOMPARE(r.lastWinDate, winDate);
+    QCOMPARE(r.lastLossDate, lossDate);
 }
 
 // Loss-dialog "Average: %1 (best %2)" line — these tests pin the

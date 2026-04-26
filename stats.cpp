@@ -37,6 +37,8 @@ Record load(const QString &difficultyName)
     r.totalSecondsWon = settings.value(key(difficultyName, QStringLiteral("total_seconds_won")), 0.0).toDouble();
     const QString lastWinDateStr = settings.value(key(difficultyName, QStringLiteral("last_win_date")), QString{}).toString();
     r.lastWinDate = lastWinDateStr.isEmpty() ? QDate{} : QDate::fromString(lastWinDateStr, Qt::ISODate);
+    const QString lastLossDateStr = settings.value(key(difficultyName, QStringLiteral("last_loss_date")), QString{}).toString();
+    r.lastLossDate = lastLossDateStr.isEmpty() ? QDate{} : QDate::fromString(lastLossDateStr, Qt::ISODate);
     return r;
 }
 
@@ -109,6 +111,14 @@ void save(const QString &difficultyName, const Record &r)
     {
         settings.remove(key(difficultyName, QStringLiteral("last_win_date")));
     }
+    if (r.lastLossDate.isValid())
+    {
+        settings.setValue(key(difficultyName, QStringLiteral("last_loss_date")), r.lastLossDate.toString(Qt::ISODate));
+    }
+    else
+    {
+        settings.remove(key(difficultyName, QStringLiteral("last_loss_date")));
+    }
 }
 
 void reset(const QString &difficultyName)
@@ -131,6 +141,7 @@ void reset(const QString &difficultyName)
     settings.remove(key(difficultyName, QStringLiteral("best_flag_accuracy_date")));
     settings.remove(key(difficultyName, QStringLiteral("total_seconds_won")));
     settings.remove(key(difficultyName, QStringLiteral("last_win_date")));
+    settings.remove(key(difficultyName, QStringLiteral("last_loss_date")));
 }
 
 void resetAll()
@@ -173,6 +184,10 @@ LossOutcome recordLoss(const QString &difficultyName, int safePercent, int flagA
             newBestFlagAccuracyPercent = true;
         }
     }
+    // Most-recent-loss timestamp — overwritten unconditionally on every counted
+    // loss, mirror of the recordWin lastWinDate stamp on the loss axis. Drives
+    // the Stats-dialog "Last loss" column.
+    r.lastLossDate = onDate;
     save(difficultyName, r);
     return LossOutcome{newBestSafePercent, newBestFlagAccuracyPercent, priorStreak};
 }

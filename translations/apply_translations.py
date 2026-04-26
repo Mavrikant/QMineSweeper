@@ -39,8 +39,8 @@ TR: dict[str, str] = {
     "&New": "&Yeni",
     "&Quit": "&Çıkış",
     "&Settings": "&Ayarlar",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>Qt6 tabanlı bir Mayın Tarlası oyunu.</p><p>Açmak için sol tık, bayraklamak için sağ tık, sayıyı tamamlayan bayrakların komşularını açmak için orta tık.</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>Qt6 tabanlı bir Mayın Tarlası oyunu.</p><p>Açmak için sol tık, bayraklamak için sağ tık, sayıyı tamamlayan bayrakların komşularını açmak için orta tık.</p><p><b>Yapay zekâ tarafından geliştirildi</b> — bu projedeki her kod satırı, test, çeviri ve sürüm notu, projenin sürdürücüsüyle birlikte çalışan bir yapay zekâ asistanı tarafından yazılmıştır.</p><p>© Mavrikant</p>",
     "About QMineSweeper": "QMineSweeper Hakkında",
     "Auto (system)": "Otomatik (sistem)",
     "Boom": "Bom!",
@@ -73,6 +73,7 @@ TR: dict[str, str] = {
     "Average": "Ortalama",
     "Last win: %1": "Son galibiyet: %1",
     "Last win": "Son galibiyet",
+    "Last loss": "Son mağlubiyet",
     "Flags placed: %1": "Yerleştirilen bayrak: %1",
     "Correct flags: %1 / %2": "Doğru bayrak: %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "Kısmi 3BV: %1 / %2 · 3BV/sn: %3",
@@ -160,8 +161,8 @@ ES: dict[str, str] = {
     "&New": "&Nuevo",
     "&Quit": "&Salir",
     "&Settings": "A&justes",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>Un juego de Buscaminas basado en Qt6.</p><p>Clic izquierdo para revelar, clic derecho para marcar con bandera, clic central sobre un número satisfecho para despejar alrededor.</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>Un juego de Buscaminas basado en Qt6.</p><p>Clic izquierdo para revelar, clic derecho para marcar con bandera, clic central sobre un número satisfecho para despejar alrededor.</p><p><b>Desarrollado por IA</b> — cada línea de código, prueba, traducción y nota de versión de este proyecto fue escrita por un asistente de IA en colaboración con el mantenedor.</p><p>© Mavrikant</p>",
     "About QMineSweeper": "Acerca de QMineSweeper",
     "Auto (system)": "Automático (sistema)",
     "Boom": "¡Bum!",
@@ -194,6 +195,7 @@ ES: dict[str, str] = {
     "Average": "Promedio",
     "Last win: %1": "Última victoria: %1",
     "Last win": "Última victoria",
+    "Last loss": "Última derrota",
     "Flags placed: %1": "Banderas colocadas: %1",
     "Correct flags: %1 / %2": "Banderas correctas: %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "3BV parcial: %1 / %2 · 3BV/s: %3",
@@ -281,8 +283,8 @@ FR: dict[str, str] = {
     "&New": "&Nouveau",
     "&Quit": "&Quitter",
     "&Settings": "&Paramètres",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>Un jeu de Démineur basé sur Qt6.</p><p>Clic gauche pour révéler, clic droit pour poser un drapeau, clic milieu sur un nombre satisfait pour enchaîner les voisines.</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>Un jeu de Démineur basé sur Qt6.</p><p>Clic gauche pour révéler, clic droit pour poser un drapeau, clic milieu sur un nombre satisfait pour enchaîner les voisines.</p><p><b>Développé par une IA</b> — chaque ligne de code, test, traduction et note de version de ce projet a été écrite par un assistant IA en collaboration avec le mainteneur.</p><p>© Mavrikant</p>",
     "About QMineSweeper": "À propos de QMineSweeper",
     "Auto (system)": "Auto (système)",
     "Boom": "Boum !",
@@ -315,6 +317,7 @@ FR: dict[str, str] = {
     "Average": "Moyenne",
     "Last win: %1": "Dernière victoire : %1",
     "Last win": "Dernière victoire",
+    "Last loss": "Dernière défaite",
     "Flags placed: %1": "Drapeaux placés : %1",
     "Correct flags: %1 / %2": "Drapeaux corrects : %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "3BV partiel : %1 / %2 · 3BV/s : %3",
@@ -402,8 +405,8 @@ DE: dict[str, str] = {
     "&New": "&Neu",
     "&Quit": "&Beenden",
     "&Settings": "&Einstellungen",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>Ein auf Qt6 basierendes Minesweeper-Spiel.</p><p>Linksklick zum Aufdecken, Rechtsklick zum Markieren, Mittelklick auf eine erfüllte Zahl, um die Nachbarn gleichzeitig aufzudecken.</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>Ein auf Qt6 basierendes Minesweeper-Spiel.</p><p>Linksklick zum Aufdecken, Rechtsklick zum Markieren, Mittelklick auf eine erfüllte Zahl, um die Nachbarn gleichzeitig aufzudecken.</p><p><b>Von KI entwickelt</b> — jede Codezeile, jeder Test, jede Übersetzung und jede Release-Notiz in diesem Projekt wurde von einem KI-Assistenten in Zusammenarbeit mit dem Maintainer geschrieben.</p><p>© Mavrikant</p>",
     "About QMineSweeper": "Über QMineSweeper",
     "Auto (system)": "Automatisch (System)",
     "Boom": "Bumm!",
@@ -436,6 +439,7 @@ DE: dict[str, str] = {
     "Average": "Durchschnitt",
     "Last win: %1": "Letzter Sieg: %1",
     "Last win": "Letzter Sieg",
+    "Last loss": "Letzte Niederlage",
     "Flags placed: %1": "Platzierte Flaggen: %1",
     "Correct flags: %1 / %2": "Korrekte Flaggen: %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "Teil-3BV: %1 / %2 · 3BV/s: %3",
@@ -523,8 +527,8 @@ RU: dict[str, str] = {
     "&New": "&Новая",
     "&Quit": "&Выход",
     "&Settings": "&Настройки",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>Игра «Сапёр» на базе Qt6.</p><p>Левый клик — открыть, правый — флаг, средний клик на открытой цифре — открыть нераспознанных соседей.</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>Игра «Сапёр» на базе Qt6.</p><p>Левый клик — открыть, правый — флаг, средний клик на открытой цифре — открыть нераспознанных соседей.</p><p><b>Разработано ИИ</b> — каждая строка кода, тест, перевод и заметка к выпуску в этом проекте написаны ИИ-ассистентом в сотрудничестве с сопровождающим проекта.</p><p>© Mavrikant</p>",
     "About QMineSweeper": "О QMineSweeper",
     "Auto (system)": "Автоматически (системная)",
     "Boom": "Бум!",
@@ -557,6 +561,7 @@ RU: dict[str, str] = {
     "Average": "Среднее",
     "Last win: %1": "Последняя победа: %1",
     "Last win": "Последняя победа",
+    "Last loss": "Последнее поражение",
     "Flags placed: %1": "Установлено флагов: %1",
     "Correct flags: %1 / %2": "Верных флагов: %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "Частичный 3BV: %1 / %2 · 3BV/с: %3",
@@ -644,8 +649,8 @@ PT: dict[str, str] = {
     "&New": "&Novo",
     "&Quit": "Sai&r",
     "&Settings": "&Configurações",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>Um jogo Campo Minado baseado em Qt6.</p><p>Clique esquerdo para revelar, clique direito para marcar com bandeira, clique do meio sobre um número satisfeito para revelar os vizinhos.</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>Um jogo Campo Minado baseado em Qt6.</p><p>Clique esquerdo para revelar, clique direito para marcar com bandeira, clique do meio sobre um número satisfeito para revelar os vizinhos.</p><p><b>Desenvolvido por IA</b> — cada linha de código, teste, tradução e nota de versão deste projeto foi escrita por um assistente de IA em colaboração com o mantenedor.</p><p>© Mavrikant</p>",
     "About QMineSweeper": "Sobre o QMineSweeper",
     "Auto (system)": "Automático (sistema)",
     "Boom": "Bum!",
@@ -678,6 +683,7 @@ PT: dict[str, str] = {
     "Average": "Média",
     "Last win: %1": "Última vitória: %1",
     "Last win": "Última vitória",
+    "Last loss": "Última derrota",
     "Flags placed: %1": "Bandeiras colocadas: %1",
     "Correct flags: %1 / %2": "Bandeiras corretas: %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "3BV parcial: %1 / %2 · 3BV/s: %3",
@@ -765,8 +771,8 @@ ZH: dict[str, str] = {
     "&New": "新建(&N)",
     "&Quit": "退出(&Q)",
     "&Settings": "设置(&S)",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>基于 Qt6 的扫雷游戏。</p><p>左键揭示，右键标记旗帜，在满足数字的格子上按中键可同时揭开周围格子。</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>基于 Qt6 的扫雷游戏。</p><p>左键揭示，右键标记旗帜，在满足数字的格子上按中键可同时揭开周围格子。</p><p><b>由 AI 开发</b>——本项目中的每一行代码、测试、翻译和发布说明，都是由 AI 助手与维护者协作编写的。</p><p>© Mavrikant</p>",
     "About QMineSweeper": "关于 QMineSweeper",
     "Auto (system)": "自动（系统）",
     "Boom": "轰！",
@@ -799,6 +805,7 @@ ZH: dict[str, str] = {
     "Average": "平均",
     "Last win: %1": "上次获胜：%1",
     "Last win": "上次获胜",
+    "Last loss": "上次失利",
     "Flags placed: %1": "已放置旗子：%1",
     "Correct flags: %1 / %2": "正确旗子：%1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "部分 3BV：%1 / %2 · 3BV/秒：%3",
@@ -886,8 +893,8 @@ HI: dict[str, str] = {
     "&New": "&नया",
     "&Quit": "&बाहर निकलें",
     "&Settings": "&सेटिंग्स",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>Qt6 पर आधारित माइनस्वीपर खेल।</p><p>बाएँ क्लिक से खोलें, दाएँ क्लिक से झंडा लगाएँ, संख्या पर मध्य क्लिक से आसपास के पड़ोसी खोलें।</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>Qt6 पर आधारित माइनस्वीपर खेल।</p><p>बाएँ क्लिक से खोलें, दाएँ क्लिक से झंडा लगाएँ, संख्या पर मध्य क्लिक से आसपास के पड़ोसी खोलें।</p><p><b>एआई द्वारा विकसित</b> — इस परियोजना की प्रत्येक कोड पंक्ति, परीक्षण, अनुवाद और रिलीज़ नोट एआई सहायक द्वारा अनुरक्षक के साथ मिलकर लिखा गया है।</p><p>© Mavrikant</p>",
     "About QMineSweeper": "QMineSweeper के बारे में",
     "Auto (system)": "स्वतः (सिस्टम)",
     "Boom": "धमाका!",
@@ -920,6 +927,7 @@ HI: dict[str, str] = {
     "Average": "औसत",
     "Last win: %1": "अंतिम जीत: %1",
     "Last win": "अंतिम जीत",
+    "Last loss": "अंतिम हार",
     "Flags placed: %1": "लगाए गए झंडे: %1",
     "Correct flags: %1 / %2": "सही झंडे: %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "आंशिक 3BV: %1 / %2 · 3BV/s: %3",
@@ -1007,8 +1015,8 @@ AR: dict[str, str] = {
     "&New": "&جديد",
     "&Quit": "&خروج",
     "&Settings": "الإ&عدادات",
-    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p>© Mavrikant</p>":
-        "<h3>QMineSweeper %1</h3><p>لعبة كانسة الألغام مبنية على Qt6.</p><p>انقر يسارياً للكشف، يميناً لوضع علم، وبالزر الأوسط على رقم مشبع لفتح الجيران.</p><p>© Mavrikant</p>",
+    "<h3>QMineSweeper %1</h3><p>A Qt6-based Minesweeper game.</p><p>Left-click to reveal, right-click to flag, middle-click on a satisfied number to chord.</p><p><b>Developed by AI</b> — every line of code, test, translation, and release note in this project was written by an AI assistant collaborating with the maintainer.</p><p>© Mavrikant</p>":
+        "<h3>QMineSweeper %1</h3><p>لعبة كانسة الألغام مبنية على Qt6.</p><p>انقر يسارياً للكشف، يميناً لوضع علم، وبالزر الأوسط على رقم مشبع لفتح الجيران.</p><p><b>طُوِّرت بواسطة الذكاء الاصطناعي</b> — كل سطر من الشيفرة والاختبار والترجمة وملاحظات الإصدار في هذا المشروع كتبه مساعد ذكاء اصطناعي بالتعاون مع المشرف على المشروع.</p><p>© Mavrikant</p>",
     "About QMineSweeper": "حول QMineSweeper",
     "Auto (system)": "تلقائي (النظام)",
     "Boom": "بوم!",
@@ -1041,6 +1049,7 @@ AR: dict[str, str] = {
     "Average": "المتوسط",
     "Last win: %1": "آخر فوز: %1",
     "Last win": "آخر فوز",
+    "Last loss": "آخر خسارة",
     "Flags placed: %1": "الأعلام الموضوعة: %1",
     "Correct flags: %1 / %2": "الأعلام الصحيحة: %1 / %2",
     "Partial 3BV: %1 / %2 · 3BV/s: %3": "3BV الجزئي: %1 / %2 · 3BV/ث: %3",
